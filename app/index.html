@@ -91,7 +91,11 @@
   .sidebar-head span{display:block; font-size:10.5px; color:var(--text-faint); margin-top:1px;}
   .nav{flex:1; overflow-y:auto; padding:14px 10px;}
   .nav-group{margin-bottom:18px;}
-  .nav-group-label{padding:0 10px 8px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-faint);}
+  .nav-group-label{padding:0 10px 8px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; color:var(--text-faint); cursor:pointer; user-select:none; display:flex; align-items:center; gap:5px;}
+  .nav-group-label:hover{color:var(--text-muted);}
+  .nav-group-chevron{display:inline-block; font-size:8px; transition:transform .15s; flex:none;}
+  .nav-group.collapsed .nav-group-chevron{transform:rotate(-90deg);}
+  .nav-group.collapsed .nav-item{display:none;}
   .nav-group.dim .nav-item{color:var(--text-faint);}
   .nav-item{
     position:relative; display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:none; background:none;
@@ -264,6 +268,8 @@
   .multi-row{display:flex; align-items:center; gap:4px;}
   .multi-add-btn{flex:0 0 auto; width:20px; height:20px; line-height:1; border:1px dashed var(--border-strong); border-radius:5px; background:transparent; color:var(--text-faint); cursor:pointer; font-size:13px; font-weight:700; padding:0;}
   .multi-add-btn:hover{color:var(--accent-strong); border-color:var(--accent);}
+  .multi-remove-btn{flex:0 0 auto; width:20px; height:20px; line-height:1; border:1px solid transparent; border-radius:5px; background:transparent; color:var(--text-faint); cursor:pointer; font-size:13px; font-weight:700; padding:0;}
+  .multi-remove-btn:hover{color:#e05555; border-color:#e05555;}
   td.usina-ok{background:var(--success-soft) !important;}
   td.usina-conferir{background:var(--warning-soft) !important;}
   td.usina-info{background:var(--info-soft) !important;}
@@ -282,6 +288,7 @@
   .import-card-desc{font-size:11.5px; color:var(--text-muted); margin:0 0 12px; line-height:1.5;}
   .import-dropzone{border:1.5px dashed var(--border-strong); border-radius:var(--radius); padding:16px 10px; text-align:center; cursor:pointer; color:var(--text-faint); font-size:11.5px; display:block;}
   .import-dropzone:hover{border-color:var(--accent); background:var(--accent-soft); color:var(--accent-strong);}
+  .import-dropzone.dragover{border-color:var(--accent-strong); background:var(--accent-soft); color:var(--accent-strong);}
   .import-dropzone .icon{font-size:18px; display:block; margin-bottom:6px;}
   .import-card.disabled{opacity:.65;}
   .import-card.disabled .import-dropzone{cursor:not-allowed;}
@@ -374,11 +381,14 @@
       </div>
     </div>
     <nav class="nav" id="nav">
-      <div class="nav-group" id="navCimento">
-        <div class="nav-group-label">Cimento — em foco</div>
+      <div class="nav-group" id="navCimento" data-group="cimento">
+        <div class="nav-group-label" data-toggle="cimento"><span class="nav-group-chevron">▾</span>Cimento — em foco</div>
       </div>
-      <div class="nav-group dim" id="navOutros">
-        <div class="nav-group-label">Outros módulos</div>
+      <div class="nav-group dim" id="navDados" data-group="dados">
+        <div class="nav-group-label" data-toggle="dados"><span class="nav-group-chevron">▾</span>Dados</div>
+      </div>
+      <div class="nav-group dim" id="navOutros" data-group="outros">
+        <div class="nav-group-label" data-toggle="outros"><span class="nav-group-chevron">▾</span>Outros</div>
       </div>
     </nav>
     <div class="sidebar-foot">Dados salvos automaticamente no banco. Telas “Dashboard”, “Operação”, “Exceções” e “Auditoria” ainda usam exemplos.</div>
@@ -396,6 +406,8 @@
 
       <section class="view active" id="view-programacao-cimento"></section>
       <section class="view" id="view-base-dados-cimento"></section>
+      <section class="view" id="view-notas-sefaz"></section>
+      <section class="view" id="view-lancamentos-puzl"></section>
       <section class="view" id="view-controle-pedidos-cimento"></section>
       <section class="view" id="view-consultas"></section>
       <section class="view" id="view-dashboard"></section>
@@ -424,6 +436,7 @@
   <div class="drawer-body" id="drawerBody"></div>
 </div>
 
+<script src="vendor/xlsx.full.min.js"></script>
 <script src="vendor/supabase.js"></script>
 <script src="config.js"></script>
 <script>
@@ -720,12 +733,21 @@
   // campo — filtros, exportação — segue funcionando sem mudança).
   function fabricaRotulo(fornecedor, material){ return fornecedor + " — " + material; }
   function fabricaSelectOptionsHtml(selecionado){
-    return '<option value="">—</option>' + FABRICAS_CATALOGO.map(function(f){
+    var opts = '<option value="">—</option>' + FABRICAS_CATALOGO.map(function(f){
       return '<optgroup label="'+esc(f.fornecedor)+'">' + f.materiais.map(function(mat){
         var rotulo = fabricaRotulo(f.fornecedor, mat);
         return '<option value="'+esc(rotulo)+'"'+(rotulo===selecionado?" selected":"")+'>'+esc(mat)+'</option>';
       }).join("") + '</optgroup>';
     }).join("");
+    // Valor vindo de uma importação (ou digitado antes de existir essa Base
+    // de Fábricas) que não bate com nenhuma opção cadastrada: em vez de sumir
+    // (select cairia no "—" sem nada marcado, perdendo o dado visualmente),
+    // aparece como uma opção extra destacada, com o texto original completo
+    // — editável depois, só que sem perder a informação até lá.
+    if (selecionado && !FABRICAS_CATALOGO.some(function(f){ return f.materiais.some(function(mat){ return fabricaRotulo(f.fornecedor, mat) === selecionado; }); })){
+      opts = '<option value="'+esc(selecionado)+'" selected>⚠️ '+esc(selecionado)+' (não reconhecido)</option>' + opts;
+    }
+    return opts;
   }
 
   /* ---------------- Controle de Pedidos de Cimento ---------------- */
@@ -840,8 +862,12 @@
     {id:"controle-pedidos-cimento", label:"Controle de Pedidos", icon:"🚚"},
     {id:"vpo", label:"VPO", icon:"🧾"}
   ];
-  var NAV = [
+  var NAV_DADOS = [
     {id:"base-dados-cimento", label:"Base de Dados", icon:"🗄️"},
+    {id:"notas-sefaz", label:"Notas SEFAZ", icon:"🧾"},
+    {id:"lancamentos-puzl", label:"Lançamentos PUZL", icon:"📋"}
+  ];
+  var NAV = [
     {id:"consultas", label:"Consultas", icon:"🔎"},
     {id:"dashboard", label:"Dashboard", icon:"📊"}, {id:"operacoes", label:"Operação", icon:"🚦"},
     {id:"exececoes", label:"Exceções", icon:"🛡️"}, {id:"dados", label:"Dados", icon:"🗂️"}, {id:"relatorios", label:"Relatórios", icon:"📈"},
@@ -849,23 +875,26 @@
   ];
   var TITLES = {
     "programacao-cimento":"Programação de Cimento", "base-dados-cimento":"Base de Dados — Entradas de Cimento",
+    "notas-sefaz":"Notas Fiscais (SEFAZ)", "lancamentos-puzl":"Lançamentos (PUZL)",
     "controle-pedidos-cimento":"Controle de Pedidos de Cimento", "consultas":"Consultas",
     dashboard:"Dashboard", operacoes:"Operação", vpo:"VPO — Vale Pedágio Obrigatório", exececoes:"Fila de Exceções",
     dados:"Dados", relatorios:"Relatórios", auditoria:"Auditoria", configuracoes:"Configurações"
   };
   var CRUMBS = {
     "programacao-cimento":"Cimento <b>›</b> Programação — envio diário por usina",
-    "base-dados-cimento":"Outros módulos <b>›</b> Base de Dados — importação e cadastro",
+    "base-dados-cimento":"Dados <b>›</b> Base de Dados — importação e cadastro",
+    "notas-sefaz":"Dados <b>›</b> Notas Fiscais (SEFAZ) — todas as notas importadas",
+    "lancamentos-puzl":"Dados <b>›</b> Lançamentos (PUZL) — todos os lançamentos importados",
     "controle-pedidos-cimento":"Cimento <b>›</b> Controle de Pedidos — conferência automática",
     "vpo":"Cimento <b>›</b> VPO — pedágio por roteiro",
-    "consultas":"Outros módulos <b>›</b> Consulta geral e consulta de pedágio",
-    dashboard:"Outros módulos <b>›</b> Visão geral das operações",
-    operacoes:"Outros módulos <b>›</b> Acompanhamento de operações",
-    exececoes:"Outros módulos <b>›</b> Itens que exigem intervenção humana",
-    dados:"Outros módulos <b>›</b> Cadastros em definição",
-    relatorios:"Outros módulos <b>›</b> Relatórios",
-    auditoria:"Outros módulos <b>›</b> Trilha de auditoria",
-    configuracoes:"Outros módulos <b>›</b> Configurações do sistema"
+    "consultas":"Outros <b>›</b> Consulta geral e consulta de pedágio",
+    dashboard:"Outros <b>›</b> Visão geral das operações",
+    operacoes:"Outros <b>›</b> Acompanhamento de operações",
+    exececoes:"Outros <b>›</b> Itens que exigem intervenção humana",
+    dados:"Outros <b>›</b> Cadastros em definição",
+    relatorios:"Outros <b>›</b> Relatórios",
+    auditoria:"Outros <b>›</b> Trilha de auditoria",
+    configuracoes:"Outros <b>›</b> Configurações do sistema"
   };
 
   function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
@@ -1062,6 +1091,15 @@
     b.addEventListener("click", function(){ showView(item.id); });
     navCimentoEl.appendChild(b);
   });
+  var navDadosEl = el("navDados");
+  NAV_DADOS.forEach(function(item){
+    var b = document.createElement("button");
+    b.className = "nav-item";
+    b.dataset.view = item.id;
+    b.innerHTML = '<span class="ic">'+item.icon+'</span>' + esc(item.label);
+    b.addEventListener("click", function(){ showView(item.id); });
+    navDadosEl.appendChild(b);
+  });
   var navEl = el("navOutros");
   NAV.forEach(function(item){
     var b = document.createElement("button");
@@ -1072,15 +1110,54 @@
     navEl.appendChild(b);
   });
 
+  /* Grupos de nav ocultáveis (Cimento em foco / Dados / Outros): clique no
+     rótulo do grupo recolhe/expande os itens dele. Estado persiste por
+     navegador (localStorage), com fallback silencioso se indisponível. */
+  var NAV_COLLAPSE_KEY = "concrelagos_nav_collapsed_groups";
+  function loadCollapsedGroups(){
+    try {
+      var raw = localStorage.getItem(NAV_COLLAPSE_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch (e){ return {}; }
+  }
+  function saveCollapsedGroups(state){
+    try { localStorage.setItem(NAV_COLLAPSE_KEY, JSON.stringify(state)); } catch (e){}
+  }
+  var navCollapsed = loadCollapsedGroups();
+  function applyNavCollapse(){
+    document.querySelectorAll(".nav-group[data-group]").forEach(function(g){
+      g.classList.toggle("collapsed", !!navCollapsed[g.dataset.group]);
+    });
+  }
+  document.querySelectorAll(".nav-group-label[data-toggle]").forEach(function(lbl){
+    lbl.addEventListener("click", function(){
+      var g = lbl.dataset.toggle;
+      navCollapsed[g] = !navCollapsed[g];
+      saveCollapsedGroups(navCollapsed);
+      applyNavCollapse();
+    });
+  });
+  applyNavCollapse();
+
   function showView(id){
     document.querySelectorAll(".nav-item").forEach(function(n){ n.classList.toggle("active", n.dataset.view === id); });
     document.querySelectorAll(".view").forEach(function(v){ v.classList.remove("active"); });
     el("view-" + id).classList.add("active");
     el("viewTitle").textContent = TITLES[id];
     el("viewCrumb").innerHTML = CRUMBS[id] || "";
-    // Controle de Pedidos depende do que foi cadastrado em Base de Dados — repinta
-    // toda vez que a tela é aberta pra refletir entradas importadas/adicionadas depois.
+    // As 3 telas (Programação, Base de Dados, Controle de Pedidos) se cruzam:
+    // Programação mostra o status SEFAZ (progEntryNFStatus) de cada linha, e
+    // Base de Dados/Controle de Pedidos mostram a conferência contra a
+    // Programação (matchProgramacao). Cada tela só é montada uma vez no
+    // carregamento — sem repintar ao entrar, editar numa tela não aparecia
+    // refletido nas outras até fazer alguma ação que já disparasse repintura
+    // por acaso (novo import, trocar período etc.). Repinta as 3 sempre que a
+    // tela é aberta, pra qualquer edição em qualquer uma aparecer nas demais.
     if (id === "controle-pedidos-cimento") paintPedidos();
+    else if (id === "base-dados-cimento") paintBaseDados();
+    else if (id === "notas-sefaz") paintNFes();
+    else if (id === "lancamentos-puzl") paintPuzl();
+    else if (id === "programacao-cimento" && typeof progPicker !== "undefined" && progPicker) paintBlocks();
   }
 
   /* ---------------- Date helpers ---------------- */
@@ -1091,6 +1168,32 @@
   function weekdayLong(d){ return d.toLocaleDateString("pt-BR", {weekday:"long"}); }
   function addDays(d, n){ var r = new Date(d); r.setDate(r.getDate()+n); return r; }
   function isSunday(d){ return d.getDay() === 0; }
+  // Datas que chegam de importação (EFIT/SEFAZ, PUZL) podem vir em formatos
+  // bem diferentes — "2026-09-22" (ISO, já no padrão interno), "22/09/2026"
+  // (BR, o mais comum ao copiar do Excel com célula formatada como data) ou
+  // até o número de série do Excel como texto puro (célula sem formatação
+  // de data aplicada, ex: "46283") — normaliza tudo pra ISO (YYYY-MM-DD),
+  // que é o formato usado internamente (matchProgramacao, o filtro de
+  // Período de Controle de Pedidos etc.). Sem isso, uma nota importada com
+  // data em formato diferente do ISO nunca aparece em nenhum filtro por
+  // período nem cruza com a Programação, mesmo estando "lá dentro".
+  function normalizeDateToISO(s){
+    s = String(s == null ? "" : s).trim();
+    if (!s) return "";
+    var mIso = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (mIso) return mIso[1] + "-" + pad2(parseInt(mIso[2], 10)) + "-" + pad2(parseInt(mIso[3], 10));
+    var mBr = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (mBr) return mBr[3] + "-" + pad2(parseInt(mBr[2], 10)) + "-" + pad2(parseInt(mBr[1], 10));
+    if (/^\d+(\.\d+)?$/.test(s)){
+      var serial = parseFloat(s);
+      if (serial > 20000 && serial < 60000){ // faixa plausível de datas (~1954–2064)
+        var ms = Date.UTC(1899, 11, 30) + Math.round(serial) * 86400000;
+        var d = new Date(ms);
+        return d.getUTCFullYear() + "-" + pad2(d.getUTCMonth()+1) + "-" + pad2(d.getUTCDate());
+      }
+    }
+    return s; // formato não reconhecido: mantém como veio, em vez de descartar
+  }
   function sameDay(a,b){ return toISO(a) === toISO(b); }
 
   var TODAY = (function(){ var n = new Date(); return new Date(n.getFullYear(), n.getMonth(), n.getDate()); })();
@@ -1398,8 +1501,9 @@
     var rows = vals.map(function(v, idx){
       var isLast = idx === vals.length - 1;
       var addBtn = (isLast && vals.length < max) ? '<button type="button" class="multi-add-btn" title="Adicionar mais um">+</button>' : "";
+      var removeBtn = '<button type="button" class="multi-remove-btn" title="Apagar">×</button>';
       return '<div class="multi-row"><input value="'+esc(v)+'" placeholder="'+esc(placeholder||"")+'" style="'+MULTI_INPUT_STYLE+'" ' +
-        'onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'transparent\'"/>' + addBtn + '</div>';
+        'onfocus="this.style.borderColor=\'var(--accent)\'" onblur="this.style.borderColor=\'transparent\'"/>' + addBtn + removeBtn + '</div>';
     }).join("");
     return '<td class="'+(tdClass||"")+'" style="padding:4px 6px;"><div class="multi-field" data-iso="'+iso+'" data-key="'+esc(key)+'" data-field="'+field+'" data-max="'+max+'" data-placeholder="'+esc(placeholder||"")+'">' + rows + '</div></td>';
   }
@@ -1417,7 +1521,8 @@
     var rows = vals.map(function(v, idx){
       var isLast = idx === vals.length - 1;
       var addBtn = (isLast && vals.length < max) ? '<button type="button" class="multi-add-btn" title="Adicionar mais um">+</button>' : "";
-      return '<div class="multi-row"><select class="multi-select-control" style="'+MULTI_SELECT_STYLE+'">' + fabricaSelectOptionsHtml(v) + '</select>' + addBtn + '</div>';
+      var removeBtn = '<button type="button" class="multi-remove-btn" title="Apagar">×</button>';
+      return '<div class="multi-row"><select class="multi-select-control" style="'+MULTI_SELECT_STYLE+'">' + fabricaSelectOptionsHtml(v) + '</select>' + addBtn + removeBtn + '</div>';
     }).join("");
     return '<td style="padding:4px 6px;"><div class="multi-field" data-iso="'+iso+'" data-key="'+esc(key)+'" data-field="fabrica" data-max="'+max+'">' + rows + '</div></td>';
   }
@@ -1430,32 +1535,64 @@
   function wireMultiField(container){
     container.addEventListener("change", function(e){
       if (!e.target.matches("input, select")) return;
-      var entry = getOrCreateEntry(container.dataset.iso, container.dataset.key);
-      var vals = Array.prototype.map.call(container.querySelectorAll("input, select"), function(el){ return el.value; });
-      entry[container.dataset.field] = multiJoin(vals);
+      syncMultiField(container);
     });
     container.addEventListener("click", function(e){
-      var btn = e.target.closest(".multi-add-btn");
-      if (!btn) return;
-      e.preventDefault();
-      var max = parseInt(container.dataset.max, 10) || 3;
-      var rows = container.querySelectorAll(".multi-row");
-      if (rows.length >= max) return;
-      var lastControl = rows[rows.length - 1].querySelector("input, select");
-      var novo = lastControl.cloneNode(true);
-      if (novo.tagName === "SELECT") novo.selectedIndex = 0; else novo.value = "";
-      btn.remove();
-      var div = document.createElement("div");
-      div.className = "multi-row";
-      div.appendChild(novo);
-      if (rows.length + 1 < max){
-        var newBtn = document.createElement("button");
-        newBtn.type = "button"; newBtn.className = "multi-add-btn"; newBtn.title = "Adicionar mais um"; newBtn.textContent = "+";
-        div.appendChild(newBtn);
+      var addBtn = e.target.closest(".multi-add-btn");
+      if (addBtn){
+        e.preventDefault();
+        var max = parseInt(container.dataset.max, 10) || 3;
+        var rows = container.querySelectorAll(".multi-row");
+        if (rows.length >= max) return;
+        var lastControl = rows[rows.length - 1].querySelector("input, select");
+        var novo = lastControl.cloneNode(true);
+        if (novo.tagName === "SELECT") { Array.prototype.slice.call(novo.querySelectorAll("option")).forEach(function(o){ if (/não reconhecido/.test(o.textContent)) o.remove(); }); novo.value = ""; } else novo.value = "";
+        addBtn.remove();
+        var div = document.createElement("div");
+        div.className = "multi-row";
+        div.appendChild(novo);
+        if (rows.length + 1 < max){
+          var newBtn = document.createElement("button");
+          newBtn.type = "button"; newBtn.className = "multi-add-btn"; newBtn.title = "Adicionar mais um"; newBtn.textContent = "+";
+          div.appendChild(newBtn);
+        }
+        var removeBtn = document.createElement("button");
+        removeBtn.type = "button"; removeBtn.className = "multi-remove-btn"; removeBtn.title = "Apagar"; removeBtn.textContent = "×";
+        div.appendChild(removeBtn);
+        container.appendChild(div);
+        novo.focus();
+        syncMultiField(container);
+        return;
       }
-      container.appendChild(div);
-      novo.focus();
+      var removeBtn2 = e.target.closest(".multi-remove-btn");
+      if (!removeBtn2) return;
+      e.preventDefault();
+      var row = removeBtn2.closest(".multi-row");
+      var allRows = container.querySelectorAll(".multi-row");
+      if (allRows.length > 1){
+        row.remove();
+        var remaining = container.querySelectorAll(".multi-row");
+        var last = remaining[remaining.length - 1];
+        if (last && !last.querySelector(".multi-add-btn")){
+          var max2 = parseInt(container.dataset.max, 10) || 3;
+          if (remaining.length < max2){
+            var newAddBtn = document.createElement("button");
+            newAddBtn.type = "button"; newAddBtn.className = "multi-add-btn"; newAddBtn.title = "Adicionar mais um"; newAddBtn.textContent = "+";
+            var lastRemoveBtn = last.querySelector(".multi-remove-btn");
+            last.insertBefore(newAddBtn, lastRemoveBtn);
+          }
+        }
+      } else {
+        var control = row.querySelector("input, select");
+        if (control.tagName === "SELECT") { control.value = ""; } else control.value = "";
+      }
+      syncMultiField(container);
     });
+  }
+  function syncMultiField(container){
+    var entry = getOrCreateEntry(container.dataset.iso, container.dataset.key);
+    var vals = Array.prototype.map.call(container.querySelectorAll("input, select"), function(el){ return el.value; });
+    entry[container.dataset.field] = multiJoin(vals);
   }
 
   /* ---------------- Base de Dados — importação por módulo ---------------- */
@@ -1710,11 +1847,11 @@
       var p = {
         id: 0,
         centralCompradora: parts[0]||"", cnpjComprador: parts[1]||"",
-        centralEntrada: parts[2]||"", dataEntrada: parts[3]||"",
+        centralEntrada: parts[2]||"", dataEntrada: normalizeDateToISO(parts[3]),
         fornecedor: parts[4]||"", cnpjFornecedor: parts[5]||"",
         tipo: parts[6]||"", grupo: parts[7]||"", categoria: parts[9]||"",
         item: parts[10]||"", documento: parts[11]||"", serie: parts[12]||"",
-        emissaoNF: parts[13]||"", unCompra: parts[17]||"", quantidade: parts[18]||""
+        emissaoNF: normalizeDateToISO(parts[13]), unCompra: parts[17]||"", quantidade: parts[18]||""
       };
       if (!p.documento || !p.item){ invalid++; return; }
       if (!materialEhCimento(p.item)){ naoCimento++; return; }
@@ -2001,7 +2138,7 @@
       var parts = line.indexOf("\t") !== -1 ? line.split("\t") : line.split(/[;,]/);
       parts = parts.map(function(p){ return p.trim(); });
       if (parts.length < 2 || !parts[0]){ invalid++; return; }
-      var nf = { id:0, numero: parts[0]||"", emissao: parts[1]||"", fornecedor: parts[2]||"", material: parts[3]||"", pedido: parts[4]||"", placa: parts[5]||"", usina: parts[6]||"", motorista:"", chave:"" };
+      var nf = { id:0, numero: parts[0]||"", emissao: normalizeDateToISO(parts[1]), fornecedor: parts[2]||"", material: parts[3]||"", pedido: parts[4]||"", placa: parts[5]||"", usina: parts[6]||"", motorista:"", chave:"" };
       // 1º critério: o próprio texto do Material do SEFAZ bate com o Catálogo
       // de Cimentos. 2º critério (novo): se não bateu, mas essa NF já tem um
       // lançamento correspondente importado da PUZL (por nº de documento) e o
@@ -2028,9 +2165,64 @@
     return {added:added, skipped:skipped, invalid:invalid, naoCimento:naoCimento, materiaisNovos:computeMateriaisNovosPendentes().length};
   }
 
+  // Lê o arquivo (.xlsx/.xls/.csv) escolhido/arrastado no dropzone e devolve
+  // texto separado por TAB, no mesmo formato que os parsers de importação já
+  // esperam (o mesmo que sai ao copiar células do Excel e colar na caixa de
+  // texto) — assim a importação por arquivo usa exatamente a mesma lógica de
+  // parsing que a colagem manual, sem duplicar regra nenhuma. Usa a
+  // biblioteca SheetJS (XLSX), embutida no próprio arquivo, então funciona
+  // offline, sem depender de internet.
+  function readSpreadsheetFile(file, cb){
+    if (!file) return;
+    if (typeof XLSX === "undefined"){ cb(null, "Biblioteca de planilha não carregou — tente colar o conteúdo manualmente."); return; }
+    var isCsv = /\.csv$/i.test(file.name);
+    var reader = new FileReader();
+    reader.onerror = function(){ cb(null, "Não foi possível ler o arquivo."); };
+    reader.onload = function(e){
+      try {
+        var wb = isCsv
+          ? XLSX.read(String(e.target.result || ""), {type:"string"})
+          : XLSX.read(new Uint8Array(e.target.result), {type:"array"});
+        var sheet = wb.Sheets[wb.SheetNames[0]];
+        var tsv = XLSX.utils.sheet_to_csv(sheet, {FS:"\t", blankrows:false});
+        cb(tsv);
+      } catch(err){
+        cb(null, "Erro ao ler a planilha: " + (err && err.message ? err.message : err));
+      }
+    };
+    if (isCsv) reader.readAsText(file, "utf-8"); else reader.readAsArrayBuffer(file);
+  }
+  // Liga um dropzone (label + input[type=file] escondido) tanto a arrastar-
+  // e-soltar quanto a clicar pra escolher — em ambos os casos, lê o arquivo
+  // de verdade (via readSpreadsheetFile) e chama onFile(tsv, nomeDoArquivo);
+  // em caso de erro de leitura, onError(msg).
+  function wireFileDropzone(labelId, inputId, onFile, onError){
+    var label = el(labelId).closest(".import-dropzone");
+    var input = el(inputId);
+    function handleFile(file){
+      if (!file) return;
+      readSpreadsheetFile(file, function(tsv, err){
+        if (err){ onError(err); return; }
+        onFile(tsv, file.name);
+      });
+    }
+    input.addEventListener("change", function(){
+      var f = this.files && this.files[0];
+      if (f) handleFile(f);
+    });
+    label.addEventListener("dragover", function(e){ e.preventDefault(); label.classList.add("dragover"); });
+    label.addEventListener("dragleave", function(){ label.classList.remove("dragover"); });
+    label.addEventListener("drop", function(e){
+      e.preventDefault();
+      label.classList.remove("dragover");
+      var f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) handleFile(f);
+    });
+  }
+
   function renderBaseDados(){
     el("view-base-dados-cimento").innerHTML =
-      '<div class="card banner" style="margin-bottom:16px;">Área central de importação de dados externos. <b>Entradas</b> agora é calculada automaticamente a partir dos <b>Lançamentos (PUZL)</b> — as duas eram o mesmo arquivo (o resumo de entradas real), então deixou de existir um cadastro manual separado; ver a tabela de Entradas mais abaixo, com a ligação já cruzada contra Programação e contra Notas Fiscais (SEFAZ). <b>Notas Fiscais (SEFAZ)</b> é a exportação das notas emitidas — é ela quem forma o Controle de Pedidos, ligada à Programação de Cimento por usina/placa/pedido; <b>Lançamentos (PUZL)</b> traz o mesmo universo de notas com o material mais limpo (inclusive pozolana), usado tanto pra confirmar o material de uma nota do SEFAZ quanto pra formar as Entradas.</div>' +
+      '<div class="card banner" style="margin-bottom:16px;">Área central de importação de dados externos. <b>Entradas</b> é calculada automaticamente a partir dos <b>Lançamentos (PUZL)</b>, com a ligação já cruzada contra Programação e contra Notas Fiscais (SEFAZ) — usada em Controle de Pedidos e na Programação de Cimento. <b>Notas Fiscais (SEFAZ)</b> é a exportação das notas emitidas — é ela quem forma o Controle de Pedidos, ligada à Programação de Cimento por usina/placa/pedido; <b>Lançamentos (PUZL)</b> traz o mesmo universo de notas com o material mais limpo (inclusive pozolana), usado tanto pra confirmar o material de uma nota do SEFAZ quanto pra formar as Entradas. Pra ver e filtrar tudo o que já foi importado, veja os módulos <b>Notas SEFAZ</b> e <b>Lançamentos PUZL</b>, logo abaixo de Base de Dados no menu.</div>' +
       '<div id="materiaisNovosCard"></div>' +
       '<div id="baseDadosStats"></div>' +
       '<div class="import-cards-grid">' +
@@ -2073,32 +2265,35 @@
             '<div class="import-paste-foot"><button class="btn-primary" id="importInboundBtn" style="padding:7px 13px;">Importar</button><span id="importInboundResult" style="font-size:11.5px;color:var(--text-muted);"></span></div>' +
           '</div>' +
         '</div>' +
+        '<div class="import-card">' +
+          '<div class="import-card-head">' +
+            '<div class="import-card-icon" style="background:var(--warning-soft);color:var(--warning);">📋</div>' +
+            '<div><div class="import-card-title">Programação de Cimento (antiga)</div><div class="import-card-subtitle">Planilha antiga, por dia</div></div>' +
+          '</div>' +
+          '<p class="import-card-desc">Cole o bloco copiado da planilha antiga (ou arraste o arquivo), no mesmo formato dela: uma linha "PROGRAMAÇÃO PARA O DIA DD/MM/AAAA (...)" seguida das linhas Usina / Placa / Fábrica / Pedido. Pode ter vários dias de uma vez. Usina sem programação (marcada com "***" na planilha) fica em branco. Usinas que já existem na Base de Usinas são casadas automaticamente; as demais entram como linha extra.</p>' +
+          '<label class="import-dropzone" for="programacaoFileInput"><span class="icon">⬆️</span><span id="programacaoFileLabel">Arraste ou clique para selecionar</span></label>' +
+          '<input type="file" id="programacaoFileInput" accept=".xlsx,.xls,.csv" style="display:none;"/>' +
+          '<div class="import-paste">' +
+            '<textarea id="importProgramacaoText" rows="4" placeholder="PROGRAMAÇÃO PARA O DIA 24/09/2026 ( QUINTA-FEIRA )\nUsina\tPLACA\tFÁBRICA\tPEDIDO\nGARDÊNIA\tHGJ4049\tCP 3 CSN SCZ\t9042814"></textarea>' +
+            '<div class="import-paste-foot"><button class="btn-primary" id="importProgramacaoBtn" style="padding:7px 13px;">Importar</button><span id="importProgramacaoResult" style="font-size:11.5px;color:var(--text-muted);"></span></div>' +
+          '</div>' +
+        '</div>' +
       '</div>' +
       '<div id="historicoCard" style="margin-bottom:16px;"></div>' +
-      '<div id="baseDadosCard" style="margin-bottom:16px;"></div>' +
-      '<div id="nfesCard" style="margin-bottom:16px;"></div>' +
-      '<div id="puzlCard" style="margin-bottom:16px;"></div>' +
       '<div id="catalogoCimentoCard" style="margin-bottom:16px;"></div>' +
       '<div id="usinasCadastroCard" style="margin-bottom:16px;"></div>' +
       '<div id="fabricasCatalogoCard" style="margin-bottom:16px;"></div>' +
       '<div id="codigosCimentoCard"></div>';
 
-    el("nfesFileInput").addEventListener("change", function(){
-      var f = this.files && this.files[0];
-      el("nfesFileLabel").textContent = f ? f.name : "Arraste ou clique para selecionar";
-      if (f) el("importNFesText").dataset.arquivo = f.name;
-    });
-    el("inboundFileInput").addEventListener("change", function(){
-      var f = this.files && this.files[0];
-      el("inboundFileLabel").textContent = f ? f.name : "Arraste ou clique para selecionar";
-      if (f) el("importInboundText").dataset.arquivo = f.name;
-    });
-    el("importInboundBtn").addEventListener("click", function(){
-      var txt = el("importInboundText").value;
+    // Cada importação tem 2 caminhos pro MESMO ponto de entrada (runImportX):
+    // colar na caixa de texto + clicar "Importar", ou soltar/escolher o
+    // arquivo (.xlsx/.xls/.csv) direto no dropzone — nesse 2º caso o arquivo
+    // é lido de verdade (readSpreadsheetFile) e a importação roda sozinha,
+    // sem precisar copiar/colar nada manualmente.
+    function runImportInbound(txt, arquivo){
       var r = importInboundCompletoFromText(txt);
       var msg = r.enriquecidas+" nota(s) enriquecida(s) (usina/motorista/placa)"+(r.semMatch?", "+r.semMatch+" não encontrada(s) na base (ignorada(s))":"")+(r.colisao?", "+r.colisao+" ignorada(s) por chave de acesso divergente (nº reaproveitado)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+".";
       el("importInboundResult").textContent = msg;
-      var arquivo = el("importInboundText").dataset.arquivo || "colado manualmente";
       if (r.enriquecidas) logImport(arquivo, "Inbound Completo (CNPJ/Motorista)", r.enriquecidas, r.enriquecidas + r.semMatch + r.colisao + r.invalid);
       el("importInboundText").value = "";
       delete el("importInboundText").dataset.arquivo;
@@ -2107,18 +2302,11 @@
       paintHistorico();
       paintNFes();
       paintBaseDados();
-    });
-    el("puzlFileInput").addEventListener("change", function(){
-      var f = this.files && this.files[0];
-      el("puzlFileLabel").textContent = f ? f.name : "Arraste ou clique para selecionar";
-      if (f) el("importPuzlText").dataset.arquivo = f.name;
-    });
-    el("importPuzlBtn").addEventListener("click", function(){
-      var txt = el("importPuzlText").value;
+    }
+    function runImportPuzl(txt, arquivo){
       var r = importPuzlFromText(txt);
       var msg = r.added+" novo(s) importado(s), "+r.skipped+" já cadastrado(s) ignorado(s)"+(r.naoCimento?", "+r.naoCimento+" ignorado(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+".";
       el("importPuzlResult").textContent = msg;
-      var arquivo = el("importPuzlText").dataset.arquivo || "colado manualmente";
       if (r.added || r.skipped || r.naoCimento) logImport(arquivo, "Lançamentos (PUZL)", r.added, r.added + r.skipped + r.invalid + r.naoCimento);
       el("importPuzlText").value = "";
       delete el("importPuzlText").dataset.arquivo;
@@ -2130,13 +2318,11 @@
       paintNFes();
       paintBaseDados();
       renderMateriaisNovos();
-    });
-    el("importNFesBtn").addEventListener("click", function(){
-      var txt = el("importNFesText").value;
+    }
+    function runImportNFes(txt, arquivo){
       var r = importNFesFromText(txt);
       var msg = r.added+" nova(s) importada(s), "+r.skipped+" já cadastrada(s) ignorada(s)"+(r.naoCimento?", "+r.naoCimento+" ignorada(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+(r.materiaisNovos?", "+r.materiaisNovos+" material(is) possivelmente novo(s) — ver alerta acima":"")+".";
       el("importNFesResult").textContent = msg;
-      var arquivo = el("importNFesText").dataset.arquivo || "colado manualmente";
       if (r.added || r.skipped || r.naoCimento) logImport(arquivo, "Notas Fiscais (SEFAZ)", r.added, r.added + r.skipped + r.invalid + r.naoCimento);
       el("importNFesText").value = "";
       delete el("importNFesText").dataset.arquivo;
@@ -2147,17 +2333,81 @@
       paintBaseDados();
       paintNFes();
       renderMateriaisNovos();
+    }
+
+    wireFileDropzone("nfesFileLabel", "nfesFileInput", function(tsv, nome){
+      el("nfesFileLabel").textContent = nome;
+      runImportNFes(tsv, nome);
+    }, function(msg){ el("importNFesResult").textContent = "⚠️ " + msg; });
+    wireFileDropzone("puzlFileLabel", "puzlFileInput", function(tsv, nome){
+      el("puzlFileLabel").textContent = nome;
+      runImportPuzl(tsv, nome);
+    }, function(msg){ el("importPuzlResult").textContent = "⚠️ " + msg; });
+    wireFileDropzone("inboundFileLabel", "inboundFileInput", function(tsv, nome){
+      el("inboundFileLabel").textContent = nome;
+      runImportInbound(tsv, nome);
+    }, function(msg){ el("importInboundResult").textContent = "⚠️ " + msg; });
+
+    function runImportProgramacao(txt, arquivo){
+      var r = importProgramacaoFromText(txt);
+      var msg = r.dias + " dia(s), " + r.atualizadas + " usina(s) preenchida(s)" +
+        (r.novasNaoReconhecidas ? ", " + r.novasNaoReconhecidas + " usina(s) não reconhecida(s) (entraram como linha extra)" : "") +
+        (r.linhasIgnoradas ? ", " + r.linhasIgnoradas + " linha(s) ignorada(s)" : "") + ".";
+      if (r.dias) logImport(arquivo, "Programação de Cimento", r.atualizadas + r.novasNaoReconhecidas, r.atualizadas + r.novasNaoReconhecidas + r.linhasIgnoradas);
+      el("importProgramacaoResult").textContent = msg;
+      el("importProgramacaoText").value = "";
+      el("programacaoFileLabel").textContent = "Arraste ou clique para selecionar";
+      el("programacaoFileInput").value = "";
+      if (typeof progPicker !== "undefined" && progPicker) paintBlocks();
+      paintHistorico();
+    }
+    wireFileDropzone("programacaoFileLabel", "programacaoFileInput", function(tsv, nome){
+      el("programacaoFileLabel").textContent = nome;
+      runImportProgramacao(tsv, nome);
+    }, function(msg){ el("importProgramacaoResult").textContent = "⚠️ " + msg; });
+
+    el("importInboundBtn").addEventListener("click", function(){
+      runImportInbound(el("importInboundText").value, el("importInboundText").dataset.arquivo || "colado manualmente");
+    });
+    el("importPuzlBtn").addEventListener("click", function(){
+      runImportPuzl(el("importPuzlText").value, el("importPuzlText").dataset.arquivo || "colado manualmente");
+    });
+    el("importNFesBtn").addEventListener("click", function(){
+      runImportNFes(el("importNFesText").value, el("importNFesText").dataset.arquivo || "colado manualmente");
+    });
+    el("importProgramacaoBtn").addEventListener("click", function(){
+      runImportProgramacao(el("importProgramacaoText").value, "colado manualmente");
     });
 
     paintHistorico();
     paintBaseDados();
-    paintNFes();
-    paintPuzl();
     renderMateriaisNovos();
     renderCatalogoCimentos();
     renderUsinasCadastro();
     renderFabricasCatalogo();
     renderCodigosCimento();
+  }
+
+  // Módulo próprio (fora de Base de Dados) só pra ver e filtrar TODAS as
+  // Notas Fiscais (SEFAZ) já importadas — mesma tabela que antes vivia
+  // dentro de Base de Dados, promovida a tela própria (menu > Notas SEFAZ),
+  // com filtro por coluna (xlEnhance) já em todas as colunas de dado. A
+  // importação continua só em Base de Dados; aqui é só consulta/edição.
+  function renderNotasSefaz(){
+    el("view-notas-sefaz").innerHTML =
+      '<div class="card banner" style="margin-bottom:16px;">Todas as notas fiscais (SEFAZ) já importadas, com filtro em cada coluna (clique na setinha do cabeçalho). Pra importar notas novas, use <b>Base de Dados</b>.</div>' +
+      '<div id="nfesCard"></div>';
+    paintNFes();
+  }
+  // Mesma ideia acima, só que pros Lançamentos (PUZL) — essa é a lista que
+  // antes aparecia duas vezes em Base de Dados (uma vez como "Entradas",
+  // outra como "Lançamentos importados da PUZL", ambas com a mesma
+  // contagem): agora só existe aqui, filtrável, sem repetição.
+  function renderLancamentosPuzl(){
+    el("view-lancamentos-puzl").innerHTML =
+      '<div class="card banner" style="margin-bottom:16px;">Todos os lançamentos (PUZL) já importados, com filtro em cada coluna (clique na setinha do cabeçalho). Pra importar lançamentos novos, use <b>Base de Dados</b>.</div>' +
+      '<div id="puzlCard"></div>';
+    paintPuzl();
   }
 
   // Lista dos lançamentos importados da PUZL — mesmo padrão visual de
@@ -2353,6 +2603,117 @@
     });
     return {added:added, updated:updated, invalid:invalid};
   }
+
+  // Importação da Programação de Cimento a partir de planilhas antigas
+  // (ex: Google Sheets), no MESMO formato em que a programação já aparece
+  // na tela/planilha: um cabeçalho "PROGRAMAÇÃO PARA O DIA DD/MM/AAAA (...)"
+  // por dia, seguido das linhas Usina / Placa / Fábrica / Pedido. Tolera
+  // colar direto do Sheets (células com quebra de linha vêm entre aspas,
+  // como várias entregas na mesma linha) — nesse caso, os valores viram
+  // "A / B / C", igual ao formato que os campos da Programação já aceitam.
+  function parseTsvRows(text){
+    var rows = [], row = [], cell = "", inQuotes = false;
+    var s = String(text||"");
+    for (var i = 0; i < s.length; i++){
+      var c = s[i];
+      if (inQuotes){
+        if (c === '"'){ if (s[i+1] === '"'){ cell += '"'; i++; } else inQuotes = false; }
+        else cell += c;
+      } else {
+        if (c === '"' && cell === "") inQuotes = true;
+        else if (c === "\t"){ row.push(cell); cell = ""; }
+        else if (c === "\n"){ row.push(cell); rows.push(row); row = []; cell = ""; }
+        else if (c === "\r"){ /* ignora */ }
+        else cell += c;
+      }
+    }
+    row.push(cell); rows.push(row);
+    return rows;
+  }
+  // "***...***" é o jeito que a planilha antiga marca uma usina sem
+  // programação naquele dia — vira célula vazia aqui. Múltiplos valores na
+  // mesma célula (quebra de linha, entregas diferentes) viram "A / B / C".
+  function limpaCelulaProg(v){
+    v = String(v||"").split(/\r?\n/).map(function(s){ return s.trim(); }).filter(Boolean).join(" / ").trim();
+    if (/^\*+$/.test(v)) return "";
+    return v;
+  }
+  // Palavras que indicam que o trecho é um recado escrito à mão (ex:
+  // "DESCARREGAR SEXTA - CARREGAR 18:30"), não uma lista de placas/pedidos —
+  // nesse caso o "-" faz parte da frase e NÃO deve separar valores.
+  var PROG_NOTA_LIVRE_RE = /\b(CARREGAR|DESCARREGAR|DEFINIR|CONFIRMAR|AGUARDAR|HR|HORAS|PLACA|PED|SEXTA|S[ÁA]BADO|DOMINGO|SEGUNDA|TER[ÇC]A|QUARTA|QUINTA)\b/i;
+  // Igual limpaCelulaProg (linha em branco de cada célula vira " / ", "***"
+  // vira vazio), mas pensado pro campo Placa/Pedido, onde a planilha às vezes
+  // junta mais de um valor na MESMA linha da célula usando "-" como separador
+  // (ex: "QQZ4J25 -AWJ5D35" = duas placas, "394522 - 394524" = dois pedidos)
+  // em vez de quebra de linha. Cada trecho só é separado no "-" quando não
+  // parece um recado escrito à mão (ver PROG_NOTA_LIVRE_RE) — assim frases
+  // como "DEFINIR PLACA - DESCARREGAR 26/09" continuam inteiras.
+  function limpaMultiPlacaPedido(v){
+    var base = limpaCelulaProg(v);
+    if (!base) return "";
+    var out = [];
+    base.split("/").forEach(function(seg){
+      seg = seg.trim();
+      if (!seg) return;
+      if (seg.indexOf("-") !== -1 && !PROG_NOTA_LIVRE_RE.test(seg)){
+        seg.split(/\s*-\s*/).forEach(function(x){ x = x.trim(); if (x) out.push(x); });
+      } else {
+        out.push(seg);
+      }
+    });
+    return out.join(" / ");
+  }
+  function importProgramacaoFromText(text){
+    var byNorm = {};
+    MASTER_USINAS.forEach(function(u){ byNorm[normalizeMaterial(u)] = u; });
+    var diasSet = {}, atualizadas = 0, novasNaoReconhecidas = 0, linhasIgnoradas = 0;
+    var currentISO = null;
+    // Colar direto da planilha antiga sempre trazia a Usina na 1ª coluna
+    // (índice 0), mas um arquivo .xlsx lido inteiro (via arrastar o arquivo)
+    // pode ter colunas extras antes da Usina — ex: checkboxes/flags de
+    // conferência ("TRUE"/"FALSE") que o Excel guarda mas não aparecem
+    // quando alguém seleciona e copia só a partir da coluna Usina. colOffset
+    // detecta isso: acha a coluna real da Usina pela linha de cabeçalho
+    // ("Usina/Placa/Fábrica/Pedido") e usa esse deslocamento pro resto do
+    // arquivo — sem isso, cada linha era lida a partir da coluna errada
+    // (pegando o texto do checkbox como se fosse o nome da usina).
+    var colOffset = 0;
+    parseTsvRows(text).forEach(function(cells){
+      var joined = cells.join(" ");
+      var m = /PROGRAMA[ÇC][ÃA]O\s+PARA\s+O\s+DIA\s+(\d{2})\/(\d{2})\/(\d{4})/i.exec(joined);
+      if (m){
+        currentISO = m[3] + "-" + m[2] + "-" + m[1];
+        if (!cementScheduleByDate[currentISO]) cementScheduleByDate[currentISO] = {ref:"", isException:isSunday(fromISO(currentISO)), entries:[]};
+        diasSet[currentISO] = true;
+        return;
+      }
+      var headerIdx = cells.findIndex(function(c){ return /^usinas?$/i.test(String(c||"").trim()); });
+      if (headerIdx !== -1){ colOffset = headerIdx; return; } // cabeçalho da tabela — também fixa a coluna real da Usina
+      var usinaRaw = limpaCelulaProg(cells[colOffset]);
+      if (!usinaRaw) return; // linha vazia/separadora, ignora
+      if (!currentISO) { linhasIgnoradas++; return; } // linha de dado antes de qualquer cabeçalho de dia
+      var placa = limpaMultiPlacaPedido(cells[colOffset+1]);
+      var fabrica = limpaCelulaProg(cells[colOffset+2]);
+      var pedido = limpaMultiPlacaPedido(cells.slice(colOffset+3).join("\n"));
+      var norm = normalizeMaterial(usinaRaw);
+      var reconhecida = !!byNorm[norm];
+      var usinaFinal = reconhecida ? byNorm[norm] : usinaRaw;
+      var day = cementScheduleByDate[currentISO];
+      var entry = day.entries.find(function(e){ return normalizeMaterial(e.usina || "") === norm; });
+      if (!entry){
+        entry = {usina: usinaFinal, carretas:"", fabrica:"", pedido:"", obs:""};
+        if (!reconhecida){ entry.__key = "extra-import-" + Date.now() + "-" + Math.random().toString(36).slice(2,7); novasNaoReconhecidas++; }
+        day.entries.push(entry);
+      }
+      if (placa || fabrica || pedido) atualizadas++;
+      if (placa) entry.carretas = placa;
+      if (fabrica) entry.fabrica = fabrica;
+      if (pedido) entry.pedido = pedido;
+    });
+    return {dias: Object.keys(diasSet).length, atualizadas: atualizadas, novasNaoReconhecidas: novasNaoReconhecidas, linhasIgnoradas: linhasIgnoradas};
+  }
+
   function renderUsinasCadastro(){
     var cardEl = el("usinasCadastroCard");
     if (!cardEl) return;
@@ -2506,54 +2867,13 @@
       '</div>';
   }
 
-  // Rótulo + selo de cor de uma situação de conferência (mesmas opções que a
-  // Programação de Cimento já usa, ver SITUACAO_OPTS).
-  function situacaoBadge(situacao){
-    var opt = SITUACAO_OPTS.find(function(o){ return o.value === situacao; });
-    return '<span class="badge '+(opt?opt.tone:"usina-info")+'">'+esc(opt?opt.label:situacao)+'</span>';
-  }
-  // Tabela de Entradas — é aqui que a ligação em 3 pontas fica visível numa
-  // única linha: cada entrada (derivada da PUZL) já vem cruzada (1) contra a
-  // Programação de Cimento (matchProgramacao — mesma lógica do Controle de
-  // Pedidos) e (2) contra as Notas Fiscais do SEFAZ importadas
-  // (entradaNFStatus — pelo nº do Documento). Não é mais um cadastro manual:
-  // pra corrigir algo aqui, corrige/reimporta o Lançamento (PUZL)
-  // correspondente, que essa tabela é recalculada sozinha (recomputeEntradasFromPuzl).
-  var baseDadosEntradasOpen = true;
+  // "Entradas — derivadas dos Lançamentos (PUZL)" tinha uma tabela própria
+  // aqui, mas ela mostrava a mesma lista (mesma contagem) que o novo módulo
+  // filtrável Lançamentos (PUZL) — repetido sem necessidade. A ligação com
+  // Programação/NF (matchProgramacao, entradaNFStatus) continua existindo e
+  // é usada em Controle de Pedidos e na própria Programação — só a tabela
+  // duplicada saiu daqui; o que resta em Base de Dados é o resumo (stats).
   function paintBaseDados(){
-    var rows = cementEntradas.map(function(en){
-      var prog = matchProgramacao(en);
-      var nfSt = entradaNFStatus(en);
-      var nfBadge = nfSt.status === "confirmada"
-        ? '<span class="badge success">✅ '+esc(nfSt.nf.numero)+'</span>'
-        : nfSt.status === "emitida"
-          ? '<span class="badge warning">🕒 aguardando NF nº '+esc(en.documento)+' no SEFAZ</span>'
-          : '<span class="badge neutral">sem documento</span>';
-      var progDetalhe = prog.entry
-        ? '<span class="faint" style="font-size:11px;"> ('+esc(prog.dataProgramada||"")+(prog.entry.pedido&&prog.entry.pedido!=="—"?" · pedido "+esc(prog.entry.pedido):"")+')</span>'
-        : '';
-      return '<tr>' +
-        '<td class="cell-strong">'+esc(en.documento)+'</td>' +
-        '<td class="muted">'+esc(en.data)+'</td>' +
-        '<td class="muted">'+esc(en.usina)+'</td>' +
-        '<td class="muted">'+esc(en.fabrica)+'</td>' +
-        '<td class="muted">'+esc(en.quantidade)+'</td>' +
-        '<td>'+situacaoBadge(prog.situacao)+progDetalhe+'</td>' +
-        '<td>'+nfBadge+'</td>' +
-        '</tr>';
-    }).join("");
-
-    el("baseDadosCard").innerHTML =
-      '<details'+(baseDadosEntradasOpen?" open":"")+'><summary style="cursor:pointer;padding:12px 18px;font-size:13.5px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">Entradas — derivadas dos Lançamentos (PUZL) ('+cementEntradas.length+')</summary>' +
-      '<div class="card" style="margin-top:8px;">' +
-      '<p class="import-card-desc" style="margin:0 0 10px;">Cada linha vem de um Lançamento (PUZL) real. <b>Vs. Programação</b> cruza data + fábrica/pedido contra a Programação de Cimento; <b>Vs. NF (SEFAZ)</b> cruza o mesmo nº de Documento contra as Notas Fiscais importadas — as duas pontas da mesma nota, lado a lado.</p>' +
-      (cementEntradas.length
-        ? '<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Data entrada</th><th>Usina</th><th>Fábrica</th><th>Quantidade</th><th>Vs. Programação</th><th>Vs. NF (SEFAZ)</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
-        : '<p class="prog-empty">Nenhuma entrada ainda — importe os Lançamentos (PUZL) acima.</p>') +
-      '</div></details>';
-
-    el("baseDadosCard").querySelector("details").addEventListener("toggle", function(e){ baseDadosEntradasOpen = e.target.open; });
-    xlEnhance(el("baseDadosCard"), "entradas", []);
     paintBaseDadosStats();
   }
 
@@ -3706,7 +4026,7 @@
   }
   var bootJa = false;
   function bootRender(){
-    renderProgramacaoCimento(); renderBaseDados(); renderControlePedidos(); renderConsultas();
+    renderProgramacaoCimento(); renderBaseDados(); renderNotasSefaz(); renderLancamentosPuzl(); renderControlePedidos(); renderConsultas();
     renderDashboard(); renderOperacoes(); renderVpo(); renderExcecoes(); renderAuditoria();
     if (!bootJa) { el("viewCrumb").innerHTML = CRUMBS["programacao-cimento"]; bootJa = true; }
   }
@@ -3770,3 +4090,4 @@
 
 })();
 </script>
+

@@ -1164,6 +1164,7 @@
   function pad2(n){ return n < 10 ? "0"+n : ""+n; }
   function toISO(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
   function fromISO(s){ var p = s.split("-").map(Number); return new Date(p[0], p[1]-1, p[2]); }
+  function brDate(s){ s = String(s == null ? "" : s); var m = s.match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + "/" + m[2] + "/" + m[1] : s; }
   function fmtBR(d){ return pad2(d.getDate())+"/"+pad2(d.getMonth()+1)+"/"+d.getFullYear(); }
   function weekdayLong(d){ return d.toLocaleDateString("pt-BR", {weekday:"long"}); }
   function addDays(d, n){ var r = new Date(d); r.setDate(r.getDate()+n); return r; }
@@ -1833,7 +1834,27 @@
   // ignoradas. Cole a planilha inteira (com cabeçalho ou não, tanto faz —
   // linhas sem um Documento+Item válidos são só puladas).
   function puzlKey(p){ return String(p.documento||"").trim().toUpperCase()+"||"+String(p.serie||"").trim().toUpperCase()+"||"+String(p.centralEntrada||"").trim().toUpperCase(); }
+  var ignoradasUltima = [];
+  function ign(motivo, linha){ if (ignoradasUltima.length < 300) ignoradasUltima.push({m: motivo, l: String(linha || "").replace(/\t+/g, " | ").slice(0, 170)}); }
+  function mostrarIgnoradas(id){
+    var span = el(id); if (!span) return;
+    var host = span.parentNode;
+    var velho = host.parentNode.querySelector(".ign-det[data-for='" + id + "']"); if (velho) velho.remove();
+    if (!ignoradasUltima.length) return;
+    var grupos = {}, ordem = [];
+    ignoradasUltima.forEach(function(g){ if (!grupos[g.m]) { grupos[g.m] = []; ordem.push(g.m); } grupos[g.m].push(g.l); });
+    var html = ordem.map(function(m){
+      var ls = grupos[m];
+      return '<div style="margin:8px 0 2px;font-weight:600;">' + esc(m) + ' <span class="faint">(' + ls.length + ')</span></div>' +
+        ls.slice(0, 8).map(function(l){ return '<div style="font-family:monospace;font-size:10.5px;color:var(--text-faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(l) + '</div>'; }).join("") +
+        (ls.length > 8 ? '<div class="faint" style="font-size:10.5px;">… e mais ' + (ls.length - 8) + '</div>' : "");
+    }).join("");
+    var det = document.createElement("details"); det.className = "ign-det"; det.dataset["for"] = id; det.style.cssText = "margin-top:8px;font-size:11.5px;";
+    det.innerHTML = '<summary style="cursor:pointer;color:var(--warning);">Ver as ' + ignoradasUltima.length + ' linha(s) ignorada(s) e o motivo</summary>' + html;
+    host.insertAdjacentElement("afterend", det);
+  }
   function importPuzlFromText(text){
+    ignoradasUltima = [];
     var existing = {};
     puzlEntradas.forEach(function(p){ existing[puzlKey(p)] = true; });
     var added = 0, skipped = 0, invalid = 0, naoCimento = 0;
@@ -1841,7 +1862,7 @@
       line = line.trim();
       if (!line) return;
       var parts = line.split("\t");
-      if (parts.length < 12) { invalid++; return; }
+      if (parts.length < 12) { invalid++; ign("Poucas colunas (" + parts.length + "; esperado 12 ou mais)", line); return; }
       // Pula a linha de cabeçalho, se vier junto.
       if (/^central\s*comprador/i.test(parts[0]||"")) return;
       var p = {
@@ -1853,10 +1874,10 @@
         item: parts[10]||"", documento: parts[11]||"", serie: parts[12]||"",
         emissaoNF: normalizeDateToISO(parts[13]), unCompra: parts[17]||"", quantidade: parts[18]||""
       };
-      if (!p.documento || !p.item){ invalid++; return; }
-      if (!materialEhCimento(p.item)){ naoCimento++; return; }
+      if (!p.documento || !p.item){ invalid++; ign(!p.documento ? "Sem número de documento" : "Sem item", line); return; }
+      if (!materialEhCimento(p.item)){ naoCimento++; ign("Item fora do Catálogo de Cimentos: " + p.item, line); return; }
       var key = puzlKey(p);
-      if (existing[key]){ skipped++; return; }
+      if (existing[key]){ skipped++; ign("Repetida (mesmo documento, série e central já lançados): documento " + p.documento, line); return; }
       existing[key] = true;
       p.id = ++puzlSeq;
       puzlEntradas.push(p);
@@ -2129,6 +2150,7 @@
   }
 
   function importNFesFromText(text){
+    ignoradasUltima = [];
     var existing = {};
     cementNFes.forEach(function(nf){ existing[nfKey(nf)] = true; });
     var added = 0, skipped = 0, invalid = 0, naoCimento = 0;
@@ -2137,7 +2159,7 @@
       if (!line) return;
       var parts = line.indexOf("\t") !== -1 ? line.split("\t") : line.split(/[;,]/);
       parts = parts.map(function(p){ return p.trim(); });
-      if (parts.length < 2 || !parts[0]){ invalid++; return; }
+      if (parts.length < 2 || !parts[0]){ invalid++; ign("Linha sem número da nota ou com poucas colunas", line); return; }
       var nf = { id:0, numero: parts[0]||"", emissao: normalizeDateToISO(parts[1]), fornecedor: parts[2]||"", material: parts[3]||"", pedido: parts[4]||"", placa: parts[5]||"", usina: parts[6]||"", motorista:"", chave:"" };
       // 1º critério: o próprio texto do Material do SEFAZ bate com o Catálogo
       // de Cimentos. 2º critério (novo): se não bateu, mas essa NF já tem um
@@ -2147,7 +2169,7 @@
       // do SEFAZ preservado como veio (materialEfetivo mostra o confirmado).
       var puzlMatch = puzlMatchParaNF(nf);
       var ehCimento = materialEhCimento(nf.material) || (puzlMatch && materialEhCimento(puzlMatch.item));
-      if (!ehCimento){ naoCimento++; return; }
+      if (!ehCimento){ naoCimento++; ign("Material fora do Catálogo de Cimentos: " + (nf.material || "(vazio)"), line); return; }
       var descricaoComplementar = parts[7] || "";
       if (descricaoComplementar && (!nf.pedido || !nf.placa || !nf.usina)){
         var extraido = extractFromDescricao(nf.fornecedor, descricaoComplementar);
@@ -2156,7 +2178,7 @@
         if (!nf.usina && extraido.usina) nf.usina = extraido.usina;
       }
       var key = nfKey(nf);
-      if (!key || existing[key]){ skipped++; return; }
+      if (!key || existing[key]){ skipped++; ign("Nota repetida: " + nf.numero, line); return; }
       existing[key] = true;
       nf.id = ++nfSeq;
       cementNFes.push(nf);
@@ -2184,6 +2206,16 @@
           ? XLSX.read(String(e.target.result || ""), {type:"string"})
           : XLSX.read(new Uint8Array(e.target.result), {type:"array"});
         var sheet = wb.Sheets[wb.SheetNames[0]];
+        if (!isCsv) Object.keys(sheet).forEach(function(addr){
+          if (addr.charAt(0) === "!") return;
+          var c = sheet[addr];
+          if (!c || c.t !== "n" || typeof c.v !== "number") return;
+          var v = c.v, txt;
+          if (Math.floor(v) === v) txt = String(v);                          // inteiro (documento, nº, data em série): sem formato de data
+          else if (v > 20000 && v < 60000) txt = String(Math.floor(v));       // data com hora: só o dia
+          else txt = String(Math.round(v * 1e6) / 1e6).replace(".", ",");     // decimal à brasileira
+          c.w = txt;
+        });
         var tsv = XLSX.utils.sheet_to_csv(sheet, {FS:"\t", blankrows:false});
         cb(tsv);
       } catch(err){
@@ -2306,7 +2338,7 @@
     function runImportPuzl(txt, arquivo){
       var r = importPuzlFromText(txt);
       var msg = r.added+" novo(s) importado(s), "+r.skipped+" já cadastrado(s) ignorado(s)"+(r.naoCimento?", "+r.naoCimento+" ignorado(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+".";
-      el("importPuzlResult").textContent = msg;
+      el("importPuzlResult").textContent = msg; mostrarIgnoradas("importPuzlResult");
       if (r.added || r.skipped || r.naoCimento) logImport(arquivo, "Lançamentos (PUZL)", r.added, r.added + r.skipped + r.invalid + r.naoCimento);
       el("importPuzlText").value = "";
       delete el("importPuzlText").dataset.arquivo;
@@ -2322,7 +2354,7 @@
     function runImportNFes(txt, arquivo){
       var r = importNFesFromText(txt);
       var msg = r.added+" nova(s) importada(s), "+r.skipped+" já cadastrada(s) ignorada(s)"+(r.naoCimento?", "+r.naoCimento+" ignorada(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+(r.materiaisNovos?", "+r.materiaisNovos+" material(is) possivelmente novo(s) — ver alerta acima":"")+".";
-      el("importNFesResult").textContent = msg;
+      el("importNFesResult").textContent = msg; mostrarIgnoradas("importNFesResult");
       if (r.added || r.skipped || r.naoCimento) logImport(arquivo, "Notas Fiscais (SEFAZ)", r.added, r.added + r.skipped + r.invalid + r.naoCimento);
       el("importNFesText").value = "";
       delete el("importNFesText").dataset.arquivo;
@@ -2423,8 +2455,8 @@
     if (!cardEl) return;
     var rows = puzlEntradas.map(function(p){
       return '<tr>' +
-        '<td class="cell-strong">'+esc(p.documento)+(p.serie?' <span class="faint">série '+esc(p.serie)+'</span>':'')+'</td>' +
-        '<td class="muted">'+esc(p.emissaoNF)+'</td>' +
+        '<td class="cell-strong">'+esc(p.documento)+'</td>' +
+        '<td class="muted">'+esc(brDate(p.emissaoNF))+'</td>' +
         '<td><span class="badge neutral">'+esc(p.fornecedor)+'</span></td>' +
         '<td class="muted">'+esc(p.item)+'</td>' +
         '<td class="muted">'+esc(p.centralEntrada)+'</td>' +
@@ -2790,7 +2822,7 @@
         : '<span class="faint" style="font-style:italic;font-size:11px;">sem lançamento PUZL</span>';
       return '<tr>' +
         '<td class="cell-strong">'+esc(nf.numero)+'</td>' +
-        '<td class="muted">'+esc(nf.emissao)+'</td>' +
+        '<td class="muted">'+esc(brDate(nf.emissao))+'</td>' +
         '<td><span class="badge neutral">'+esc(nf.fornecedor)+'</span></td>' +
         '<td class="muted">'+esc(nf.material)+'</td>' +
         '<td>'+materialPuzlCell+'</td>' +
@@ -2977,7 +3009,7 @@
         : '<span class="badge warning">Emitida</span>';
       return '<tr>' +
         '<td class="'+toneClass+'" style="padding:8px 10px;font-size:12.5px;">'+esc(nf.numero)+'</td>' +
-        '<td style="padding:8px 10px;font-size:12.5px;">'+esc(nf.emissao)+'</td>' +
+        '<td style="padding:8px 10px;font-size:12.5px;">'+esc(brDate(nf.emissao))+'</td>' +
         '<td style="padding:8px 10px;font-size:12.5px;"><span class="badge neutral">'+esc(nf.fornecedor)+'</span></td>' +
         '<td style="padding:8px 10px;font-size:12.5px;">'+pedidoCell+'</td>' +
         '<td style="padding:8px 10px;font-size:12.5px;">'+usina+'</td>' +
@@ -3019,7 +3051,7 @@
         ? '<span class="faint" style="font-style:italic;font-size:11px;">sem documento</span>'
         : '<span class="badge warning">NF '+esc(doc)+' não importada</span>';
       return '<tr>' +
-        '<td style="padding:8px 10px;font-size:12.5px;">'+esc(en.data)+'</td>' +
+        '<td style="padding:8px 10px;font-size:12.5px;">'+esc(brDate(en.data))+'</td>' +
         '<td style="padding:8px 10px;font-size:12.5px;">'+esc(en.usina)+'</td>' +
         '<td style="padding:8px 10px;font-size:12.5px;">'+esc(en.fabrica)+'</td>' +
         '<td style="padding:8px 10px;font-size:12.5px;">'+esc(en.pedido)+'</td>' +
@@ -3114,11 +3146,11 @@
         var meta = SITUACAO_OPTS.find(function(s){ return s.value === m.situacao; });
         var toneClass = meta ? meta.tone : "";
         var progInfo = m.entry
-          ? esc(m.entry.usina) + ' · ' + esc(m.entry.fabrica) + (m.dataProgramada && m.dataProgramada !== en.data ? ' (programado '+esc(m.dataProgramada)+')' : '')
+          ? esc(m.entry.usina) + ' · ' + esc(m.entry.fabrica) + (m.dataProgramada && m.dataProgramada !== en.data ? ' (programado '+esc(brDate(m.dataProgramada))+')' : '')
           : '<span class="faint" style="font-style:italic;">sem correspondência</span>';
         return '<tr>' +
           '<td class="cell-strong">#'+esc(en.id)+'</td>' +
-          '<td class="muted">'+esc(en.data)+'</td>' +
+          '<td class="muted">'+esc(brDate(en.data))+'</td>' +
           '<td>'+esc(en.usina)+'</td>' +
           '<td><span class="badge neutral">'+esc(en.fabrica)+'</span></td>' +
           '<td>'+esc(en.pedido||"—")+'</td>' +
@@ -3142,7 +3174,7 @@
           : '<span class="badge neutral">Não identificado</span>';
         return '<tr>' +
           '<td class="cell-strong">#'+esc(en.id)+'</td>' +
-          '<td class="muted">'+esc(en.data)+'</td>' +
+          '<td class="muted">'+esc(brDate(en.data))+'</td>' +
           '<td>'+esc(en.usina)+'</td>' +
           '<td><span class="badge neutral">'+esc(en.fabrica)+'</span></td>' +
           '<td class="muted">'+esc(rota ? rota.fabrica : "—")+'</td>' +
@@ -4002,8 +4034,10 @@
     clearTimeout(syncTimer);
     syncTimer = setTimeout(function(){
       if (syncState === "salvando") { syncTimer = setTimeout(function(){ scheduleSync(); }, 600); return; }
-      if (syncState === "erro" || temMudanca()) syncNow();
-      else if (syncState === "pendente") setSyncState("salvo");
+      try {
+        if (syncState === "erro" || temMudanca()) syncNow();
+        else if (syncState === "pendente") setSyncState("salvo");
+      } catch (e) { setSyncState("erro", "Erro interno ao conferir alterações: " + (e && e.message)); }
     }, 1200);
   }
   ["click", "change", "input", "keyup", "paste", "drop"].forEach(function(evn){ document.addEventListener(evn, scheduleSync, true); });

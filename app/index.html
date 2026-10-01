@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Concrelagos Logística</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="boot" class="center-msg">Carregando…</div>
+
+<!-- LOGIN -->
+<main id="login" class="login" hidden>
+  <form id="loginForm" class="panel login-box" autocomplete="on">
+    <h1>Concrelagos Logística</h1>
+    <p class="sub">Entre com seu usuário e senha.</p>
+    <div class="field"><label for="lu">Usuário</label><input id="lu" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
+    <div class="field"><label for="lp">Senha</label><input id="lp" name="password" type="password" autocomplete="current-password" required></div>
+    <button class="btn" type="submit" id="loginGo">Entrar</button>
+    <div class="msg" id="loginMsg" role="alert"></div>
+  </form>
+</main>
+
+<!-- APP -->
+<div id="app" class="wrap" hidden>
+  <header class="top">
+    <div class="brand"><h1>Concrelagos Logística</h1></div>
+    <div class="who">
+      <span id="whoTxt" class="muted"></span>
+      <button class="btn ghost small" id="btnConta" type="button">Trocar senha</button>
+      <button class="btn ghost small" id="btnSair" type="button">Sair</button>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" id="tabs">
+    <button role="tab" data-tab="resumo" aria-selected="true">Resumo</button>
+    <button role="tab" data-tab="prog" aria-selected="false">Programação de Cimento</button>
+    <button role="tab" data-tab="aprov" aria-selected="false">Aprovação <span class="badge" id="badgeAprov" hidden></span></button>
+    <button role="tab" data-tab="notas" aria-selected="false">Notas SEFAZ</button>
+    <button role="tab" data-tab="puzl" aria-selected="false">Lançamentos PUZL</button>
+  </nav>
+
+  <main id="main">
+    <section data-pane="resumo"></section>
+    <section data-pane="prog" hidden></section>
+    <section data-pane="aprov" hidden></section>
+    <section data-pane="notas" hidden></section>
+    <section data-pane="puzl" hidden></section>
+    <section data-pane="conta" hidden></section>
+  </main>
+</div>
+
+<script src="vendor/supabase.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

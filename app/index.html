@@ -1652,7 +1652,31 @@
       id: ++histSeq, arquivo: arquivo, modulo: modulo, registros: added, total: total,
       dataHora: fmtDataHora(new Date()), status: "Salvo"
     });
-    if (typeof persistImport === "function") persistImport(importHistorico[0]);
+    var entry0 = importHistorico[0];
+    try { entry0.dbId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : null; } catch (e) { entry0.dbId = null; }
+    if (entry0.dbId){
+      if (/PUZL/i.test(modulo)) puzlEntradas.forEach(function(p){ if (p.impId === undefined) p.impId = entry0.dbId; });
+      if (/SEFAZ/i.test(modulo)) cementNFes.forEach(function(n){ if (n.impId === undefined) n.impId = entry0.dbId; });
+    }
+    if (typeof persistImport === "function") persistImport(entry0);
+  }
+  // true = pode tirar do histórico (e já apagou os registros ligados a ele)
+  function removerImportacao(h){
+    var id = h && h.dbId;
+    var nP = id ? puzlEntradas.filter(function(p){ return p.impId === id; }).length : 0;
+    var nN = id ? cementNFes.filter(function(n){ return n.impId === id; }).length : 0;
+    if (nP + nN){
+      var partes = [];
+      if (nP) partes.push(nP + " lançamento(s) da PUZL");
+      if (nN) partes.push(nN + " nota(s) do SEFAZ");
+      if (!window.confirm("Apagar esta importação também apaga o que ela trouxe: " + partes.join(" e ") + ".\n\nContinuar?")) return false;
+      puzlEntradas = puzlEntradas.filter(function(p){ return p.impId !== id; });
+      cementNFes = cementNFes.filter(function(n){ return n.impId !== id; });
+      recomputeEntradasFromPuzl();
+      paintPuzl(); paintNFes(); paintBaseDados(); renderMateriaisNovos();
+    }
+    if (typeof unpersistImport === "function") unpersistImport(h);
+    return true;
   }
 
   // ---- Notas Fiscais (SEFAZ) ----
@@ -1720,6 +1744,12 @@
   // cadastrado aqui). Sem isso, normalizeMaterial cortava a letra acentuada
   // inteira (ex: "fábrica" virava "FBRICA", não "FABRICA") e quebrava o match.
   function stripAccents(s){ return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g, ""); }
+  function limpaGranel(m){
+    return String(m == null ? "" : m).replace(/\s+A\s+GRANEL\b/gi, "").replace(/\bGRANEL\b/gi, "").replace(/[\s-]+$/g, "").replace(/\s+/g, " ").trim();
+  }
+  function materialChaveFab(m){
+    return limpaGranel(m).toUpperCase().replace(/^(CIMENTO\s+)?(PORTLAND\s+)?/, "").replace(/[^A-Z0-9]/g, "");
+  }
   function normalizeMaterial(s){ return stripAccents(String(s||"")).toUpperCase().replace(/[^A-Z0-9]/g, ""); }
   function materialExcluido(material){
     var norm = normalizeMaterial(material);
@@ -2625,8 +2655,8 @@
           } else {
             fab = FABRICAS_CATALOGO[parseInt(val, 10)];
           }
-          if (fab && !fab.materiais.some(function(m){ return normalizeMaterial(m) === normalizeMaterial(p.material); })){
-            fab.materiais.push(p.material);
+          if (fab && !fab.materiais.some(function(m){ return materialChaveFab(m) === materialChaveFab(p.material); })){
+            fab.materiais.push(limpaGranel(p.material));
           }
           paint();
           renderFabricasCatalogo();
@@ -3003,7 +3033,7 @@
     el("historicoCard").querySelector("details").addEventListener("toggle", function(e){ historicoOpen = e.target.open; });
     el("historicoCard").querySelectorAll("[data-delhist]").forEach(function(btn){
       btn.addEventListener("click", function(){
-        importHistorico = importHistorico.filter(function(h){ if (h.id === parseInt(btn.dataset.delhist,10)) { if (typeof unpersistImport === "function") unpersistImport(h); return false; } return true; });
+        importHistorico = importHistorico.filter(function(h){ if (h.id === parseInt(btn.dataset.delhist,10)) { return !removerImportacao(h); } return true; });
         paintHistorico();
       });
     });
@@ -3476,9 +3506,9 @@
         paint();
       });
       el("fabAddMaterialBtn").addEventListener("click", function(){
-        var v = el("fabNovoMaterial").value.trim();
+        var v = limpaGranel(el("fabNovoMaterial").value);
         if (!v) return;
-        if (f.materiais.some(function(m){ return m.toUpperCase() === v.toUpperCase(); })) return;
+        if (f.materiais.some(function(m){ return materialChaveFab(m) === materialChaveFab(v); })) return;
         f.materiais.push(v);
         detailsOpen = true;
         paint();
@@ -4000,14 +4030,14 @@
     });
     cementNFes.length = 0;
     nRows.forEach(function(n, i){
-      cementNFes.push({ id: i + 1, numero: nz(n.numero), emissao: nz(n.emissao), fornecedor: nz(n.fornecedor), material: nz(n.material), pedido: nz(n.pedido), placa: nz(n.placa), usina: nz(n.usina), motorista: nz(n.motorista), chave: nz(n.chave), status: nz(n.status) || "Autorizada", tipo: nz(n.tipo) || "compra" });
+      cementNFes.push({ id: i + 1, numero: nz(n.numero), emissao: nz(n.emissao), fornecedor: nz(n.fornecedor), material: nz(n.material), pedido: nz(n.pedido), placa: nz(n.placa), usina: nz(n.usina), motorista: nz(n.motorista), chave: nz(n.chave), status: nz(n.status) || "Autorizada", tipo: nz(n.tipo) || "compra", impId: nz(n.importacao_id) || null });
     });
     nfSeq = cementNFes.length;
     puzlEntradas.length = 0;
     pRows.forEach(function(p, i){
       puzlEntradas.push({ id: i + 1, centralCompradora: nz(p.central_compradora), cnpjComprador: nz(p.cnpj_comprador), centralEntrada: nz(p.central_entrada), dataEntrada: nz(p.data_entrada),
         fornecedor: nz(p.fornecedor), cnpjFornecedor: nz(p.cnpj_fornecedor), tipo: nz(p.tipo), grupo: nz(p.grupo), categoria: nz(p.categoria), item: nz(p.item), documento: nz(p.documento),
-        serie: nz(p.serie), emissaoNF: nz(p.emissao_nf), unCompra: nz(p.un_compra), quantidade: fmtQtd(p.quantidade) });
+        serie: nz(p.serie), emissaoNF: nz(p.emissao_nf), unCompra: nz(p.un_compra), quantidade: fmtQtd(p.quantidade), impId: nz(p.importacao_id) || null });
     });
     puzlSeq = puzlEntradas.length;
 
@@ -4093,13 +4123,13 @@
     });
     cementNFes.forEach(function(n){
       var k = nfKey(n); if (!k) return;
-      s.notas[k] = JSON.stringify({ numero: String(n.numero).trim(), emissao: toIsoDate(n.emissao), fornecedor: n.fornecedor || "", material: n.material || "", pedido: n.pedido || "", placa: n.placa || "", usina: n.usina || "", motorista: n.motorista || "", chave: n.chave || "", status: n.status || "Autorizada", tipo: n.tipo || "compra" });
+      s.notas[k] = JSON.stringify({ numero: String(n.numero).trim(), emissao: toIsoDate(n.emissao), fornecedor: n.fornecedor || "", material: n.material || "", pedido: n.pedido || "", placa: n.placa || "", usina: n.usina || "", motorista: n.motorista || "", chave: n.chave || "", status: n.status || "Autorizada", tipo: n.tipo || "compra", importacao_id: n.impId || null });
     });
     puzlEntradas.forEach(function(p){
       var k = puzlKey(p); if (!String(p.documento || "").trim()) return;
       s.puzl[k] = JSON.stringify({ central_compradora: p.centralCompradora || "", cnpj_comprador: p.cnpjComprador || "", central_entrada: p.centralEntrada || "", data_entrada: toIsoDate(p.dataEntrada),
         fornecedor: p.fornecedor || "", cnpj_fornecedor: p.cnpjFornecedor || "", tipo: p.tipo || "", grupo: p.grupo || "", categoria: p.categoria || "", item: p.item || "", documento: String(p.documento).trim(),
-        serie: p.serie || "", emissao_nf: toIsoDate(p.emissaoNF), un_compra: p.unCompra || "", quantidade: parseQtd(p.quantidade) });
+        serie: p.serie || "", emissao_nf: toIsoDate(p.emissaoNF), un_compra: p.unCompra || "", quantidade: parseQtd(p.quantidade), importacao_id: p.impId || null });
     });
     usinasCadastro.forEach(function(u){
       var k = String(u.usina || "").trim().toUpperCase(); if (!k) return;
@@ -4119,8 +4149,8 @@
   /* ---------- histórico de importações: grava e apaga no banco ---------- */
   function persistImport(entry){
     if (!ME || !sb || ME.papel === "leitura") return;
-    sb.from("historico_importacoes").insert({ empresa_id: ME.empresa_id, arquivo: entry.arquivo, modulo: entry.modulo, registros: entry.registros, total: entry.total, usuario: ME.nome })
-      .select("id").single().then(function(r){ if (!r.error && r.data) entry.dbId = r.data.id; });
+    sb.from("historico_importacoes").insert({ id: entry.dbId || undefined, empresa_id: ME.empresa_id, arquivo: entry.arquivo, modulo: entry.modulo, registros: entry.registros, total: entry.total, usuario: ME.nome })
+      .select("id").single().then(function(r){ if (!r.error && r.data && !entry.dbId) entry.dbId = r.data.id; });
     entry.dataHora += " · " + ME.nome;
   }
   function unpersistImport(entry){

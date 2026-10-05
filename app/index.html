@@ -336,6 +336,12 @@
     .content{padding:16px;}
   }
 
+  tr.nf-cancelada td{background:var(--danger-soft) !important; color:var(--danger);}
+  tr.nf-cancelada td .badge.neutral{background:transparent; color:var(--danger); border:1px solid var(--danger);}
+  tr.nf-transf td{background:var(--info-soft) !important;}
+  .nf-msg{display:block; font-size:10.5px; font-weight:800; letter-spacing:.4px; color:var(--danger); margin-top:2px;}
+  .nf-msg.info{color:var(--info);}
+
   .btn-mini{background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:5px 10px; font-size:11.5px; font-weight:600; cursor:pointer;}
   .btn-mini:hover{background:var(--surface-3);}
   #loadingOverlay{position:fixed; inset:0; z-index:9999; background:var(--bg); display:none; align-items:center; justify-content:center; font-size:14px; color:var(--text-muted);}
@@ -1393,7 +1399,9 @@
         // uma nota confirmada no SEFAZ, mostra "Descarregada"; se tiver
         // documento lançado mas ainda sem confirmação no SEFAZ, "Emitida".
         var nfSt = progEntryNFStatus(e);
-        var nfCell = '<td style="padding:4px 6px;">' + (
+        var nfCanc = nfCanceladasLigadas(e).map(function(nf){ return '<span class="badge danger" title="Esta nota está CANCELADA no SEFAZ">🚫 NF '+esc(nf.numero)+' CANCELADA</span>'; }).join(" ");
+        var nfCell = '<td style="padding:4px 6px;">' + nfCanc + (
+          nfSt === "cancelada" ? '<span class="badge danger">🚫 NF CANCELADA</span>' :
           nfSt === "confirmada" ? '<span class="badge success">✅ Descarregada</span>' :
           nfSt === "emitida" ? '<span class="badge warning">Emitida</span>' :
           '<span class="faint" style="font-style:italic;font-size:11px;">—</span>'
@@ -1672,7 +1680,8 @@
   // aparece claro como "POZOLANA"/"POZOLANA PLX" — ver puzlMatchParaNF abaixo,
   // que também é consultado na importação como um 2º critério pra decidir se
   // uma nota é cimento, quando o texto puro do SEFAZ não bate com nada aqui.
-  var CEMENTO_CATALOGO = ["CIMENTO", "CP I", "CP II", "CP III", "CP IV", "CP V", "POZOLANA"];
+  var CEMENTO_CATALOGO = ["CIMENTO", "CP I", "CP II", "CP III", "CP IV", "CP V", "POZOLANA", "ESCORIA MOIDA", "POZOMIX", "ADICAO MINERAL", "BLEND"];
+  var CEMENTO_EXCLUIR = ["MANGOTE"];   // exceções: se o material contém um destes termos, NÃO é cimento (mesmo que bata com o catálogo)
   // Remove acentos (á, ã, ç, õ...) sem apagar a letra embaixo deles — usado
   // antes de comparar textos vindos de fontes diferentes (SEFAZ, PUZL,
   // catálogo cadastrado à mão), que nem sempre grafam acento do mesmo jeito
@@ -1681,11 +1690,21 @@
   // inteira (ex: "fábrica" virava "FBRICA", não "FABRICA") e quebrava o match.
   function stripAccents(s){ return String(s||"").normalize("NFD").replace(/[̀-ͯ]/g, ""); }
   function normalizeMaterial(s){ return stripAccents(String(s||"")).toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+  function materialExcluido(material){
+    var norm = normalizeMaterial(material);
+    if (!norm) return false;
+    return CEMENTO_EXCLUIR.some(function(termo){ var t = normalizeMaterial(termo); return t && norm.indexOf(t) !== -1; });
+  }
   function materialEhCimento(material){
     var norm = normalizeMaterial(material);
     if (!norm) return false;
-    return CEMENTO_CATALOGO.some(function(termo){ return norm.indexOf(normalizeMaterial(termo)) !== -1; });
+    if (materialExcluido(material)) return false;
+    return CEMENTO_CATALOGO.some(function(termo){ var t = normalizeMaterial(termo); return t && norm.indexOf(t) !== -1; });
   }
+  // Nota cancelada ou transferência entre filiais: entram só pra registro.
+  function nfCancelada(nf){ return !!nf && nf.status === "Cancelada"; }
+  function nfTransf(nf){ return !!nf && nf.tipo === "transferencia"; }
+  function nfSoRegistro(nf){ return nfCancelada(nf) || nfTransf(nf); }
 
   // Acha, nos códigos cadastrados em "Códigos por Fornecedor", qual usina
   // corresponde a um código de cliente (ex: CSN "CLIENTE: 27858" -> TAQUARA).
@@ -1895,8 +1914,19 @@
     if (!alvo) return [];
     return puzlEntradas.filter(function(p){ return normalizePedidoNum(p.documento) === alvo; });
   }
+  var FORN_STOP = {LTDA:1, COMPANHIA:1, EMPRESA:1, INDUSTRIA:1, COMERCIO:1, BRASIL:1, CIMENTO:1, CIMENTOS:1, SOCIEDADE:1, ANONIMA:1, RECUPERACAO:1, JUDICIAL:1, FABRICA:1, FILIAL:1};
+  function fornTokens(s){
+    return stripAccents(String(s || "")).toUpperCase().split(/[^A-Z0-9]+/).filter(function(w){ return w.length >= 3 && !FORN_STOP[w] && !/^\d+$/.test(w); });
+  }
+  function puzlFornecedorCompativel(nf, p){
+    var a = normalizeMaterial(nf.fornecedor), b = normalizeMaterial(p.fornecedor);
+    if (!a || !b) return true;                                   // sem nome de um dos lados: não dá pra descartar
+    if (a.indexOf(b) !== -1 || b.indexOf(a) !== -1) return true;
+    var ta = fornTokens(nf.fornecedor), tb = fornTokens(p.fornecedor);
+    return ta.some(function(w){ return tb.indexOf(w) !== -1; });
+  }
   function puzlMatchParaNF(nf){
-    var candidatos = puzlEntradasByDocumento(nf.numero);
+    var candidatos = puzlEntradasByDocumento(nf.numero).filter(function(p){ return puzlFornecedorCompativel(nf, p); });
     if (!candidatos.length) return null;
     if (candidatos.length === 1) return candidatos[0];
     var alvo = normalizeMaterial(nf.fornecedor);
@@ -2011,6 +2041,7 @@
     var doc = String(en.documento||"").trim();
     if (!doc) return {status:"sem_doc", nf:null};
     var nf = nfByNumero(doc);
+    if (nf && nfCancelada(nf)) return {status:"cancelada", nf:nf};
     return nf ? {status:"confirmada", nf:nf} : {status:"emitida", nf:null};
   }
   // Acha a entrada do resumo (Base de Dados > Entradas) cujo Documento/NF bate
@@ -2027,12 +2058,21 @@
   function entradasParaProgEntry(progEntry){
     return cementEntradas.filter(function(en){ return matchProgramacao(en).entry === progEntry; });
   }
+  // Notas CANCELADAS do SEFAZ que se ligam a essa linha da Programação (por pedido ou usina+placa+data)
+  function nfCanceladasLigadas(progEntry){
+    return cementNFes.filter(function(nf){
+      if (!nfCancelada(nf)) return false;
+      var m = nfProgMatch(nf);
+      return !!m && m.entry === progEntry && m.matchedBy !== "usina_data_placa_diverge";
+    });
+  }
   function progEntryNFStatus(progEntry){
     var best = "none";
     entradasParaProgEntry(progEntry).forEach(function(en){
       var st = entradaNFStatus(en).status;
-      if (st === "confirmada") best = "confirmada";
-      else if (st === "emitida" && best !== "confirmada") best = "emitida";
+      if (st === "cancelada") best = "cancelada";
+      else if (st === "confirmada" && best !== "cancelada") best = "confirmada";
+      else if (st === "emitida" && best !== "confirmada" && best !== "cancelada") best = "emitida";
     });
     return best; // "none" | "emitida" | "confirmada"
   }
@@ -2139,7 +2179,7 @@
     var pendentes = [];
     cementNFes.forEach(function(nf){
       var material = materialEfetivo(nf);
-      if (!nf.fornecedor || !material) return;
+      if (nfSoRegistro(nf) || !nf.fornecedor || !material) return;
       if (materialJaConhecido(nf.fornecedor, material)) return;
       var key = materialNovoKey(nf.fornecedor, material);
       if (materiaisIgnorados[key] || vistos[key]) return;
@@ -2149,28 +2189,59 @@
     return pendentes;
   }
 
+  // Layouts aceitos (nesta ordem de preferência):
+  //  1) Com cabeçalho (qualquer ordem de colunas) — o do SEFAZ real: Chave, Número, Emissão,
+  //     Status, ..., Nome, ..., Volume, ..., Placa, Material, Descrição Complementar.
+  //  2) Sem cabeçalho, com 23 colunas ou mais — mesmo layout do SEFAZ, em posição fixa.
+  //  3) Antigo, sem cabeçalho: Número, Emissão, Fornecedor, Material, Pedido, Placa, Usina[, Descrição].
+  // "Número" vem como "430652/0" (número/série): a série é descartada pra casar com o Documento da PUZL.
+  // Status "Cancelada" e notas emitidas pela própria Concrelagos (transferência) entram só pra registro.
+  var NF_LAYOUT_SEFAZ = { CHAVE:0, NUMERO:1, EMISSAO:2, STATUS:3, CNPJ:5, NOME:6, VOLUME:12, TRANSPORTADOR:18, PLACA:20, MATERIAL:21, DESCRICAOCOMPLEMENTAR:22 };
+  var NF_LAYOUT_ANTIGO = { NUMERO:0, EMISSAO:1, FORNECEDOR:2, MATERIAL:3, PEDIDO:4, PLACA:5, USINA:6, DESCRICAOCOMPLEMENTAR:7 };
+  function nfFornecedorCimenteiro(nome){
+    var n = String(nome || "");
+    return SEFAZ_PARSERS.some(function(r){ return r.match.test(n); }) || /CIMENT|CIRCLUA|VITTORIA/i.test(n);
+  }
   function importNFesFromText(text){
     ignoradasUltima = [];
     var existing = {};
-    cementNFes.forEach(function(nf){ existing[nfKey(nf)] = true; });
-    var added = 0, skipped = 0, invalid = 0, naoCimento = 0;
-    String(text||"").split(/\r?\n/).forEach(function(line){
-      line = line.trim();
-      if (!line) return;
+    cementNFes.forEach(function(nf){ existing[nfKey(nf)] = nf; });
+    var added = 0, skipped = 0, invalid = 0, naoCimento = 0, atualizadas = 0, canceladas = 0, transferencias = 0;
+    var cols = null;
+    var hn = function(s){ return stripAccents(String(s || "")).toUpperCase().replace(/[^A-Z0-9]/g, ""); };
+    String(text || "").split(/\r?\n/).forEach(function(line){
+      line = line.replace(/\s+$/, "");
+      if (!line.trim()) return;
       var parts = line.indexOf("\t") !== -1 ? line.split("\t") : line.split(/[;,]/);
       parts = parts.map(function(p){ return p.trim(); });
-      if (parts.length < 2 || !parts[0]){ invalid++; ign("Linha sem número da nota ou com poucas colunas", line); return; }
-      var nf = { id:0, numero: parts[0]||"", emissao: normalizeDateToISO(parts[1]), fornecedor: parts[2]||"", material: parts[3]||"", pedido: parts[4]||"", placa: parts[5]||"", usina: parts[6]||"", motorista:"", chave:"" };
-      // 1º critério: o próprio texto do Material do SEFAZ bate com o Catálogo
-      // de Cimentos. 2º critério (novo): se não bateu, mas essa NF já tem um
-      // lançamento correspondente importado da PUZL (por nº de documento) e o
-      // item da PUZL é reconhecido como cimento (ex: "POZOLANA", que o texto
-      // do SEFAZ nem sempre deixa claro) — ainda assim entra, com o material
-      // do SEFAZ preservado como veio (materialEfetivo mostra o confirmado).
+      var norm = parts.map(hn);
+      if (norm.indexOf("NUMERO") !== -1 && norm.indexOf("MATERIAL") !== -1 && norm.indexOf("EMISSAO") !== -1){
+        cols = {}; norm.forEach(function(n, i){ if (n && cols[n] == null) cols[n] = i; });   // linha de cabeçalho
+        return;
+      }
+      var lay = cols || (parts.length >= 23 ? NF_LAYOUT_SEFAZ : NF_LAYOUT_ANTIGO);
+      var g = function(){
+        for (var i = 0; i < arguments.length; i++){ var ix = lay[arguments[i]]; if (ix != null && parts[ix] != null && parts[ix] !== "") return parts[ix]; }
+        return "";
+      };
+      var numeroBruto = g("NUMERO");
+      if (!numeroBruto || (!cols && parts.length < 2)){ invalid++; ign("Linha sem número da nota ou com poucas colunas", line); return; }
+      var numero = numeroBruto.split("/")[0].trim();
+      if (!numero){ invalid++; ign("Linha sem número da nota", line); return; }
+      var status = /cancel/i.test(g("STATUS")) ? "Cancelada" : "Autorizada";
+      var nf = { id:0, numero: numero, emissao: normalizeDateToISO(g("EMISSAO")), fornecedor: g("NOME", "FORNECEDOR"), material: g("MATERIAL"), pedido: g("PEDIDO"), placa: g("PLACA"), usina: g("USINA"), motorista:"", chave: g("CHAVE"), status: status, tipo: "compra" };
+      // transferência: emitida pela própria Concrelagos (nome ou CNPJ de uma usina cadastrada)
+      if (/CONCRELAGOS/i.test(nf.fornecedor) || usinaByCnpj(g("CNPJ"))) nf.tipo = "transferencia";
       var puzlMatch = puzlMatchParaNF(nf);
       var ehCimento = materialEhCimento(nf.material) || (puzlMatch && materialEhCimento(puzlMatch.item));
-      if (!ehCimento){ naoCimento++; ign("Material fora do Catálogo de Cimentos: " + (nf.material || "(vazio)"), line); return; }
-      var descricaoComplementar = parts[7] || "";
+      // nota cancelada costuma vir sem material: se é de um cimenteiro conhecido, registra mesmo assim
+      if (!ehCimento && status === "Cancelada" && !nf.material && nfFornecedorCimenteiro(nf.fornecedor)) ehCimento = true;
+      if (!ehCimento){
+        naoCimento++;
+        ign(materialExcluido(nf.material) ? "Material na lista de exceções do catálogo: " + nf.material : "Material fora do Catálogo de Cimentos: " + (nf.material || "(vazio)"), line);
+        return;
+      }
+      var descricaoComplementar = g("DESCRICAOCOMPLEMENTAR");
       if (descricaoComplementar && (!nf.pedido || !nf.placa || !nf.usina)){
         var extraido = extractFromDescricao(nf.fornecedor, descricaoComplementar);
         if (!nf.pedido && extraido.pedido) nf.pedido = extraido.pedido;
@@ -2178,13 +2249,20 @@
         if (!nf.usina && extraido.usina) nf.usina = extraido.usina;
       }
       var key = nfKey(nf);
-      if (!key || existing[key]){ skipped++; ign("Nota repetida: " + nf.numero, line); return; }
-      existing[key] = true;
+      var ja = existing[key];
+      if (ja){
+        // reimportação: se a nota já existia e agora veio cancelada, só atualiza o status
+        if (status === "Cancelada" && ja.status !== "Cancelada"){ ja.status = "Cancelada"; atualizadas++; return; }
+        skipped++; ign("Nota repetida: " + nf.numero + (ja.fornecedor ? " (já cadastrada de " + ja.fornecedor + ")" : ""), line); return;
+      }
+      existing[key] = nf;
       nf.id = ++nfSeq;
       cementNFes.push(nf);
       added++;
+      if (status === "Cancelada") canceladas++;
+      if (nf.tipo === "transferencia") transferencias++;
     });
-    return {added:added, skipped:skipped, invalid:invalid, naoCimento:naoCimento, materiaisNovos:computeMateriaisNovosPendentes().length};
+    return {added:added, skipped:skipped, invalid:invalid, naoCimento:naoCimento, atualizadas:atualizadas, canceladas:canceladas, transferencias:transferencias, materiaisNovos:computeMateriaisNovosPendentes().length};
   }
 
   // Lê o arquivo (.xlsx/.xls/.csv) escolhido/arrastado no dropzone e devolve
@@ -2209,6 +2287,7 @@
         if (!isCsv) Object.keys(sheet).forEach(function(addr){
           if (addr.charAt(0) === "!") return;
           var c = sheet[addr];
+          if (c && c.t === "s" && typeof c.v === "string" && /[\t\r\n"]/.test(c.v)){ c.v = c.v.replace(/[\t\r\n]+/g, " ").replace(/"/g, "'"); c.w = c.v; return; }   // texto com tab/quebra/aspas não quebra a linha
           if (!c || c.t !== "n" || typeof c.v !== "number") return;
           var v = c.v, txt;
           if (Math.floor(v) === v) txt = String(v);                          // inteiro (documento, nº, data em série): sem formato de data
@@ -2353,9 +2432,9 @@
     }
     function runImportNFes(txt, arquivo){
       var r = importNFesFromText(txt);
-      var msg = r.added+" nova(s) importada(s), "+r.skipped+" já cadastrada(s) ignorada(s)"+(r.naoCimento?", "+r.naoCimento+" ignorada(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+(r.materiaisNovos?", "+r.materiaisNovos+" material(is) possivelmente novo(s) — ver alerta acima":"")+".";
+      var msg = r.added+" nova(s) importada(s)"+(r.canceladas?" ("+r.canceladas+" cancelada(s), só registro)":"")+(r.transferencias?" ("+r.transferencias+" transferência(s), só registro)":"")+(r.atualizadas?", "+r.atualizadas+" passou(aram) a cancelada":"")+", "+r.skipped+" já cadastrada(s) ignorada(s)"+(r.naoCimento?", "+r.naoCimento+" ignorada(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+(r.materiaisNovos?", "+r.materiaisNovos+" material(is) possivelmente novo(s) — ver alerta acima":"")+".";
       el("importNFesResult").textContent = msg; mostrarIgnoradas("importNFesResult");
-      if (r.added || r.skipped || r.naoCimento) logImport(arquivo, "Notas Fiscais (SEFAZ)", r.added, r.added + r.skipped + r.invalid + r.naoCimento);
+      if (r.added || r.skipped || r.naoCimento || r.atualizadas) logImport(arquivo, "Notas Fiscais (SEFAZ)", r.added, r.added + r.skipped + r.invalid + r.naoCimento);
       el("importNFesText").value = "";
       delete el("importNFesText").dataset.arquivo;
       el("nfesFileLabel").textContent = "Arraste ou clique para selecionar";
@@ -2556,19 +2635,33 @@
   function renderCatalogoCimentos(){
     var cardEl = el("catalogoCimentoCard");
     if (!cardEl) return;
+    function podeRemover(){ return typeof ME !== "undefined" && ME && ME.papel === "admin"; }
     function paint(){
+      var rm = podeRemover();
       var chips = CEMENTO_CATALOGO.map(function(termo, idx){
-        return '<span class="badge success" style="gap:8px;">'+esc(termo)+' <button data-delcat="'+idx+'" style="border:none;background:none;color:inherit;cursor:pointer;font-weight:800;padding:0;">✕</button></span>';
+        return '<span class="badge success" style="gap:8px;">'+esc(termo)+(rm ? ' <button data-delcat="'+idx+'" title="Remover termo" style="border:none;background:none;color:inherit;cursor:pointer;font-weight:800;padding:0;">✕</button>' : '')+'</span>';
       }).join(" ");
+      var chipsEx = CEMENTO_EXCLUIR.map(function(termo, idx){
+        return '<span class="badge danger" style="gap:8px;">'+esc(termo)+(rm ? ' <button data-delexc="'+idx+'" title="Remover exceção" style="border:none;background:none;color:inherit;cursor:pointer;font-weight:800;padding:0;">✕</button>' : '')+'</span>';
+      }).join(" ");
+      var inputCss = 'flex:1;border:1px solid var(--border-strong);border-radius:6px;padding:7px 10px;font-size:12.5px;background:var(--surface);color:var(--text);';
       cardEl.innerHTML =
-        '<details style="margin-bottom:0;"><summary style="cursor:pointer;padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--accent-strong);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">🏷️ Catálogo de Cimentos — o que conta como cimento na importação ('+CEMENTO_CATALOGO.length+')</summary>' +
+        '<details style="margin-bottom:0;"><summary style="cursor:pointer;padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--accent-strong);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">🏷️ Catálogo de Cimentos — o que conta como cimento na importação ('+CEMENTO_CATALOGO.length+' termos, '+CEMENTO_EXCLUIR.length+' exceção(ões))</summary>' +
         '<div class="card" style="margin-top:8px;">' +
-        '<p class="import-card-desc" style="margin:0 0 10px;">Ao importar Notas Fiscais (SEFAZ), só entra a linha cujo Material contenha um destes termos (sem diferenciar maiúsculas, espaços ou pontuação). Adicione aqui quando surgir um cimento novo.</p>' +
+        '<p class="import-card-desc" style="margin:0 0 10px;">Ao importar Notas Fiscais (SEFAZ) e Lançamentos (PUZL), só entra a linha cujo Material contenha um destes termos (sem diferenciar maiúsculas, acentos, espaços ou pontuação). Adicione aqui quando surgir um cimento novo. As alterações são gravadas no banco automaticamente.</p>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">'+(chips || '<span class="faint" style="font-style:italic;">Nenhum termo cadastrado — nada será reconhecido como cimento.</span>')+'</div>' +
-        '<div style="display:flex;gap:8px;">' +
-        '<input id="catalogoNovoTermo" type="text" placeholder="ex: CP II Z" style="flex:1;border:1px solid var(--border-strong);border-radius:6px;padding:7px 10px;font-size:12.5px;background:var(--surface);color:var(--text);"/>' +
+        '<div style="display:flex;gap:8px;margin-bottom:16px;">' +
+        '<input id="catalogoNovoTermo" type="text" placeholder="ex: CP II Z" style="'+inputCss+'"/>' +
         '<button class="btn-primary" id="catalogoAddBtn" style="padding:7px 14px;">Adicionar</button>' +
-        '</div></div></details>';
+        '</div>' +
+        '<p class="import-card-desc" style="margin:0 0 10px;"><b>Exceções</b> — se o Material contiver um destes termos, a linha <b>não</b> é cimento, mesmo que bata com o catálogo acima (ex: MANGOTE).</p>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">'+(chipsEx || '<span class="faint" style="font-style:italic;">Nenhuma exceção.</span>')+'</div>' +
+        '<div style="display:flex;gap:8px;">' +
+        '<input id="catalogoNovaExc" type="text" placeholder="ex: MANGOTE" style="'+inputCss+'"/>' +
+        '<button class="btn-primary" id="catalogoAddExcBtn" style="padding:7px 14px;">Adicionar exceção</button>' +
+        '</div>' +
+        (rm ? '' : '<p class="faint" style="font-size:11px;margin:10px 0 0;">Só o administrador pode remover termos.</p>') +
+        '</div></details>';
       cardEl.querySelectorAll("[data-delcat]").forEach(function(btn){
         btn.addEventListener("click", function(e){
           e.preventDefault();
@@ -2576,13 +2669,26 @@
           paint();
         });
       });
-      cardEl.querySelector("#catalogoAddBtn").addEventListener("click", function(){
-        var v = el("catalogoNovoTermo").value.trim();
-        if (!v) return;
-        if (CEMENTO_CATALOGO.some(function(t){ return normalizeMaterial(t) === normalizeMaterial(v); })) return;
-        CEMENTO_CATALOGO.push(v);
-        paint();
+      cardEl.querySelectorAll("[data-delexc]").forEach(function(btn){
+        btn.addEventListener("click", function(e){
+          e.preventDefault();
+          CEMENTO_EXCLUIR.splice(parseInt(btn.dataset.delexc, 10), 1);
+          paint();
+        });
       });
+      function add(inputId, lista, outra){
+        var v = el(inputId).value.trim();
+        if (!v) return;
+        var nv = normalizeMaterial(v);
+        if (lista.some(function(t){ return normalizeMaterial(t) === nv; })) return;
+        // o mesmo termo não pode estar nas duas listas
+        for (var i = outra.length - 1; i >= 0; i--) if (normalizeMaterial(outra[i]) === nv) outra.splice(i, 1);
+        lista.push(v);
+        paint();
+        var d = cardEl.querySelector("details"); if (d) d.open = true;
+      }
+      cardEl.querySelector("#catalogoAddBtn").addEventListener("click", function(){ add("catalogoNovoTermo", CEMENTO_CATALOGO, CEMENTO_EXCLUIR); });
+      cardEl.querySelector("#catalogoAddExcBtn").addEventListener("click", function(){ add("catalogoNovaExc", CEMENTO_EXCLUIR, CEMENTO_CATALOGO); });
     }
     paint();
   }
@@ -2813,15 +2919,19 @@
     if (!el3) return;
     var rows = cementNFes.map(function(nf){
       var confirmada = nfEntradaMatch(nf) !== null;
-      var statusBadge = confirmada
+      var statusBadge = nfCancelada(nf)
+        ? '<span class="badge danger">🚫 CANCELADA — só registro</span>'
+        : nfTransf(nf) ? '<span class="badge info">🔁 Transferência — só registro</span>'
+        : confirmada
         ? '<span class="badge success">✅ Descarregada</span>'
         : '<span class="badge warning">🕒 Aguardando entrada</span>';
+      var msgNf = nfCancelada(nf) ? '<span class="nf-msg">⚠ NOTA CANCELADA</span>' : (nfTransf(nf) ? '<span class="nf-msg info">TRANSFERÊNCIA</span>' : '');
       var puzlMatch = puzlMatchParaNF(nf);
       var materialPuzlCell = puzlMatch
         ? '<span class="badge info">'+esc(puzlMatch.item)+'</span>'
         : '<span class="faint" style="font-style:italic;font-size:11px;">sem lançamento PUZL</span>';
-      return '<tr>' +
-        '<td class="cell-strong">'+esc(nf.numero)+'</td>' +
+      return '<tr'+(nfCancelada(nf) ? ' class="nf-cancelada"' : (nfTransf(nf) ? ' class="nf-transf"' : ''))+'>' +
+        '<td class="cell-strong">'+esc(nf.numero)+msgNf+'</td>' +
         '<td class="muted">'+esc(brDate(nf.emissao))+'</td>' +
         '<td><span class="badge neutral">'+esc(nf.fornecedor)+'</span></td>' +
         '<td class="muted">'+esc(nf.material)+'</td>' +
@@ -2837,7 +2947,7 @@
     el3.innerHTML =
       '<details'+(nfesListOpen?" open":"")+'><summary style="cursor:pointer;padding:12px 18px;font-size:13.5px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">Notas fiscais importadas do SEFAZ ('+cementNFes.length+')</summary>' +
       '<div class="card" style="margin-top:8px;">' +
-      '<p class="import-card-desc" style="margin:0 0 10px;">A coluna <b>Material (PUZL)</b> é o item confirmado por cruzamento com Lançamentos (PUZL) pelo nº do Documento/NF — mais confiável que o texto cru do SEFAZ, principalmente pra distinguir pozolana.</p>' +
+      '<p class="import-card-desc" style="margin:0 0 10px;">'+(function(){ var c = cementNFes.filter(nfCancelada).length, t = cementNFes.filter(nfTransf).length; return (c ? '<b style="color:var(--danger);">'+c+' nota(s) CANCELADA(S)</b> (vermelho) e ' : '') + (t ? '<b>'+t+' transferência(s)</b> (azul) estão aqui só pra registro — não entram nas conferências. ' : (c ? 'estão aqui só pra registro. ' : '')); })()+'A coluna <b>Material (PUZL)</b> é o item confirmado por cruzamento com Lançamentos (PUZL) pelo nº do Documento/NF — mais confiável que o texto cru do SEFAZ, principalmente pra distinguir pozolana.</p>' +
       (cementNFes.length
         ? '<div class="table-wrap"><table><thead><tr><th>Número</th><th>Emissão</th><th>Fornecedor</th><th>Material (SEFAZ)</th><th>Material (PUZL)</th><th>Pedido</th><th>Placa</th><th>Motorista</th><th>Usina</th><th>Status</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
         : '<p class="prog-empty">Nenhuma nota importada ainda.</p>') +
@@ -2957,6 +3067,8 @@
       ["nao_vinculado","Não vinculado","danger","🚫"]
     ];
     var nfs = pedidosNFesNoPeriodo();
+    var nfsReg = nfs.filter(nfSoRegistro);
+    nfs = nfs.filter(function(nf){ return !nfSoRegistro(nf); });
     var confirmadas = nfs.filter(function(nf){ return nfEntradaMatch(nf) !== null; }).length;
     el("pedidosStats").innerHTML = '<div class="stat-grid">' +
       '<div class="stat" style="--stat-accent:var(--accent);"><div class="stat-top"><span>Total de notas (SEFAZ)</span><span class="stat-icn" style="background:var(--accent-soft);color:var(--accent-strong);">🧾</span></div><div class="stat-val">'+nfs.length+'</div></div>' +
@@ -2964,13 +3076,14 @@
         return '<div class="stat" style="--stat-accent:var(--'+s[2]+');"><div class="stat-top"><span>'+s[1]+'</span><span class="stat-icn" style="background:var(--'+s[2]+'-soft);color:var(--'+s[2]+');">'+s[3]+'</span></div><div class="stat-val">'+pedidosCount(s[0])+'</div></div>';
       }).join("") +
       '<div class="stat" style="--stat-accent:var(--success);"><div class="stat-top"><span>Confirmadas (Entradas)</span><span class="stat-icn" style="background:var(--success-soft);color:var(--success);">✅</span></div><div class="stat-val">'+confirmadas+'</div></div>' +
+      '<div class="stat" style="--stat-accent:var(--danger);"><div class="stat-top"><span>Só registro (canceladas / transf.)</span><span class="stat-icn" style="background:var(--danger-soft);color:var(--danger);">🚫</span></div><div class="stat-val">'+nfsReg.length+'</div><div class="stat-sub">'+nfsReg.filter(nfCancelada).length+' cancelada(s)</div></div>' +
       '</div>';
   }
 
   function pedidosCount(st){
     var nfs = pedidosNFesNoPeriodo();
     if (st === "todos") return nfs.length;
-    return nfs.filter(function(nf){ return nfSituacao(nf).situacao === st; }).length;
+    return nfs.filter(function(nf){ return !nfSoRegistro(nf) && nfSituacao(nf).situacao === st; }).length;
   }
 
   function paintPedidos(){
@@ -2983,15 +3096,16 @@
     }).join("");
 
     var withMatch = pedidosNFesNoPeriodo().map(function(nf){ return {nf:nf, s:nfSituacao(nf)}; });
-    var list = pedidosFiltro === "todos" ? withMatch : withMatch.filter(function(x){ return x.s.situacao === pedidosFiltro; });
+    var list = pedidosFiltro === "todos" ? withMatch : withMatch.filter(function(x){ return !nfSoRegistro(x.nf) && x.s.situacao === pedidosFiltro; });
 
     var toneToBadge = {"usina-ok":"success","usina-conferir":"warning","usina-danger":"danger"};
     var rows = list.map(function(x){
       var nf = x.nf, s = x.s;
       var meta = SITUACAO_OPTS_NF.find(function(m){ return m.value === s.situacao; });
-      var toneClass = meta ? meta.tone : "";
+      var toneClass = nfCancelada(nf) ? "usina-danger" : (nfTransf(nf) ? "usina-info" : (meta ? meta.tone : ""));
       var vinculoLabel = (meta ? meta.label : "—") + (NF_MATCH_LABEL[s.matchedBy] || "");
-      var vinculoBadge = '<td style="padding:4px 6px;"><span class="badge '+(toneToBadge[toneClass]||"neutral")+'">'+esc(vinculoLabel)+'</span></td>';
+      var avisoNf = nfCancelada(nf) ? '<span class="badge danger" style="margin-right:4px;">🚫 NOTA CANCELADA</span>' : (nfTransf(nf) ? '<span class="badge info" style="margin-right:4px;">🔁 Transferência — só registro</span>' : '');
+      var vinculoBadge = '<td style="padding:4px 6px;">'+avisoNf+(nfSoRegistro(nf) && !s.entry ? '' : '<span class="badge '+(toneToBadge[s.situacao === "nao_vinculado" ? "usina-danger" : (s.situacao === "sem_certeza" ? "usina-conferir" : "usina-ok")]||"neutral")+'">'+esc(vinculoLabel)+'</span>')+'</td>';
       var pedidoCell = nf.pedido
         ? esc(nf.pedido)
         : (s.entry ? '<span class="faint" style="font-size:11px;">(via prog: '+esc(s.entry.pedido)+')</span>' : '<span class="faint" style="font-style:italic;">—</span>');
@@ -3004,11 +3118,14 @@
             : '<span class="faint" style="font-style:italic;font-size:11px;">sem placa na nota</span> <span class="faint" style="font-size:11px;">(prog: '+placaProg+')</span>')
         : esc(nf.placa) + (placaProg && placaProg !== nf.placa ? ' <span class="faint" style="font-size:11px;">(prog: '+placaProg+')</span>' : "");
       var entradaMatch = nfEntradaMatch(nf);
-      var statusBadge = entradaMatch
+      var statusBadge = nfCancelada(nf)
+        ? '<span class="badge danger">🚫 Cancelada'+(entradaMatch ? ' — ⚠ há entrada lançada!' : '')+'</span>'
+        : nfTransf(nf) ? '<span class="badge info">Só registro</span>'
+        : entradaMatch
         ? '<span class="badge success">✅ Confirmada</span>'
         : '<span class="badge warning">Emitida</span>';
-      return '<tr>' +
-        '<td class="'+toneClass+'" style="padding:8px 10px;font-size:12.5px;">'+esc(nf.numero)+'</td>' +
+      return '<tr'+(nfCancelada(nf) ? ' class="nf-cancelada"' : '')+'>' +
+        '<td class="'+toneClass+'" style="padding:8px 10px;font-size:12.5px;">'+esc(nf.numero)+(nfCancelada(nf) ? '<span class="nf-msg">⚠ NOTA CANCELADA</span>' : '')+'</td>' +
         '<td style="padding:8px 10px;font-size:12.5px;">'+esc(brDate(nf.emissao))+'</td>' +
         '<td style="padding:8px 10px;font-size:12.5px;"><span class="badge neutral">'+esc(nf.fornecedor)+'</span></td>' +
         '<td style="padding:8px 10px;font-size:12.5px;">'+pedidoCell+'</td>' +
@@ -3049,6 +3166,8 @@
       var doc = String(en.documento||"").trim();
       var motivo = !doc
         ? '<span class="faint" style="font-style:italic;font-size:11px;">sem documento</span>'
+        : entradaNFStatus(en).status === "cancelada"
+        ? '<span class="badge danger">🚫 NF '+esc(doc)+' CANCELADA no SEFAZ</span>'
         : '<span class="badge warning">NF '+esc(doc)+' não importada</span>';
       return '<tr>' +
         '<td style="padding:8px 10px;font-size:12.5px;">'+esc(brDate(en.data))+'</td>' +
@@ -3838,18 +3957,24 @@
       fetchAll(function(){ return live("programacao_dias", "id,data,referencia,excecao")().order("data"); }),
       fetchAll(function(){ return live("programacao_itens", "dia_id,ordem,usina_nome,obs,status,programacao_cargas(ordem,placa,fabrica_nome,pedido)")().is("programacao_cargas.deleted_at", null).order("dia_id").order("ordem"); }),
       fetchAll(function(){ return live("vpo_dias", "id,data,excecao")().order("data"); }),
-      fetchAll(function(){ return live("vpo_entradas", "dia_id,ordem,rota1_usina,rota1_fabrica,rota2_usina,rota2_fabrica,obs,status,extra,frota(codigo)")().order("dia_id").order("ordem"); })
+      fetchAll(function(){ return live("vpo_entradas", "dia_id,ordem,rota1_usina,rota1_fabrica,rota2_usina,rota2_fabrica,obs,status,extra,frota(codigo)")().order("dia_id").order("ordem"); }),
+      fetchAll(function(){ return sb.from("catalogo_cimento").select("termo,excluir").order("termo"); })
     ]);
-    var uRows = res[0], nRows = res[1], pRows = res[2], pdRows = res[3], piRows = res[4], vdRows = res[5], veRows = res[6];
+    var uRows = res[0], nRows = res[1], pRows = res[2], pdRows = res[3], piRows = res[4], vdRows = res[5], veRows = res[6], catRows = res[7];
 
     usinasCadastro.length = 0;
     uRows.forEach(function(u){
       usinasCadastro.push({ usina: nz(u.usina), sigla: nz(u.sigla), cnpj: nz(u.cnpj), regional: nz(u.regional), whatsappUsina: nz(u.whatsapp_usina), whatsappRegional: nz(u.whatsapp_regional),
         emailUsina: nz(u.email_usina), emailRegional: nz(u.email_regional), nomeCadastro: nz(u.nome_cadastro), codigo: nz(u.codigo), filial: nz(u.filial), puzl: nz(u.puzl_rotulo) });
     });
+    // catálogo de cimentos (termos e exceções) — se o banco estiver vazio, mantém os padrões e eles são gravados no 1º salvamento
+    if (catRows.length){
+      CEMENTO_CATALOGO.length = 0; CEMENTO_EXCLUIR.length = 0;
+      catRows.forEach(function(c){ (c.excluir ? CEMENTO_EXCLUIR : CEMENTO_CATALOGO).push(nz(c.termo)); });
+    }
     cementNFes.length = 0;
     nRows.forEach(function(n, i){
-      cementNFes.push({ id: i + 1, numero: nz(n.numero), emissao: nz(n.emissao), fornecedor: nz(n.fornecedor), material: nz(n.material), pedido: nz(n.pedido), placa: nz(n.placa), usina: nz(n.usina), motorista: nz(n.motorista), chave: nz(n.chave) });
+      cementNFes.push({ id: i + 1, numero: nz(n.numero), emissao: nz(n.emissao), fornecedor: nz(n.fornecedor), material: nz(n.material), pedido: nz(n.pedido), placa: nz(n.placa), usina: nz(n.usina), motorista: nz(n.motorista), chave: nz(n.chave), status: nz(n.status) || "Autorizada", tipo: nz(n.tipo) || "compra" });
     });
     nfSeq = cementNFes.length;
     puzlEntradas.length = 0;
@@ -3889,6 +4014,8 @@
     Object.keys(vpoScheduleByDate).forEach(function(iso){ vpoScheduleByDate[iso].entries.forEach(function(e){ if (!e.status) applyAutoVpoStatus(e); }); });
     recomputeEntradasFromPuzl();
     SNAP = takeSnap();
+    SNAP.cat = {};   // o que o banco tem de verdade (vazio => os padrões serão gravados)
+    catRows.forEach(function(c){ SNAP.cat[String(c.termo).trim().toUpperCase()] = JSON.stringify({ termo: String(c.termo).trim(), excluir: !!c.excluir }); });
   }
 
   /* ---------- retrato do que está na tela, para saber o que mudou ---------- */
@@ -3904,7 +4031,7 @@
   }
   function itemVazio(i){ return !i.cargas.length && !i.obs && !i.status; }
   function takeSnap(){
-    var s = { prog: {}, vpo: {}, notas: {}, puzl: {}, usinas: {} };
+    var s = { prog: {}, vpo: {}, notas: {}, puzl: {}, usinas: {}, cat: {} };
     Object.keys(cementScheduleByDate).forEach(function(iso){
       if (!toIsoDate(iso)) return;
       var d = cementScheduleByDate[iso];
@@ -3927,7 +4054,7 @@
     });
     cementNFes.forEach(function(n){
       var k = nfKey(n); if (!k) return;
-      s.notas[k] = JSON.stringify({ numero: String(n.numero).trim(), emissao: toIsoDate(n.emissao), fornecedor: n.fornecedor || "", material: n.material || "", pedido: n.pedido || "", placa: n.placa || "", usina: n.usina || "", motorista: n.motorista || "", chave: n.chave || "" });
+      s.notas[k] = JSON.stringify({ numero: String(n.numero).trim(), emissao: toIsoDate(n.emissao), fornecedor: n.fornecedor || "", material: n.material || "", pedido: n.pedido || "", placa: n.placa || "", usina: n.usina || "", motorista: n.motorista || "", chave: n.chave || "", status: n.status || "Autorizada", tipo: n.tipo || "compra" });
     });
     puzlEntradas.forEach(function(p){
       var k = puzlKey(p); if (!String(p.documento || "").trim()) return;
@@ -3940,6 +4067,8 @@
       s.usinas[k] = JSON.stringify({ usina: String(u.usina).trim(), sigla: u.sigla || "", cnpj: u.cnpj || "", regional: u.regional || "", whatsapp_usina: u.whatsappUsina || "", whatsapp_regional: u.whatsappRegional || "",
         email_usina: u.emailUsina || "", email_regional: u.emailRegional || "", nome_cadastro: u.nomeCadastro || "", codigo: u.codigo || "", filial: u.filial || "", puzl_rotulo: u.puzl || "" });
     });
+    CEMENTO_CATALOGO.forEach(function(t){ var k = String(t || "").trim().toUpperCase(); if (k) s.cat[k] = JSON.stringify({ termo: String(t).trim(), excluir: false }); });
+    CEMENTO_EXCLUIR.forEach(function(t){ var k = String(t || "").trim().toUpperCase(); if (k) s.cat[k] = JSON.stringify({ termo: String(t).trim(), excluir: true }); });
     return s;
   }
 
@@ -3979,6 +4108,24 @@
     await lote("usinas", "sync_usinas", function(k, old){ return JSON.parse(old).usina; });
     await lote("notas", "sync_notas", function(k, old){ return JSON.parse(old).numero; });
     await lote("puzl", "sync_puzl", function(k, old){ var o = JSON.parse(old); return [o.documento, o.serie, o.central_entrada]; });
+
+    // catálogo de cimentos: termos novos/alterados vão por RPC; remover um termo só o administrador consegue
+    var upCat = [], remCat = [];
+    keys("cat").forEach(function(k){ if (!mudou("cat", k)) return; if (cur.cat[k] == null) remCat.push(k); else upCat.push(k); });
+    if (upCat.length){
+      try { await rpc("sync_catalogo", { p_rows: upCat.map(function(k){ return JSON.parse(cur.cat[k]); }) }); upCat.forEach(function(k){ SNAP.cat[k] = cur.cat[k]; }); }
+      catch (e) { erros.push(e); }
+    }
+    for (var ic = 0; ic < remCat.length; ic++){
+      var kc = remCat[ic];
+      try {
+        var velho = JSON.parse(SNAP.cat[kc]);
+        var rd = await sb.from("catalogo_cimento").delete().eq("termo", velho.termo).select();
+        if (rd.error) throw rd.error;
+        if (!rd.data || !rd.data.length) throw new Error("Só o administrador pode remover termos do catálogo.");
+        delete SNAP.cat[kc];
+      } catch (e) { erros.push(e); }
+    }
 
     var diasProg = keys("prog").filter(function(k){ return mudou("prog", k); });
     for (var i = 0; i < diasProg.length; i++){
@@ -4021,7 +4168,7 @@
   function temMudanca(){
     if (!SNAP) return false;
     var cur = takeSnap();
-    return ["prog", "vpo", "notas", "puzl", "usinas"].some(function(parte){
+    return ["prog", "vpo", "notas", "puzl", "usinas", "cat"].some(function(parte){
       var ks = {}; Object.keys(SNAP[parte]).concat(Object.keys(cur[parte])).forEach(function(k){ ks[k] = 1; });
       return Object.keys(ks).some(function(k){ return (cur[parte][k] == null ? null : cur[parte][k]) !== (SNAP[parte][k] == null ? null : SNAP[parte][k]); });
     });

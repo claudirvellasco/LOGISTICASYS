@@ -2582,6 +2582,7 @@
       return '<tr>' +
         '<td class="cell-strong">'+esc(p.documento)+'</td>' +
         '<td class="muted">'+esc(brDate(p.emissaoNF))+'</td>' +
+        '<td class="muted">'+esc(brDate(p.dataEntrada))+'</td>' +
         '<td><span class="badge neutral">'+esc(p.fornecedor)+'</span></td>' +
         '<td class="muted">'+esc(p.item)+'</td>' +
         '<td class="muted">'+esc(p.centralEntrada)+'</td>' +
@@ -2593,7 +2594,7 @@
       '<details'+(puzlListOpen?" open":"")+'><summary style="cursor:pointer;padding:12px 18px;font-size:13.5px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">Lançamentos importados da PUZL ('+puzlEntradas.length+')</summary>' +
       '<div class="card" style="margin-top:8px;">' +
       (puzlEntradas.length
-        ? '<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Emissão</th><th>Fornecedor</th><th>Item</th><th>Central (entrada)</th><th>Quantidade</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+        ? '<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Emissão</th><th>Data de entrada</th><th>Fornecedor</th><th>Item</th><th>Central (entrada)</th><th>Quantidade</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
         : '<p class="prog-empty">Nenhum lançamento da PUZL importado ainda.</p>') +
       '</div></details>';
     cardEl.querySelector("details").addEventListener("toggle", function(e){ puzlListOpen = e.target.open; });
@@ -2607,7 +2608,7 @@
         renderMateriaisNovos();
       });
     });
-    xlEnhance(cardEl, "puzl", [6]);
+    xlEnhance(cardEl, "puzl", [7]);
   }
 
   // Alerta de materiais possivelmente novos (ver computeMateriaisNovosPendentes):

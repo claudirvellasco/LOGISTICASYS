@@ -342,6 +342,35 @@
   .nf-msg{display:block; font-size:10.5px; font-weight:800; letter-spacing:.4px; color:var(--danger); margin-top:2px;}
   .nf-msg.info{color:var(--info);}
 
+  .btn-inline{width:auto; margin-top:0; padding:7px 16px; color:var(--bg);}
+  .imp-intro{display:flex; align-items:baseline; justify-content:space-between; gap:12px 24px; flex-wrap:wrap; margin:0 0 14px;}
+  .imp-intro p{margin:0; font-size:13px; color:var(--text-muted);}
+  .imp-intro details{font-size:12px;}
+  .imp-intro summary, .imp-more summary{cursor:pointer; font-size:12px; font-weight:600; color:var(--accent-strong);}
+  .imp-intro details p{margin:8px 0 0; max-width:70ch; font-size:12px; line-height:1.55;}
+  .imp-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap:16px; margin-bottom:16px;}
+  .imp-card{border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); box-shadow:var(--shadow); padding:18px 20px; display:flex; flex-direction:column; gap:12px; min-width:0;}
+  .imp-head{display:flex; align-items:center; gap:12px;}
+  .imp-lead{margin:0; font-size:12.5px; line-height:1.5; color:var(--text-muted);}
+  .imp-drop{display:flex; align-items:center; justify-content:center; gap:10px; padding:14px 12px; font-size:12.5px;}
+  .imp-drop .icon{display:inline; margin:0; font-size:16px;}
+  .imp-more[open] > summary{margin-bottom:8px;}
+  .imp-more p{margin:0; font-size:12px; line-height:1.55; color:var(--text-muted);}
+  .imp-more ul{margin:0; padding-left:18px; font-size:12px; line-height:1.6; color:var(--text-muted);}
+  .imp-more textarea{width:100%; font-family:inherit; font-size:11.5px; border:1px solid var(--border-strong); border-radius:8px; padding:8px; background:var(--surface); color:var(--text); resize:vertical;}
+  .imp-foot{display:flex; justify-content:flex-end; margin-top:8px;}
+  .imp-result{font-size:12px; line-height:1.5; color:var(--text); background:var(--surface-2); border-radius:8px; padding:9px 12px;}
+  .imp-result:empty{display:none;}
+  .imp-alert{border:1px solid var(--warning); border-radius:var(--radius); background:var(--surface); padding:14px 18px; margin-bottom:16px;}
+  .imp-alert-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
+  .imp-alert-head b{font-size:13px;}
+  .imp-alert-head span{font-size:12px; color:var(--text-muted);}
+  .imp-pend{display:grid; grid-template-columns:minmax(0,1fr) minmax(200px,280px) auto auto; align-items:center; gap:8px 12px; padding:10px 0; border-top:1px solid var(--border); margin-top:10px;}
+  .imp-pend + .imp-pend{margin-top:0;}
+  .imp-pend .nm{font-size:12.5px; min-width:0;}
+  .imp-pend .nm small{display:block; color:var(--text-muted); font-size:12px; overflow-wrap:anywhere;}
+  @media (max-width:820px){ .imp-pend{grid-template-columns:1fr 1fr;} .imp-pend .nm, .imp-pend select{grid-column:1 / -1;} }
+
   .btn-mini{background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:5px 10px; font-size:11.5px; font-weight:600; cursor:pointer;}
   .btn-mini:hover{background:var(--surface-3);}
   #loadingOverlay{position:fixed; inset:0; z-index:9999; background:var(--bg); display:none; align-items:center; justify-content:center; font-size:14px; color:var(--text-muted);}
@@ -1163,6 +1192,7 @@
     else if (id === "base-dados-cimento") paintBaseDados();
     else if (id === "notas-sefaz") paintNFes();
     else if (id === "lancamentos-puzl") paintPuzl();
+    else if (id === "consultas" && typeof paintConsulta === "function") paintConsulta();
     else if (id === "programacao-cimento" && typeof progPicker !== "undefined" && progPicker) paintBlocks();
   }
 
@@ -1857,7 +1887,7 @@
   function ign(motivo, linha){ if (ignoradasUltima.length < 300) ignoradasUltima.push({m: motivo, l: String(linha || "").replace(/\t+/g, " | ").slice(0, 170)}); }
   function mostrarIgnoradas(id){
     var span = el(id); if (!span) return;
-    var host = span.parentNode;
+    var host = span.classList.contains("imp-result") ? span : span.parentNode;
     var velho = host.parentNode.querySelector(".ign-det[data-for='" + id + "']"); if (velho) velho.remove();
     if (!ignoradasUltima.length) return;
     var grupos = {}, ordem = [];
@@ -2332,63 +2362,38 @@
   }
 
   function renderBaseDados(){
+    function impCard(o){
+      return '<div class="imp-card">' +
+        '<div class="imp-head"><div class="import-card-icon" style="background:var(--'+o.tom+'-soft);color:var(--'+o.tom+');">'+o.icone+'</div>' +
+        '<div><div class="import-card-title">'+o.titulo+'</div><div class="import-card-subtitle">'+o.sub+'</div></div></div>' +
+        '<p class="imp-lead">'+o.lead+'</p>' +
+        '<label class="import-dropzone imp-drop" for="'+o.id+'FileInput"><span class="icon">⬆️</span><span id="'+o.id+'FileLabel">Arraste ou clique para selecionar</span></label>' +
+        '<input type="file" id="'+o.id+'FileInput" accept=".xlsx,.xls,.csv" style="display:none;"/>' +
+        '<div id="'+o.res+'" class="imp-result"></div>' +
+        '<details class="imp-more"><summary>Ou colar o texto da planilha</summary>' +
+        '<textarea id="'+o.txt+'" rows="4" placeholder="'+o.ph+'"></textarea>' +
+        '<div class="imp-foot"><button class="btn-primary btn-inline" id="'+o.btn+'">Importar</button></div></details>' +
+        '<details class="imp-more"><summary>Como funciona</summary>'+o.como+'</details>' +
+        '</div>';
+    }
     el("view-base-dados-cimento").innerHTML =
-      '<div class="card banner" style="margin-bottom:16px;">Área central de importação de dados externos. <b>Entradas</b> é calculada automaticamente a partir dos <b>Lançamentos (PUZL)</b>, com a ligação já cruzada contra Programação e contra Notas Fiscais (SEFAZ) — usada em Controle de Pedidos e na Programação de Cimento. <b>Notas Fiscais (SEFAZ)</b> é a exportação das notas emitidas — é ela quem forma o Controle de Pedidos, ligada à Programação de Cimento por usina/placa/pedido; <b>Lançamentos (PUZL)</b> traz o mesmo universo de notas com o material mais limpo (inclusive pozolana), usado tanto pra confirmar o material de uma nota do SEFAZ quanto pra formar as Entradas. Pra ver e filtrar tudo o que já foi importado, veja os módulos <b>Notas SEFAZ</b> e <b>Lançamentos PUZL</b>, logo abaixo de Base de Dados no menu.</div>' +
+      '<div class="imp-intro"><p>Importe aqui os arquivos do SEFAZ e da PUZL. Tudo é salvo no banco e as telas se ligam sozinhas.</p>' +
+      '<details><summary>Como as telas se ligam</summary><p>Área central de importação de dados externos. <b>Entradas</b> é calculada automaticamente a partir dos <b>Lançamentos (PUZL)</b>, com a ligação já cruzada contra Programação e contra Notas Fiscais (SEFAZ) — usada em Controle de Pedidos e na Programação de Cimento. <b>Notas Fiscais (SEFAZ)</b> é a exportação das notas emitidas — é ela quem forma o Controle de Pedidos, ligada à Programação de Cimento por usina/placa/pedido; <b>Lançamentos (PUZL)</b> traz o mesmo universo de notas com o material mais limpo (inclusive pozolana), usado tanto pra confirmar o material de uma nota do SEFAZ quanto pra formar as Entradas. Pra ver e filtrar tudo o que já foi importado, veja os módulos <b>Notas SEFAZ</b> e <b>Lançamentos PUZL</b>, logo abaixo de Base de Dados no menu.</p></details></div>' +
       '<div id="materiaisNovosCard"></div>' +
       '<div id="baseDadosStats"></div>' +
-      '<div class="import-cards-grid">' +
-        '<div class="import-card">' +
-          '<div class="import-card-head">' +
-            '<div class="import-card-icon" style="background:var(--info-soft);color:var(--info);">🧾</div>' +
-            '<div><div class="import-card-title">Notas Fiscais (SEFAZ)</div><div class="import-card-subtitle">Notas emitidas</div></div>' +
-          '</div>' +
-          '<p class="import-card-desc">Exportação do SEFAZ com as notas <b>emitidas</b>. Só o que bater com o <b>Catálogo de Cimentos</b> (abaixo) entra — o resto é ignorado. Cole também a Descrição Complementar (8ª coluna) que Pedido/Placa/Usina são extraídos automaticamente por fornecedor; sem pedido, cai pra conferência por Usina + Placa + Data. O cruzamento com Documento/NF de Entradas confirma se já descarregou.</p>' +
-          '<label class="import-dropzone" for="nfesFileInput"><span class="icon">⬆️</span><span id="nfesFileLabel">Arraste ou clique para selecionar</span></label>' +
-          '<input type="file" id="nfesFileInput" accept=".xlsx,.xls,.csv" style="display:none;"/>' +
-          '<div class="import-paste">' +
-            '<textarea id="importNFesText" rows="4" placeholder="400000/1\t2026-09-22\tCimento Tupi\tCP V-ARI RS GRANEL\t\t\t\tPedido nro 390078 ... VEICULO PLACAS: HGJ4049 - TCM1F78"></textarea>' +
-            '<div class="import-paste-foot"><button class="btn-primary" id="importNFesBtn" style="padding:7px 13px;">Importar</button><span id="importNFesResult" style="font-size:11.5px;color:var(--text-muted);"></span></div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="import-card">' +
-          '<div class="import-card-head">' +
-            '<div class="import-card-icon" style="background:var(--neutral-soft);color:var(--neutral);">📋</div>' +
-            '<div><div class="import-card-title">Lançamentos (PUZL)</div><div class="import-card-subtitle">Resumo de Entradas</div></div>' +
-          '</div>' +
-          '<p class="import-card-desc">Exportação da PUZL ("Resumo de Entradas"). Cole a planilha inteira — só o que já vier com o campo Item batendo com o Catálogo de Cimentos entra (inclusive pozolana). Usada pra confirmar o material de uma nota do SEFAZ pelo nº do Documento (mesmo nº da coluna B do SEFAZ). Colunas financeiras (valor, preço, frete) são ignoradas de propósito.</p>' +
-          '<label class="import-dropzone" for="puzlFileInput"><span class="icon">⬆️</span><span id="puzlFileLabel">Arraste ou clique para selecionar</span></label>' +
-          '<input type="file" id="puzlFileInput" accept=".xlsx,.xls,.csv" style="display:none;"/>' +
-          '<div class="import-paste">' +
-            '<textarea id="importPuzlText" rows="4" placeholder="04 | ROS | RIO DAS OSTRAS\t07.015.016/0004-60\t04 | ROS | RIO DAS OSTRAS\t...\tPOZOLANA\t3561\t1\t..."></textarea>' +
-            '<div class="import-paste-foot"><button class="btn-primary" id="importPuzlBtn" style="padding:7px 13px;">Importar</button><span id="importPuzlResult" style="font-size:11.5px;color:var(--text-muted);"></span></div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="import-card">' +
-          '<div class="import-card-head">' +
-            '<div class="import-card-icon" style="background:var(--success-soft);color:var(--success);">🚚</div>' +
-            '<div><div class="import-card-title">Inbound Completo (CNPJ/Motorista)</div><div class="import-card-subtitle">reportCompleteInbound</div></div>' +
-          '</div>' +
-          '<p class="import-card-desc">Export mais denso do SEFAZ, sem Material — não entra como cadastro novo, só <b>enriquece</b> uma Notas Fiscais (SEFAZ) já importada, casada pelo Número (com a Chave de Acesso como trava de segurança). Usina vem do CNPJ Destinatário batido contra a Base de Usinas (sempre sobrescreve, mais confiável); Motorista/Placa só preenchem se ainda estiverem vazios. Cole a planilha inteira (todas as colunas, com cabeçalho).</p>' +
-          '<label class="import-dropzone" for="inboundFileInput"><span class="icon">⬆️</span><span id="inboundFileLabel">Arraste ou clique para selecionar</span></label>' +
-          '<input type="file" id="inboundFileInput" accept=".xlsx,.xls,.csv" style="display:none;"/>' +
-          '<div class="import-paste">' +
-            '<textarea id="importInboundText" rows="4" placeholder="Cole aqui a planilha inteira do reportCompleteInbound (com cabeçalho)"></textarea>' +
-            '<div class="import-paste-foot"><button class="btn-primary" id="importInboundBtn" style="padding:7px 13px;">Importar</button><span id="importInboundResult" style="font-size:11.5px;color:var(--text-muted);"></span></div>' +
-          '</div>' +
-        '</div>' +
-        '<div class="import-card">' +
-          '<div class="import-card-head">' +
-            '<div class="import-card-icon" style="background:var(--warning-soft);color:var(--warning);">📋</div>' +
-            '<div><div class="import-card-title">Programação de Cimento (antiga)</div><div class="import-card-subtitle">Planilha antiga, por dia</div></div>' +
-          '</div>' +
-          '<p class="import-card-desc">Cole o bloco copiado da planilha antiga (ou arraste o arquivo), no mesmo formato dela: uma linha "PROGRAMAÇÃO PARA O DIA DD/MM/AAAA (...)" seguida das linhas Usina / Placa / Fábrica / Pedido. Pode ter vários dias de uma vez. Usina sem programação (marcada com "***" na planilha) fica em branco. Usinas que já existem na Base de Usinas são casadas automaticamente; as demais entram como linha extra.</p>' +
-          '<label class="import-dropzone" for="programacaoFileInput"><span class="icon">⬆️</span><span id="programacaoFileLabel">Arraste ou clique para selecionar</span></label>' +
-          '<input type="file" id="programacaoFileInput" accept=".xlsx,.xls,.csv" style="display:none;"/>' +
-          '<div class="import-paste">' +
-            '<textarea id="importProgramacaoText" rows="4" placeholder="PROGRAMAÇÃO PARA O DIA 24/09/2026 ( QUINTA-FEIRA )\nUsina\tPLACA\tFÁBRICA\tPEDIDO\nGARDÊNIA\tHGJ4049\tCP 3 CSN SCZ\t9042814"></textarea>' +
-            '<div class="import-paste-foot"><button class="btn-primary" id="importProgramacaoBtn" style="padding:7px 13px;">Importar</button><span id="importProgramacaoResult" style="font-size:11.5px;color:var(--text-muted);"></span></div>' +
-          '</div>' +
-        '</div>' +
+      '<div class="imp-grid">' +
+        impCard({id:'nfes', tom:'info', icone:'🧾', titulo:'Notas Fiscais (SEFAZ)', sub:'Notas emitidas', res:'importNFesResult', txt:'importNFesText', btn:'importNFesBtn', ph:'400000/1\t2026-09-22\tCimento Tupi\tCP V-ARI RS GRANEL\t\t\t\tPedido nro 390078 ... VEICULO PLACAS: HGJ4049 - TCM1F78',
+          lead:'Entram só as notas de cimento (pelo Catálogo). Canceladas e transferências entram apenas como registro.',
+          como:'<ul><li>Aceita o arquivo do SEFAZ como ele vem (com cabeçalho): número, emissão, status, nome, material e descrição complementar.</li><li>O número perde a série (430652/0 vira 430652) para casar com o documento da PUZL.</li><li>Pedido, placa e usina saem da descrição complementar, por fornecedor.</li><li>Nota cancelada aparece em vermelho; transferência da própria Concrelagos aparece em azul. Nenhuma das duas entra nas conferências.</li><li>A nota fica como descarregada quando existe uma entrada da PUZL com o mesmo número de documento.</li></ul>'}) +
+        impCard({id:'puzl', tom:'neutral', icone:'📋', titulo:'Lançamentos (PUZL)', sub:'Resumo de entradas', res:'importPuzlResult', txt:'importPuzlText', btn:'importPuzlBtn', ph:'04 | ROS | RIO DAS OSTRAS\t07.015.016/0004-60\t04 | ROS | RIO DAS OSTRAS\t...\tPOZOLANA\t3561\t1\t...',
+          lead:'Forma as Entradas e confirma o material da nota pelo número do documento.',
+          como:'<p>Exportação da PUZL (“Resumo de Entradas”). Só entra a linha cujo Item bate com o Catálogo de Cimentos (inclusive pozolana). Valores, preço e frete são ignorados de propósito. Linhas de total e rodapé são descartadas.</p>'}) +
+        impCard({id:'inbound', tom:'success', icone:'🚚', titulo:'Inbound completo', sub:'CNPJ e motorista', res:'importInboundResult', txt:'importInboundText', btn:'importInboundBtn', ph:'Cole aqui a planilha inteira do reportCompleteInbound (com cabeçalho)',
+          lead:'Complementa notas já importadas com usina, motorista e placa.',
+          como:'<p>Export mais completo do SEFAZ, sem material: não cria nota nova, só enriquece uma nota já importada, casada pelo número (a chave de acesso é a trava). A usina vem do CNPJ do destinatário; motorista e placa só preenchem o que estiver vazio. Cole a planilha inteira, com cabeçalho.</p>'}) +
+        impCard({id:'programacao', tom:'warning', icone:'🗓️', titulo:'Programação de Cimento', sub:'Planilha antiga, por dia', res:'importProgramacaoResult', txt:'importProgramacaoText', btn:'importProgramacaoBtn', ph:'PROGRAMAÇÃO PARA O DIA 24/09/2026 ( QUINTA-FEIRA )\nUsina\tPLACA\tFÁBRICA\tPEDIDO\nGARDÊNIA\tHGJ4049\tCP 3 CSN SCZ\t9042814',
+          lead:'Traz a programação da planilha antiga: usina, placa, fábrica e pedido, por dia.',
+          como:'<p>Uma linha “PROGRAMAÇÃO PARA O DIA DD/MM/AAAA (...)” seguida das linhas Usina / Placa / Fábrica / Pedido; pode ter vários dias de uma vez. Usina marcada com *** fica em branco. Usinas da Base de Usinas são casadas sozinhas; as outras entram como linha extra.</p>'}) +
       '</div>' +
       '<div id="historicoCard" style="margin-bottom:16px;"></div>' +
       '<div id="catalogoCimentoCard" style="margin-bottom:16px;"></div>' +
@@ -2582,17 +2587,17 @@
             var sel = sugestao && f === sugestao;
             return '<option value="'+i+'"'+(sel?" selected":"")+'>'+esc(f.fornecedor)+'</option>';
           }).join("");
-        var origem = p.viaPuzl ? ' <span class="badge info" style="margin-left:6px;">via PUZL</span>' : "";
-        return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--border);flex-wrap:wrap;">' +
-          '<div style="flex:1;min-width:260px;font-size:12.5px;"><b>'+esc(p.fornecedorNF)+'</b><br/><span class="muted">'+esc(p.material)+'</span>'+origem+'</div>' +
-          '<select data-pid="'+p.id+'" class="status-select" style="width:auto;min-width:220px;">'+opts+'</select>' +
-          '<button class="btn-primary" data-addpid="'+p.id+'" style="padding:6px 12px;">+ adicionar à base</button>' +
-          '<button class="btn-ghost" data-ignpid="'+p.id+'" style="padding:6px 10px;color:var(--text-faint);">ignorar</button>' +
+        var origem = p.viaPuzl ? ' <span class="badge info">via PUZL</span>' : "";
+        return '<div class="imp-pend">' +
+          '<div class="nm"><b>'+esc(p.fornecedorNF)+'</b>'+origem+'<small>'+esc(p.material)+'</small></div>' +
+          '<select data-pid="'+p.id+'" class="status-select">'+opts+'</select>' +
+          '<button class="btn-primary btn-inline" data-addpid="'+p.id+'">Adicionar à base</button>' +
+          '<button class="btn-ghost" data-ignpid="'+p.id+'" style="padding:6px 10px;color:var(--text-muted);">Ignorar</button>' +
           '</div>';
       }).join("");
       cardEl.innerHTML =
-        '<div class="card banner" style="margin-bottom:16px;border-color:var(--warning);">' +
-        '<div style="display:flex;gap:10px;align-items:flex-start;"><span>🔔</span><div style="flex:1;"><b>Material(is) possivelmente novo(s) ('+pendentes.length+')</b> — apareceu numa nota de cimento importada, mas o texto exato não bate com nenhum material já cadastrado na Base de Fábricas pra esse fornecedor (material mostrado é o confirmado via PUZL quando disponível, senão o do SEFAZ). Escolha onde cadastrar (ou ignore, se for só uma variação de escrita que não importa distinguir).</div></div>' +
+        '<div class="imp-alert">' +
+        '<div class="imp-alert-head"><b>🔔 '+pendentes.length+' material(is) possivelmente novo(s)</b><span>Apareceu numa nota de cimento, mas não está cadastrado para esse fornecedor na Base de Fábricas. Escolha onde cadastrar ou ignore se for só variação de escrita.</span></div>' +
         rows +
         '</div>';
       cardEl.querySelectorAll("[data-addpid]").forEach(function(btn){
@@ -3000,12 +3005,14 @@
     if (!el2) return;
     var comDoc = cementEntradas.filter(function(en){ return String(en.documento||"").trim(); }).length;
     var confirmadas = cementEntradas.filter(function(en){ return entradaNFStatus(en).status === "confirmada"; }).length;
+    var nCanc = cementNFes.filter(nfCancelada).length, nTr = cementNFes.filter(nfTransf).length;
+    var sub = (nCanc || nTr) ? (nCanc ? nCanc + ' cancelada(s)' : '') + (nCanc && nTr ? ' · ' : '') + (nTr ? nTr + ' transferência(s)' : '') : 'importadas do SEFAZ';
+    function tile(rotulo, valor, subtxt, cor){ return '<div class="stat" style="--stat-accent:var(--'+cor+');"><div class="stat-top"><span>'+rotulo+'</span></div><div class="stat-val">'+valor+'</div><div class="stat-sub">'+subtxt+'</div></div>'; }
     el2.innerHTML = '<div class="stat-grid">' +
-      '<div class="stat" style="--stat-accent:var(--success);"><div class="stat-top"><span>Entradas cadastradas</span><span class="stat-icn" style="background:var(--success-soft);color:var(--success);">📥</span></div><div class="stat-val">'+cementEntradas.length+'</div></div>' +
-      '<div class="stat" style="--stat-accent:var(--accent);"><div class="stat-top"><span>Com documento/NF</span><span class="stat-icn" style="background:var(--accent-soft);color:var(--accent-strong);">🧾</span></div><div class="stat-val">'+comDoc+'</div></div>' +
-      '<div class="stat" style="--stat-accent:var(--info);"><div class="stat-top"><span>Notas SEFAZ importadas</span><span class="stat-icn" style="background:var(--info-soft);color:var(--info);">📄</span></div><div class="stat-val">'+cementNFes.length+'</div></div>' +
-      '<div class="stat" style="--stat-accent:var(--success);"><div class="stat-top"><span>Confirmadas via SEFAZ</span><span class="stat-icn" style="background:var(--success-soft);color:var(--success);">✅</span></div><div class="stat-val">'+confirmadas+'</div></div>' +
-      '<div class="stat" style="--stat-accent:var(--neutral);"><div class="stat-top"><span>Módulos ativos</span><span class="stat-icn" style="background:var(--neutral-soft);color:var(--neutral);">🗄️</span></div><div class="stat-val">2<span style="font-size:13px;color:var(--text-faint);"> / 3</span></div></div>' +
+      tile("Notas SEFAZ", cementNFes.length, sub, "info") +
+      tile("Lançamentos PUZL", puzlEntradas.length, "importados", "neutral") +
+      tile("Entradas com documento", comDoc, "de " + cementEntradas.length + " entrada(s)", "accent") +
+      tile("Descarregadas", confirmadas, "nota do SEFAZ = entrada da PUZL", "success") +
       '</div>';
   }
 
@@ -3100,16 +3107,16 @@
 
     var toneToBadge = {"usina-ok":"success","usina-conferir":"warning","usina-danger":"danger"};
     var rows = list.map(function(x){
-      var nf = x.nf, s = x.s;
+      var nf = x.nf, s = x.s; if (nfTransf(nf)) s = {situacao:"nao_vinculado", entry:null, iso:null, placaOk:null, matchedBy:null};
       var meta = SITUACAO_OPTS_NF.find(function(m){ return m.value === s.situacao; });
       var toneClass = nfCancelada(nf) ? "usina-danger" : (nfTransf(nf) ? "usina-info" : (meta ? meta.tone : ""));
       var vinculoLabel = (meta ? meta.label : "—") + (NF_MATCH_LABEL[s.matchedBy] || "");
       var avisoNf = nfCancelada(nf) ? '<span class="badge danger" style="margin-right:4px;">🚫 NOTA CANCELADA</span>' : (nfTransf(nf) ? '<span class="badge info" style="margin-right:4px;">🔁 Transferência — só registro</span>' : '');
-      var vinculoBadge = '<td style="padding:4px 6px;">'+avisoNf+(nfSoRegistro(nf) && !s.entry ? '' : '<span class="badge '+(toneToBadge[s.situacao === "nao_vinculado" ? "usina-danger" : (s.situacao === "sem_certeza" ? "usina-conferir" : "usina-ok")]||"neutral")+'">'+esc(vinculoLabel)+'</span>')+'</td>';
+      var vinculoBadge = '<td style="padding:4px 6px;">'+avisoNf+(nfTransf(nf) || (nfCancelada(nf) && !s.entry) ? '' : '<span class="badge '+(toneToBadge[s.situacao === "nao_vinculado" ? "usina-danger" : (s.situacao === "sem_certeza" ? "usina-conferir" : "usina-ok")]||"neutral")+'">'+esc(vinculoLabel)+'</span>')+'</td>';
       var pedidoCell = nf.pedido
         ? esc(nf.pedido)
         : (s.entry ? '<span class="faint" style="font-size:11px;">(via prog: '+esc(s.entry.pedido)+')</span>' : '<span class="faint" style="font-style:italic;">—</span>');
-      var usina = s.entry ? esc(s.entry.usina) : '<span class="faint" style="font-style:italic;">—</span>';
+      var usina = s.entry ? esc(s.entry.usina) : (nf.usina ? esc(nf.usina) : '<span class="faint" style="font-style:italic;">—</span>');
       var fabrica = s.entry ? esc(s.entry.fabrica) : "";
       var placaProg = s.entry ? esc(s.entry.carretas) : "";
       var placaCell = s.placaOk === false

@@ -1652,6 +1652,7 @@
       id: ++histSeq, arquivo: arquivo, modulo: modulo, registros: added, total: total,
       dataHora: fmtDataHora(new Date()), status: "Salvo"
     });
+    if (typeof persistImport === "function") persistImport(importHistorico[0]);
   }
 
   // ---- Notas Fiscais (SEFAZ) ----
@@ -3002,7 +3003,7 @@
     el("historicoCard").querySelector("details").addEventListener("toggle", function(e){ historicoOpen = e.target.open; });
     el("historicoCard").querySelectorAll("[data-delhist]").forEach(function(btn){
       btn.addEventListener("click", function(){
-        importHistorico = importHistorico.filter(function(h){ return h.id !== parseInt(btn.dataset.delhist,10); });
+        importHistorico = importHistorico.filter(function(h){ if (h.id === parseInt(btn.dataset.delhist,10)) { if (typeof unpersistImport === "function") unpersistImport(h); return false; } return true; });
         paintHistorico();
       });
     });
@@ -3975,9 +3976,10 @@
       fetchAll(function(){ return live("programacao_itens", "dia_id,ordem,usina_nome,obs,status,programacao_cargas(ordem,placa,fabrica_nome,pedido)")().is("programacao_cargas.deleted_at", null).order("dia_id").order("ordem"); }),
       fetchAll(function(){ return live("vpo_dias", "id,data,excecao")().order("data"); }),
       fetchAll(function(){ return live("vpo_entradas", "dia_id,ordem,rota1_usina,rota1_fabrica,rota2_usina,rota2_fabrica,obs,status,extra,frota(codigo)")().order("dia_id").order("ordem"); }),
-      fetchAll(function(){ return sb.from("catalogo_cimento").select("termo,excluir").order("termo"); })
+      fetchAll(function(){ return sb.from("catalogo_cimento").select("termo,excluir").order("termo"); }),
+      sb.from("historico_importacoes").select("id,arquivo,modulo,registros,total,usuario,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(300).then(function(r){ return r.error ? [] : r.data; })
     ]);
-    var uRows = res[0], nRows = res[1], pRows = res[2], pdRows = res[3], piRows = res[4], vdRows = res[5], veRows = res[6], catRows = res[7];
+    var uRows = res[0], nRows = res[1], pRows = res[2], pdRows = res[3], piRows = res[4], vdRows = res[5], veRows = res[6], catRows = res[7], histRows = res[8];
 
     usinasCadastro.length = 0;
     uRows.forEach(function(u){
@@ -3989,6 +3991,12 @@
       CEMENTO_CATALOGO.length = 0; CEMENTO_EXCLUIR.length = 0;
       catRows.forEach(function(c){ (c.excluir ? CEMENTO_EXCLUIR : CEMENTO_CATALOGO).push(nz(c.termo)); });
     }
+    // histórico de importações (salvo no banco, de todos os usuários)
+    importHistorico.length = 0;
+    histRows.forEach(function(r){
+      importHistorico.push({ id: ++histSeq, dbId: r.id, arquivo: nz(r.arquivo), modulo: nz(r.modulo), registros: r.registros, total: r.total,
+        dataHora: fmtDataHora(new Date(r.created_at)) + (r.usuario ? " · " + r.usuario : ""), status: "Salvo" });
+    });
     cementNFes.length = 0;
     nRows.forEach(function(n, i){
       cementNFes.push({ id: i + 1, numero: nz(n.numero), emissao: nz(n.emissao), fornecedor: nz(n.fornecedor), material: nz(n.material), pedido: nz(n.pedido), placa: nz(n.placa), usina: nz(n.usina), motorista: nz(n.motorista), chave: nz(n.chave), status: nz(n.status) || "Autorizada", tipo: nz(n.tipo) || "compra" });
@@ -4087,6 +4095,18 @@
     CEMENTO_CATALOGO.forEach(function(t){ var k = String(t || "").trim().toUpperCase(); if (k) s.cat[k] = JSON.stringify({ termo: String(t).trim(), excluir: false }); });
     CEMENTO_EXCLUIR.forEach(function(t){ var k = String(t || "").trim().toUpperCase(); if (k) s.cat[k] = JSON.stringify({ termo: String(t).trim(), excluir: true }); });
     return s;
+  }
+
+  /* ---------- histórico de importações: grava e apaga no banco ---------- */
+  function persistImport(entry){
+    if (!ME || !sb || ME.papel === "leitura") return;
+    sb.from("historico_importacoes").insert({ empresa_id: ME.empresa_id, arquivo: entry.arquivo, modulo: entry.modulo, registros: entry.registros, total: entry.total, usuario: ME.nome })
+      .select("id").single().then(function(r){ if (!r.error && r.data) entry.dbId = r.data.id; });
+    entry.dataHora += " · " + ME.nome;
+  }
+  function unpersistImport(entry){
+    if (!entry || !entry.dbId || !sb) return;
+    sb.from("historico_importacoes").update({ deleted_at: new Date().toISOString() }).eq("id", entry.dbId).then(function(){ });
   }
 
   /* ---------- salvar no banco ---------- */

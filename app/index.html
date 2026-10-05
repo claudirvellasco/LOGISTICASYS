@@ -365,11 +365,13 @@
   .imp-alert-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap;}
   .imp-alert-head b{font-size:13px;}
   .imp-alert-head span{font-size:12px; color:var(--text-muted);}
-  .imp-pend{display:grid; grid-template-columns:minmax(0,1fr) minmax(200px,280px) auto auto; align-items:center; gap:8px 12px; padding:10px 0; border-top:1px solid var(--border); margin-top:10px;}
+  .imp-pend{display:grid; grid-template-columns:minmax(0,1fr) minmax(170px,220px) minmax(190px,240px) auto auto; align-items:center; gap:8px 12px; padding:10px 0; border-top:1px solid var(--border); margin-top:10px;}
   .imp-pend + .imp-pend{margin-top:0;}
   .imp-pend .nm{font-size:12.5px; min-width:0;}
   .imp-pend .nm small{display:block; color:var(--text-muted); font-size:12px; overflow-wrap:anywhere;}
-  @media (max-width:820px){ .imp-pend{grid-template-columns:1fr 1fr;} .imp-pend .nm, .imp-pend select{grid-column:1 / -1;} }
+  @media (max-width:820px){ .imp-pend{grid-template-columns:1fr 1fr;} .imp-pend .nm, .imp-pend select, .imp-pend .nomecad{grid-column:1 / -1;} }
+  .imp-pend .nomecad{border:1px solid var(--border-strong); border-radius:6px; padding:7px 10px; font-size:12.5px; background:var(--surface); color:var(--text); min-width:0;}
+  .imp-pend .nomecad.erro{border-color:var(--danger);}
 
   .btn-mini{background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:5px 10px; font-size:11.5px; font-weight:600; cursor:pointer;}
   .btn-mini:hover{background:var(--surface-3);}
@@ -2235,11 +2237,20 @@
   // precisar reimportar nada.
   var materiaisIgnorados = {};
   function materialNovoKey(fornecedorNF, material){ return normalizeMaterial(fornecedorNF) + "||" + normalizeMaterial(material); }
+  function sugerirNomeCadastro(material){
+    var n = normalizeMaterial(material);
+    if (/POZ/.test(n)) return "POZOLANA";
+    if (/CPIII|CP3/.test(n)) return "CP III";
+    if (/CPII|CP2/.test(n)) return "CP II";
+    if (/CPV|CP5/.test(n)) return "CP V";
+    return "";
+  }
   function materialJaConhecido(fornecedorNF, material){
     var fab = fabricaEntryForFornecedor(fornecedorNF);
     if (!fab) return false;
     var alvo = normalizeMaterial(material);
     if (!alvo) return true;
+    if ((fab.matAlias || []).some(function(a){ return normalizeMaterial(a[0]) === alvo; })) return true;
     return fab.materiais.some(function(m){
       var norm = normalizeMaterial(m);
       return norm && (norm === alvo || norm.indexOf(alvo) !== -1 || alvo.indexOf(norm) !== -1);
@@ -2633,13 +2644,15 @@
         return '<div class="imp-pend">' +
           '<div class="nm"><b>'+esc(p.fornecedorNF)+'</b>'+origem+'<small>'+esc(p.material)+'</small></div>' +
           '<select data-pid="'+p.id+'" class="status-select">'+opts+'</select>' +
+          '<input class="nomecad" list="dlNomeCadFab" data-nomepid="'+p.id+'" value="'+esc(sugerirNomeCadastro(p.material))+'" placeholder="Nome de cadastro (CP II, CP III, CP V, POZOLANA)" autocomplete="off">' +
           '<button class="btn-primary btn-inline" data-addpid="'+p.id+'">Adicionar à base</button>' +
           '<button class="btn-ghost" data-ignpid="'+p.id+'" style="padding:6px 10px;color:var(--text-muted);">Ignorar</button>' +
           '</div>';
       }).join("");
       cardEl.innerHTML =
         '<div class="imp-alert">' +
-        '<div class="imp-alert-head"><b>🔔 '+pendentes.length+' material(is) possivelmente novo(s)</b><span>Apareceu numa nota de cimento, mas não está cadastrado para esse fornecedor na Base de Fábricas. Escolha onde cadastrar ou ignore se for só variação de escrita.</span></div>' +
+        '<div class="imp-alert-head"><b>🔔 '+pendentes.length+' material(is) possivelmente novo(s)</b><span>Apareceu numa nota de cimento, mas não está cadastrado para esse fornecedor na Base de Fábricas. Escolha o fornecedor, escreva o nome de cadastro (CP II, CP III, CP V ou POZOLANA) e adicione — ou ignore se for só variação de escrita.</span></div>' +
+        '<datalist id="dlNomeCadFab"><option value="CP II"><option value="CP III"><option value="CP V"><option value="POZOLANA"></datalist>' +
         rows +
         '</div>';
       cardEl.querySelectorAll("[data-addpid]").forEach(function(btn){
@@ -2649,6 +2662,9 @@
           if (!p) return;
           var sel = cardEl.querySelector('select[data-pid="'+id+'"]');
           var val = sel.value;
+          var inNome = cardEl.querySelector('input[data-nomepid="'+id+'"]');
+          var nomeCad = limpaGranel(inNome ? inNome.value : "");
+          if (!nomeCad){ if (inNome){ inNome.classList.add("erro"); inNome.focus(); } return; }
           var fab;
           if (val === "__novo__"){
             fab = {fornecedor: p.fornecedorNF, materiais: [], cnpjs: []};
@@ -2656,8 +2672,11 @@
           } else {
             fab = FABRICAS_CATALOGO[parseInt(val, 10)];
           }
-          if (fab && !fab.materiais.some(function(m){ return materialChaveFab(m) === materialChaveFab(p.material); })){
-            fab.materiais.push(limpaGranel(p.material));
+          if (fab){
+            if (!fab.materiais.some(function(m){ return materialChaveFab(m) === materialChaveFab(nomeCad); })) fab.materiais.push(nomeCad);
+            if (!fab.matAlias) fab.matAlias = [];
+            var chaveRaw = normalizeMaterial(p.material);
+            if (!fab.matAlias.some(function(a){ return normalizeMaterial(a[0]) === chaveRaw; })) fab.matAlias.push([String(p.material).trim(), nomeCad]);
           }
           paint();
           renderFabricasCatalogo();
@@ -4008,7 +4027,7 @@
       fetchAll(function(){ return live("vpo_dias", "id,data,excecao")().order("data"); }),
       fetchAll(function(){ return live("vpo_entradas", "dia_id,ordem,rota1_usina,rota1_fabrica,rota2_usina,rota2_fabrica,obs,status,extra,frota(codigo)")().order("dia_id").order("ordem"); }),
       fetchAll(function(){ return sb.from("catalogo_cimento").select("termo,excluir").order("termo"); }),
-      sb.from("fornecedores").select("nome,cnpjs,aliases,fabricas(material,deleted_at)").is("deleted_at", null).order("created_at").then(function(r){ return r.error ? null : r.data; }),
+      sb.from("fornecedores").select("nome,cnpjs,aliases,mat_alias,fabricas(material,deleted_at)").is("deleted_at", null).order("created_at").then(function(r){ return r.error ? null : r.data; }),
       sb.from("historico_importacoes").select("id,arquivo,modulo,registros,total,usuario,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(300).then(function(r){ return r.error ? [] : r.data; })
     ]);
     var uRows = res[0], nRows = res[1], pRows = res[2], pdRows = res[3], piRows = res[4], vdRows = res[5], veRows = res[6], catRows = res[7], fabRows = res[8], histRows = res[9];
@@ -4078,6 +4097,8 @@
         var cn = Array.isArray(f.cnpjs) ? f.cnpjs : [], al = Array.isArray(f.aliases) ? f.aliases : [];
         var o = { fornecedor: f.nome, materiais: (f.fabricas || []).filter(function(b){ return !b.deleted_at; }).map(function(b){ return b.material; }), cnpjs: cn.map(function(c){ return [String(c[0] || ""), String(c[1] || "")]; }) };
         if (al.length) o.aliases = al.slice();
+        var ma = Array.isArray(f.mat_alias) ? f.mat_alias : [];
+        if (ma.length) o.matAlias = ma.map(function(a){ return [String(a[0] || ""), String(a[1] || "")]; });
         FABRICAS_CATALOGO.push(o);
       });
     }
@@ -4140,7 +4161,8 @@
     s.fab.all = JSON.stringify(FABRICAS_CATALOGO.map(function(f){
       return { fornecedor: String(f.fornecedor || "").trim(), materiais: (f.materiais || []).map(function(m){ return String(m).trim(); }).filter(Boolean),
         cnpjs: (f.cnpjs || []).filter(function(c){ return String(c[0] || "").trim() || String(c[1] || "").trim(); }).map(function(c){ return [String(c[0] || "").trim(), String(c[1] || "").trim()]; }),
-        aliases: (f.aliases || []).map(function(a){ return String(a).trim(); }).filter(Boolean) };
+        aliases: (f.aliases || []).map(function(a){ return String(a).trim(); }).filter(Boolean),
+        mat_alias: (f.matAlias || []).filter(function(a){ return String(a[0] || "").trim(); }).map(function(a){ return [String(a[0]).trim(), String(a[1] || "").trim()]; }) };
     }).filter(function(f){ return f.fornecedor; }));
     CEMENTO_CATALOGO.forEach(function(t){ var k = String(t || "").trim().toUpperCase(); if (k) s.cat[k] = JSON.stringify({ termo: String(t).trim(), excluir: false }); });
     CEMENTO_EXCLUIR.forEach(function(t){ var k = String(t || "").trim().toUpperCase(); if (k) s.cat[k] = JSON.stringify({ termo: String(t).trim(), excluir: true }); });

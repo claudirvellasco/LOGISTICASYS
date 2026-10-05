@@ -1902,11 +1902,12 @@
     det.innerHTML = '<summary style="cursor:pointer;color:var(--warning);">Ver as ' + ignoradasUltima.length + ' linha(s) ignorada(s) e o motivo</summary>' + html;
     host.insertAdjacentElement("afterend", det);
   }
+  function puzlKey2(p){ return String(p.documento||"").trim().toUpperCase()+"||"+String(p.centralEntrada||"").trim().toUpperCase()+"||"+normalizeMaterial(p.fornecedor); }
   function importPuzlFromText(text){
     ignoradasUltima = [];
     var existing = {};
-    puzlEntradas.forEach(function(p){ existing[puzlKey(p)] = true; });
-    var added = 0, skipped = 0, invalid = 0, naoCimento = 0;
+    puzlEntradas.forEach(function(p){ existing[puzlKey2(p)] = p; });
+    var added = 0, skipped = 0, invalid = 0, naoCimento = 0, atualizadas = 0;
     String(text||"").split(/\r?\n/).forEach(function(line){
       line = line.trim();
       if (!line) return;
@@ -1925,14 +1926,23 @@
       };
       if (!p.documento || !p.item){ invalid++; ign(!p.documento ? "Sem número de documento" : "Sem item", line); return; }
       if (!materialEhCimento(p.item)){ naoCimento++; ign("Item fora do Catálogo de Cimentos: " + p.item, line); return; }
-      var key = puzlKey(p);
-      if (existing[key]){ skipped++; ign("Repetida (mesmo documento, série e central já lançados): documento " + p.documento, line); return; }
-      existing[key] = true;
+      var key = puzlKey2(p);
+      var ja = existing[key];
+      if (ja){
+        // já existe: só completa o que estava vazio
+        var mudou = false;
+        ["serie", "emissaoNF", "unCompra", "quantidade", "dataEntrada", "cnpjFornecedor", "cnpjComprador", "tipo", "grupo", "categoria"].forEach(function(c){
+          if (!String(ja[c] || "").trim() && String(p[c] || "").trim()){ ja[c] = p[c]; mudou = true; }
+        });
+        if (mudou) atualizadas++; else { skipped++; ign("Repetida (mesmo documento, central e fornecedor já lançados): documento " + p.documento, line); }
+        return;
+      }
+      existing[key] = p;
       p.id = ++puzlSeq;
       puzlEntradas.push(p);
       added++;
     });
-    return {added:added, skipped:skipped, invalid:invalid, naoCimento:naoCimento};
+    return {added:added, skipped:skipped, invalid:invalid, naoCimento:naoCimento, atualizadas:atualizadas};
   }
   // Acha o(s) lançamento(s) da PUZL cujo Documento bate com um nº de nota do
   // SEFAZ (mesma tolerância a zero à esquerda usada em pedidos, via
@@ -2421,9 +2431,9 @@
     }
     function runImportPuzl(txt, arquivo){
       var r = importPuzlFromText(txt);
-      var msg = r.added+" novo(s) importado(s), "+r.skipped+" já cadastrado(s) ignorado(s)"+(r.naoCimento?", "+r.naoCimento+" ignorado(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+".";
+      var msg = r.added+" novo(s) importado(s)"+(r.atualizadas?", "+r.atualizadas+" completado(s) com dados que faltavam":"")+", "+r.skipped+" já cadastrado(s) ignorado(s)"+(r.naoCimento?", "+r.naoCimento+" ignorado(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+".";
       el("importPuzlResult").textContent = msg; mostrarIgnoradas("importPuzlResult");
-      if (r.added || r.skipped || r.naoCimento) logImport(arquivo, "Lançamentos (PUZL)", r.added, r.added + r.skipped + r.invalid + r.naoCimento);
+      if (r.added || r.skipped || r.naoCimento || r.atualizadas) logImport(arquivo, "Lançamentos (PUZL)", r.added, r.added + r.skipped + r.invalid + r.naoCimento);
       el("importPuzlText").value = "";
       delete el("importPuzlText").dataset.arquivo;
       el("puzlFileLabel").textContent = "Arraste ou clique para selecionar";

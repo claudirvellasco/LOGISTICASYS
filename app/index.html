@@ -2097,7 +2097,7 @@
   // conferem contra esse item da programação (mesma lógica do Controle de
   // Pedidos, matchProgramacao) e olha o status SEFAZ delas.
   function entradasParaProgEntry(progEntry){
-    return cementEntradas.filter(function(en){ return matchProgramacao(en).entry === progEntry; });
+    return cementEntradas.filter(function(en){ var m = matchProgramacao(en); return m.entry === progEntry && m.situacao === "confere"; });
   }
   // Notas CANCELADAS do SEFAZ que se ligam a essa linha da Programação (por pedido ou usina+placa+data)
   function nfCanceladasLigadas(progEntry){

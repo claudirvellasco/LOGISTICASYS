@@ -3977,9 +3977,10 @@
       fetchAll(function(){ return live("vpo_dias", "id,data,excecao")().order("data"); }),
       fetchAll(function(){ return live("vpo_entradas", "dia_id,ordem,rota1_usina,rota1_fabrica,rota2_usina,rota2_fabrica,obs,status,extra,frota(codigo)")().order("dia_id").order("ordem"); }),
       fetchAll(function(){ return sb.from("catalogo_cimento").select("termo,excluir").order("termo"); }),
+      sb.from("fornecedores").select("nome,cnpjs,aliases,fabricas(material,deleted_at)").is("deleted_at", null).order("created_at").then(function(r){ return r.error ? null : r.data; }),
       sb.from("historico_importacoes").select("id,arquivo,modulo,registros,total,usuario,created_at").is("deleted_at", null).order("created_at", { ascending: false }).limit(300).then(function(r){ return r.error ? [] : r.data; })
     ]);
-    var uRows = res[0], nRows = res[1], pRows = res[2], pdRows = res[3], piRows = res[4], vdRows = res[5], veRows = res[6], catRows = res[7], histRows = res[8];
+    var uRows = res[0], nRows = res[1], pRows = res[2], pdRows = res[3], piRows = res[4], vdRows = res[5], veRows = res[6], catRows = res[7], fabRows = res[8], histRows = res[9];
 
     usinasCadastro.length = 0;
     uRows.forEach(function(u){
@@ -4037,8 +4038,21 @@
       dia.entries.push(e);
     });
     Object.keys(vpoScheduleByDate).forEach(function(iso){ vpoScheduleByDate[iso].entries.forEach(function(e){ if (!e.status) applyAutoVpoStatus(e); }); });
+    if (fabRows && fabRows.length){
+      var ordemPadrao = FABRICAS_CATALOGO.map(function(f){ return f.fornecedor; });
+      var posF = function(n){ var i = ordemPadrao.indexOf(n); return i < 0 ? 9999 : i; };
+      fabRows = fabRows.slice().sort(function(x, y){ return posF(x.nome) - posF(y.nome); });
+      FABRICAS_CATALOGO.length = 0;
+      fabRows.forEach(function(f){
+        var cn = Array.isArray(f.cnpjs) ? f.cnpjs : [], al = Array.isArray(f.aliases) ? f.aliases : [];
+        var o = { fornecedor: f.nome, materiais: (f.fabricas || []).filter(function(b){ return !b.deleted_at; }).map(function(b){ return b.material; }), cnpjs: cn.map(function(c){ return [String(c[0] || ""), String(c[1] || "")]; }) };
+        if (al.length) o.aliases = al.slice();
+        FABRICAS_CATALOGO.push(o);
+      });
+    }
     recomputeEntradasFromPuzl();
     SNAP = takeSnap();
+    if (!(fabRows && fabRows.length)) SNAP.fab = {};   // banco sem Base de Fábricas => grava os padrões
     SNAP.cat = {};   // o que o banco tem de verdade (vazio => os padrões serão gravados)
     catRows.forEach(function(c){ SNAP.cat[String(c.termo).trim().toUpperCase()] = JSON.stringify({ termo: String(c.termo).trim(), excluir: !!c.excluir }); });
   }
@@ -4056,7 +4070,7 @@
   }
   function itemVazio(i){ return !i.cargas.length && !i.obs && !i.status; }
   function takeSnap(){
-    var s = { prog: {}, vpo: {}, notas: {}, puzl: {}, usinas: {}, cat: {} };
+    var s = { prog: {}, vpo: {}, notas: {}, puzl: {}, usinas: {}, cat: {}, fab: {} };
     Object.keys(cementScheduleByDate).forEach(function(iso){
       if (!toIsoDate(iso)) return;
       var d = cementScheduleByDate[iso];
@@ -4092,6 +4106,11 @@
       s.usinas[k] = JSON.stringify({ usina: String(u.usina).trim(), sigla: u.sigla || "", cnpj: u.cnpj || "", regional: u.regional || "", whatsapp_usina: u.whatsappUsina || "", whatsapp_regional: u.whatsappRegional || "",
         email_usina: u.emailUsina || "", email_regional: u.emailRegional || "", nome_cadastro: u.nomeCadastro || "", codigo: u.codigo || "", filial: u.filial || "", puzl_rotulo: u.puzl || "" });
     });
+    s.fab.all = JSON.stringify(FABRICAS_CATALOGO.map(function(f){
+      return { fornecedor: String(f.fornecedor || "").trim(), materiais: (f.materiais || []).map(function(m){ return String(m).trim(); }).filter(Boolean),
+        cnpjs: (f.cnpjs || []).filter(function(c){ return String(c[0] || "").trim() || String(c[1] || "").trim(); }).map(function(c){ return [String(c[0] || "").trim(), String(c[1] || "").trim()]; }),
+        aliases: (f.aliases || []).map(function(a){ return String(a).trim(); }).filter(Boolean) };
+    }).filter(function(f){ return f.fornecedor; }));
     CEMENTO_CATALOGO.forEach(function(t){ var k = String(t || "").trim().toUpperCase(); if (k) s.cat[k] = JSON.stringify({ termo: String(t).trim(), excluir: false }); });
     CEMENTO_EXCLUIR.forEach(function(t){ var k = String(t || "").trim().toUpperCase(); if (k) s.cat[k] = JSON.stringify({ termo: String(t).trim(), excluir: true }); });
     return s;
@@ -4164,6 +4183,15 @@
       } catch (e) { erros.push(e); }
     }
 
+    // Base de Fábricas (fornecedor x material, CNPJs, apelidos): estado completo numa chamada só
+    if (mudou("fab", "all")){
+      var listaFab = JSON.parse(cur.fab.all);
+      if (listaFab.length){
+        try { await rpc("sync_fabricas", { p_itens: listaFab }); SNAP.fab.all = cur.fab.all; }
+        catch (e) { erros.push(e); }
+      }
+    }
+
     var diasProg = keys("prog").filter(function(k){ return mudou("prog", k); });
     for (var i = 0; i < diasProg.length; i++){
       (function(k){ })(diasProg[i]);
@@ -4205,7 +4233,7 @@
   function temMudanca(){
     if (!SNAP) return false;
     var cur = takeSnap();
-    return ["prog", "vpo", "notas", "puzl", "usinas", "cat"].some(function(parte){
+    return ["prog", "vpo", "notas", "puzl", "usinas", "cat", "fab"].some(function(parte){
       var ks = {}; Object.keys(SNAP[parte]).concat(Object.keys(cur[parte])).forEach(function(k){ ks[k] = 1; });
       return Object.keys(ks).some(function(k){ return (cur[parte][k] == null ? null : cur[parte][k]) !== (SNAP[parte][k] == null ? null : SNAP[parte][k]); });
     });

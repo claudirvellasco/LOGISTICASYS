@@ -1939,27 +1939,69 @@
     host.insertAdjacentElement("afterend", det);
   }
   function puzlKey2(p){ return String(p.documento||"").trim().toUpperCase()+"||"+String(p.centralEntrada||"").trim().toUpperCase()+"||"+normalizeMaterial(p.fornecedor); }
+  function puzlNomeCol(s){ return stripAccents(String(s||"")).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(); }
+  var PUZL_COLUNAS = {
+    centralCompradora: ["central", "central compradora"], cnpjComprador: ["cnpj comprador"],
+    centralEntrada: ["central de entrada", "central entrada"], dataEntrada: ["data de entrada", "data entrada"],
+    fornecedor: ["fornecedor"], cnpjFornecedor: ["cpf cnpj", "cnpj fornecedor", "cnpj do fornecedor"],
+    tipo: ["tipo"], grupo: ["plano de contas", "grupo"], categoria: ["categoria"], item: ["item"],
+    documento: ["documento"], serie: ["serie"], emissaoNF: ["emissao", "emissao nf"],
+    unCompra: ["und compra", "un de compra", "un compra", "unidade de compra"], quantidade: ["quantidade"]
+  };
+  // Devolve {campo: índice da coluna} se a linha for um cabeçalho com pelo menos Documento e Item; senão null.
+  // Nomes repetidos (ex: "Série" aparece duas vezes) valem pela 1ª ocorrência.
+  function puzlMapaCabecalho(parts){
+    var mapa = {};
+    parts.forEach(function(c, i){
+      var k = puzlNomeCol(c);
+      if (!k) return;
+      Object.keys(PUZL_COLUNAS).forEach(function(campo){
+        if (mapa[campo] == null && PUZL_COLUNAS[campo].indexOf(k) !== -1) mapa[campo] = i;
+      });
+    });
+    return (mapa.documento != null && mapa.item != null) ? mapa : null;
+  }
   function importPuzlFromText(text){
     ignoradasUltima = [];
     var existing = {};
     puzlEntradas.forEach(function(p){ existing[puzlKey2(p)] = p; });
     var added = 0, skipped = 0, invalid = 0, naoCimento = 0, atualizadas = 0;
-    String(text||"").split(/\r?\n/).forEach(function(line){
-      line = line.trim();
-      if (!line) return;
+    var linhasP = String(text||"").split(/\r?\n/), mapa = null, iCab = -1;
+    for (var li = 0; li < linhasP.length && iCab < 0; li++){
+      var m0 = puzlMapaCabecalho(linhasP[li].split("\t"));
+      if (m0){ mapa = m0; iCab = li; }
+    }
+    linhasP.forEach(function(line, li){
+      if (mapa && li <= iCab) return;                       // período/filtros + cabeçalho
+      line = line.replace(/^[ \r\n]+|[ \r\n]+$/g, "");
+      if (!line.replace(/\t/g, "").trim()) return;          // linha vazia (só tabs)
       var parts = line.split("\t");
-      if (parts.length < 12) { invalid++; ign("Poucas colunas (" + parts.length + "; esperado 12 ou mais)", line); return; }
-      // Pula a linha de cabeçalho, se vier junto.
-      if (/^central\s*comprador/i.test(parts[0]||"")) return;
-      var p = {
-        id: 0,
-        centralCompradora: parts[0]||"", cnpjComprador: parts[1]||"",
-        centralEntrada: parts[2]||"", dataEntrada: normalizeDateToISO(parts[3]),
-        fornecedor: parts[4]||"", cnpjFornecedor: parts[5]||"",
-        tipo: parts[6]||"", grupo: parts[7]||"", categoria: parts[9]||"",
-        item: parts[10]||"", documento: parts[11]||"", serie: parts[12]||"",
-        emissaoNF: normalizeDateToISO(parts[13]), unCompra: parts[17]||"", quantidade: parts[18]||""
-      };
+      var p;
+      if (mapa){
+        var g = function(c){ var i = mapa[c]; return i == null || parts[i] == null ? "" : String(parts[i]).trim(); };
+        p = {
+          id: 0,
+          centralCompradora: g("centralCompradora"), cnpjComprador: g("cnpjComprador"),
+          centralEntrada: g("centralEntrada"), dataEntrada: normalizeDateToISO(g("dataEntrada")),
+          fornecedor: g("fornecedor"), cnpjFornecedor: g("cnpjFornecedor"),
+          tipo: g("tipo"), grupo: g("grupo"), categoria: g("categoria"),
+          item: g("item"), documento: g("documento"), serie: g("serie"),
+          emissaoNF: normalizeDateToISO(g("emissaoNF")), unCompra: g("unCompra"), quantidade: g("quantidade")
+        };
+      } else {
+        if (parts.length < 12) { invalid++; ign("Poucas colunas (" + parts.length + "; esperado 12 ou mais)", line); return; }
+        // Pula a linha de cabeçalho, se vier junto.
+        if (/^central\s*comprador/i.test(parts[0]||"")) return;
+        p = {
+          id: 0,
+          centralCompradora: parts[0]||"", cnpjComprador: parts[1]||"",
+          centralEntrada: parts[2]||"", dataEntrada: normalizeDateToISO(parts[3]),
+          fornecedor: parts[4]||"", cnpjFornecedor: parts[5]||"",
+          tipo: parts[6]||"", grupo: parts[7]||"", categoria: parts[9]||"",
+          item: parts[10]||"", documento: parts[11]||"", serie: parts[12]||"",
+          emissaoNF: normalizeDateToISO(parts[13]), unCompra: parts[17]||"", quantidade: parts[18]||""
+        };
+      }
       if (!p.documento || !p.item){ invalid++; ign(!p.documento ? "Sem número de documento" : "Sem item", line); return; }
       if (!materialEhCimento(p.item)){ naoCimento++; ign("Item fora do Catálogo de Cimentos: " + p.item, line); return; }
       var key = puzlKey2(p);

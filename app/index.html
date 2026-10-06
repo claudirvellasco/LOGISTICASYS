@@ -2198,7 +2198,21 @@
       else if (st === "confirmada" && best !== "cancelada") best = "confirmada";
       else if (st === "emitida" && best !== "confirmada" && best !== "cancelada") best = "emitida";
     });
-    return best; // "none" | "emitida" | "confirmada"
+    // Cadeia pela nota do SEFAZ (ligação firme com ESTA linha da programação)
+    var ped = pedidoListFrom(progEntry.pedido).map(normalizePedidoNum);
+    var usinaProg = String(progEntry.usina || "").trim().toUpperCase();
+    cementNFes.forEach(function(nf){
+      if (nfSoRegistro(nf)) return;                                   // cancelada / transferência: não conta
+      var np = String(nf.pedido || "").trim();
+      // pré-filtro exato: só chama a ligação completa se o pedido da nota está nesta linha (ou, sem pedido, a usina é a mesma)
+      if (np ? ped.indexOf(normalizePedidoNum(np)) === -1 : String(nf.usina || "").trim().toUpperCase() !== usinaProg) return;
+      var s = nfSituacao(nf);
+      if (s.entry !== progEntry || s.situacao !== "confere") return;
+      var st = nfEntradaMatch(nf) ? "confirmada" : "emitida";
+      if (st === "confirmada" && best !== "cancelada") best = "confirmada";
+      else if (st === "emitida" && best === "none") best = "emitida";
+    });
+    return best; // "none" | "emitida" | "confirmada" | "cancelada"
   }
   // ---- Ligação NF do SEFAZ -> Programação de Cimento ----
   // Critério principal: nº do pedido — é o único campo que aparece garantido
@@ -3155,7 +3169,7 @@
   var pedidosPicker;
   function renderControlePedidos(){
     el("view-controle-pedidos-cimento").innerHTML =
-      '<div class="card banner" style="margin-bottom:16px;">Cada nota importada em <b>Base de Dados &gt; Notas Fiscais (SEFAZ)</b> é ligada à Programação de Cimento pelo nº do pedido (conferida pela placa, quando informada); sem pedido na nota, a ligação cai pra Usina + Placa + Data. Depois é comparada com o resumo de Entradas pra saber se já descarregou. Pra importar notas ou entradas, use a aba <b>Base de Dados</b>.</div>' +
+      '<div class="card banner" style="margin-bottom:16px;">Cada nota importada em <b>Base de Dados &gt; Notas Fiscais (SEFAZ)</b> é ligada à Programação de Cimento pelo nº do pedido (conferida pela placa, quando informada); sem pedido na nota, a ligação cai pra Usina + Placa + Data. O caminho é: <b>Programação → nota emitida (SEFAZ) → descarregada (entrada da PUZL, pelo nº da nota)</b>. Pra importar notas ou entradas, use a aba <b>Base de Dados</b>.</div>' +
       '<div class="card" style="margin-bottom:16px;"><div class="filters" style="align-items:center;">' +
       '<div class="filter-field"><span>Período (emissão da nota)</span>' +
       '<div class="daterange"><button class="daterange-btn" id="pedDrBtn">📅 <span id="pedDrLabel"></span> <span style="opacity:.6;">▾</span></button>' +
@@ -3165,6 +3179,9 @@
       '<div class="card" id="pedidosCard" style="margin-bottom:16px;"></div>' +
       '<div id="pedidosSemNFCard"></div>';
     pedidosPicker = makeRangePicker({btn:"pedDrBtn", panel:"pedDrPanel", label:"pedDrLabel"}, paintPedidos);
+    pedidosPicker.state.rangeStart = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+    pedidosPicker.state.rangeEnd = new Date(TODAY);
+    pedidosPicker.state.calViewMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
     paintPedidos();
   }
 
@@ -3303,13 +3320,14 @@
         '</tr>';
     }).join("");
     cardEl.innerHTML =
-      '<details style="margin-bottom:16px;" open><summary style="cursor:pointer;padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--accent-strong);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">🔍 Conferência individual — entradas sem nota do SEFAZ correspondente ('+semNF.length+')</summary>' +
+      '<details id="semNFDet" style="margin-bottom:16px;"'+(window.__semNFOpen?" open":"")+'><summary style="cursor:pointer;padding:12px 18px;font-size:12.5px;font-weight:600;color:var(--accent-strong);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">🔍 Conferência individual — entradas sem nota do SEFAZ correspondente ('+semNF.length+')</summary>' +
       '<div class="card" style="margin-top:8px;">' +
       '<p class="import-card-desc" style="margin:0 0 10px;">Toda entrada lançada é, em tese, uma nota do SEFAZ que já chegou na usina — as linhas abaixo ainda não bateram com nenhuma nota importada (pode ser que a NF ainda não tenha sido importada em Base de Dados, ou o número tenha sido digitado diferente). Confira uma a uma.</p>' +
       (semNF.length
         ? '<div class="table-wrap"><table><thead><tr><th>Data entrada</th><th>Usina</th><th>Fábrica</th><th>Nº pedido</th><th>Documento/NF</th><th>Quantidade</th><th>Motivo</th><th>Programação encontrada</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
         : '<p class="prog-empty">Todas as entradas já têm nota do SEFAZ correspondente.</p>') +
       '</div></details>';
+    var detSem = cardEl.querySelector("#semNFDet"); if (detSem) detSem.addEventListener("toggle", function(){ window.__semNFOpen = detSem.open; });
     xlEnhance(cardEl, "pedidos-sem-nf");
   }
 

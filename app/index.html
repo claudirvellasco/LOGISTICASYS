@@ -136,14 +136,19 @@
   .card-head h2{font-size:13.5px; font-weight:700; letter-spacing:.01em;}
   .card-head p{margin:3px 0 0; font-size:11.5px; color:var(--text-muted);}
 
-  .stat-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(155px,1fr)); gap:12px; margin-bottom:18px;}
-  .stat{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:15px; box-shadow:var(--shadow); position:relative; overflow:hidden;}
+  .stat-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(150px,1fr)); gap:8px; margin-bottom:12px; align-items:start;}
+  .stat{display:grid; grid-template-columns:auto 1fr; align-items:center; column-gap:10px; row-gap:0;}
+  .stat .stat-val{grid-column:1; grid-row:1 / span 2; margin-top:0;}
+  .stat .stat-top{grid-column:2; grid-row:1;}
+  .stat .stat-sub{grid-column:2; grid-row:2;}
+  .stat .stat-icn{display:none;}
+  .stat{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:8px 12px; box-shadow:var(--shadow); position:relative; overflow:hidden;}
   .stat::before{content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--stat-accent, var(--border-strong));}
   .stat-top{display:flex; align-items:center; justify-content:space-between;}
-  .stat-top span{font-size:10.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
-  .stat-icn{width:27px; height:27px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; flex:none;}
-  .stat-val{margin-top:9px; font-size:24px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.01em;}
-  .stat-sub{margin-top:2px; font-size:10.5px; color:var(--text-faint);}
+  .stat-top span{font-size:9.5px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+  .stat-icn{width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; flex:none;}
+  .stat-val{margin-top:3px; font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:-.01em;}
+  .stat-sub{margin-top:0; font-size:10px; color:var(--text-faint);}
 
   .badge{display:inline-flex; align-items:center; gap:6px; padding:3.5px 10px; border-radius:99px; font-size:11px; font-weight:700; white-space:nowrap; letter-spacing:.01em;}
   .badge::before{content:""; width:6px; height:6px; border-radius:50%; background:currentColor; flex:none;}
@@ -160,7 +165,8 @@
   tr:last-child td{border-bottom:none;}
   tr.clickable{cursor:pointer;}
   tr.clickable:hover{background:var(--surface-2);}
-  .table-wrap{overflow-x:auto;}
+  .table-wrap{overflow:auto; max-height:max(320px, calc(100vh - 250px));}
+  .table-wrap thead th{position:sticky; top:0; z-index:3;}
   .muted{color:var(--text-muted);}
   .faint{color:var(--text-faint);}
   .cell-strong{font-weight:700;}
@@ -1118,6 +1124,18 @@
     xlApplyState(table, key, skipCols);
   }
 
+  function fitTableWraps(){
+    document.querySelectorAll(".table-wrap").forEach(function(w){
+      if (!w.offsetParent) return;                                     // escondida (aba/details fechado)
+      var topo = w.getBoundingClientRect().top + window.scrollY;
+      w.style.maxHeight = Math.max(260, window.innerHeight - topo - 24) + "px";
+    });
+  }
+  var __fitT = null;
+  function agendaFit(){ if (__fitT) return; __fitT = setTimeout(function(){ __fitT = null; fitTableWraps(); }, 80); }
+  window.addEventListener("resize", agendaFit);
+  document.addEventListener("toggle", agendaFit, true);
+  new MutationObserver(agendaFit).observe(document.body, {childList: true, subtree: true});
   /* ---------------- Nav ---------------- */
   var navCimentoEl = el("navCimento");
   NAV_CIMENTO.forEach(function(item){
@@ -3215,7 +3233,7 @@
         return '<div class="stat" style="--stat-accent:var(--'+s[2]+');"><div class="stat-top"><span>'+s[1]+'</span><span class="stat-icn" style="background:var(--'+s[2]+'-soft);color:var(--'+s[2]+');">'+s[3]+'</span></div><div class="stat-val">'+pedidosCount(s[0])+'</div></div>';
       }).join("") +
       '<div class="stat" style="--stat-accent:var(--success);"><div class="stat-top"><span>Confirmadas (Entradas)</span><span class="stat-icn" style="background:var(--success-soft);color:var(--success);">✅</span></div><div class="stat-val">'+confirmadas+'</div></div>' +
-      '<div class="stat" style="--stat-accent:var(--danger);"><div class="stat-top"><span>Só registro (canceladas / transf.)</span><span class="stat-icn" style="background:var(--danger-soft);color:var(--danger);">🚫</span></div><div class="stat-val">'+nfsReg.length+'</div><div class="stat-sub">'+nfsReg.filter(nfCancelada).length+' cancelada(s)</div></div>' +
+      '<div class="stat" style="--stat-accent:var(--danger);"><div class="stat-top"><span>Só registro</span><span class="stat-icn" style="background:var(--danger-soft);color:var(--danger);">🚫</span></div><div class="stat-val">'+nfsReg.length+'</div><div class="stat-sub">'+nfsReg.filter(nfCancelada).length+' cancelada(s)</div></div>' +
       '</div>';
   }
 
@@ -3273,13 +3291,14 @@
         '<td style="padding:8px 10px;font-size:12.5px;">'+placaCell+'</td>' +
         vinculoBadge +
         '<td style="padding:4px 6px;">'+statusBadge+'</td>' +
+        '<td style="padding:8px 10px;font-size:12.5px;white-space:nowrap;">'+(entradaMatch && entradaMatch.data && !nfCancelada(nf) ? esc(brDate(entradaMatch.data)) : '<span class="faint">—</span>')+'</td>' +
         '</tr>';
     }).join("");
 
     el("pedidosCard").innerHTML =
       '<div class="pedidos-tabs">'+tabsHtml+'</div>' +
       (list.length
-        ? '<div class="table-wrap"><table><thead><tr><th>Número NF</th><th>Emissão</th><th>Fornecedor</th><th>Pedido</th><th>Usina</th><th>Fábrica</th><th>Placa</th><th>Vínculo c/ Programação</th><th>Status (Entradas)</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+        ? '<div class="table-wrap"><table><thead><tr><th>Número NF</th><th>Emissão</th><th>Fornecedor</th><th>Pedido</th><th>Usina</th><th>Fábrica</th><th>Placa</th><th>Vínculo c/ Programação</th><th>Status (Entradas)</th><th>Data de descarga</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
         : '<p class="prog-empty">Nenhuma nota nessa situação.</p>');
 
     el("pedidosCard").querySelectorAll(".pedidos-tabs button").forEach(function(b){

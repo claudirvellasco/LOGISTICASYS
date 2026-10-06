@@ -3408,6 +3408,7 @@
 
   /* ---------------- Controle de Pedidos de Cimento ---------------- */
   var pedidosFiltro = "todos";
+  var pedidosModo = "prog", pedProgFiltro = "acomp";
   // Controle de Pedidos passou a ser formado pelas NOTAS DO SEFAZ (cementNFes),
   // não mais pelas entradas: cada nota puxa usina/fábrica/placa da Programação
   // de Cimento (via nfProgMatch, pelo nº do pedido — combinado com você como a
@@ -3420,15 +3421,18 @@
   var pedidosPicker;
   function renderControlePedidos(){
     el("view-controle-pedidos-cimento").innerHTML =
-      '<div class="card banner" style="margin-bottom:16px;">Cada nota importada em <b>Base de Dados &gt; Notas Fiscais (SEFAZ)</b> é ligada à Programação de Cimento pelo nº do pedido (conferida pela placa, quando informada); sem pedido na nota, a ligação cai pra Usina + Placa + Data. O caminho é: <b>Programação → nota emitida (SEFAZ) → descarregada (entrada da PUZL, pelo nº da nota)</b>. Pra importar notas ou entradas, use a aba <b>Base de Dados</b>.</div>' +
+      '<div class="card banner" id="pedBanner" style="margin-bottom:16px;">Cada nota importada em <b>Base de Dados &gt; Notas Fiscais (SEFAZ)</b> é ligada à Programação de Cimento pelo nº do pedido (conferida pela placa, quando informada); sem pedido na nota, a ligação cai pra Usina + Placa + Data. O caminho é: <b>Programação → nota emitida (SEFAZ) → descarregada (entrada da PUZL, pelo nº da nota)</b>. Pra importar notas ou entradas, use a aba <b>Base de Dados</b>.</div>' +
       '<div class="card" style="margin-bottom:16px;"><div class="filters" style="align-items:center;">' +
-      '<div class="filter-field"><span>Período (emissão da nota)</span>' +
+      '<div class="filter-field"><span id="pedPeriodoLbl">Período (dia programado)</span>' +
       '<div class="daterange"><button class="daterange-btn" id="pedDrBtn">📅 <span id="pedDrLabel"></span> <span style="opacity:.6;">▾</span></button>' +
       '<div class="daterange-panel" id="pedDrPanel"></div></div></div>' +
       '<div class="filter-count" id="pedDayInfo"></div></div></div>' +
+      '<div class="pedidos-tabs" id="pedModo" style="padding:0 0 12px;border:none;"><button data-modo="prog">📋 Por programação</button><button data-modo="nota">🧾 Por nota (SEFAZ)</button></div>' +
+      '<div id="pedProgStats"></div><div class="card" id="pedProgCard" style="margin-bottom:16px;"></div>' +
       '<div id="pedidosStats"></div>' +
       '<div class="card" id="pedidosCard" style="margin-bottom:16px;"></div>' +
       '<div id="pedidosSemNFCard"></div>';
+    el("pedModo").querySelectorAll("button").forEach(function(b){ b.addEventListener("click", function(){ pedidosModo = b.dataset.modo; paintPedidos(); }); });
     pedidosPicker = makeRangePicker({btn:"pedDrBtn", panel:"pedDrPanel", label:"pedDrLabel"}, paintPedidos);
     pedidosPicker.state.rangeStart = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
     pedidosPicker.state.rangeEnd = new Date(TODAY);
@@ -3477,6 +3481,129 @@
   }
 
   function paintPedidos(){
+    var prog = pedidosModo === "prog";
+    ["pedProgStats","pedProgCard"].forEach(function(id){ el(id).style.display = prog ? "" : "none"; });
+    ["pedidosStats","pedidosCard","pedidosSemNFCard"].forEach(function(id){ el(id).style.display = prog ? "none" : ""; });
+    el("pedPeriodoLbl").textContent = prog ? "Período (dia programado)" : "Período (emissão da nota)";
+    el("pedModo").querySelectorAll("button").forEach(function(b){ b.classList.toggle("active", b.dataset.modo === pedidosModo); });
+    var bn = el("pedBanner");
+    if (!window.__pedBannerNotas) window.__pedBannerNotas = bn.innerHTML;
+    bn.innerHTML = prog
+      ? 'O Controle <b>acompanha a Programação de Cimento</b>: cada carga programada vira uma linha e o sistema mostra se já teve <b>nota emitida (SEFAZ)</b> e se foi <b>descarregada (PUZL)</b> — no prazo ou atrasada. Programações “Tudo OK” que ainda não foram nem emitidas nem descarregadas ficam numa aba separada, e as linhas <b>Adiadas</b> também.'
+      : window.__pedBannerNotas;
+    if (prog) paintPedidosProg(); else paintPedidosNotas();
+  }
+  function diasEntre(isoA, isoB){ return Math.round((fromISO(isoB) - fromISO(isoA)) / 86400000); }
+  // Uma linha por CARGA programada (placa/fábrica/pedido), com a situação dela na cadeia
+  // Programação → nota emitida (SEFAZ) → descarregada (PUZL).
+  function pedProgLinhas(){
+    var st = pedidosPicker.state, hoje = toISO(TODAY), out = [];
+    var entPorLinha = new Map();
+    cementEntradas.forEach(function(en){
+      var m = matchProgramacao(en);
+      if (m.entry && m.situacao === "confere"){ var a = entPorLinha.get(m.entry); if (!a){ a = []; entPorLinha.set(m.entry, a); } a.push(en); }
+    });
+    Object.keys(cementScheduleByDate).sort().forEach(function(iso){
+      if (!dateInPickerRange(iso, st)) return;
+      cementScheduleByDate[iso].entries.forEach(function(e){
+        var adiado = e.status === "adiado";
+        var cs = cargasDaLinha(e);
+        if (!cs.length){ if (!adiado) return; cs = [{placa:"", fabrica:"", pedido:"", idx:0}]; }
+        var res = adiado ? null : progNFPorCarga(e);
+        var cancAll = adiado ? [] : nfCanceladasLigadas(e);
+        cs.forEach(function(c){
+          var r = res && res.find(function(x){ return x.carga.idx === c.idx; });
+          var nfs = r ? r.nfs.map(function(x){ return x.nf; }) : [];
+          var status = adiado ? "adiado" : (r && r.status === "confirmada" ? "descarregada" : (r && r.status === "emitida" ? "emitida" : "sem_nota"));
+          var descarga = "";
+          nfs.forEach(function(nf){ var en = nfEntradaMatch(nf); if (en && en.data && en.data > descarga) descarga = en.data; });
+          if (!adiado){
+            (entPorLinha.get(e) || []).forEach(function(en){
+              var daCarga = (c.pedido && en.pedido) ? normalizePedidoNum(en.pedido) === normalizePedidoNum(c.pedido) : cs.length === 1;
+              if (!daCarga) return;
+              var est = entradaNFStatus(en).status;
+              if (est === "cancelada") return;
+              if (est === "confirmada"){ status = "descarregada"; if (en.data && en.data > descarga) descarga = en.data; }
+              else if (status === "sem_nota") status = "emitida";
+            });
+          }
+          var canc = cancAll.filter(function(nf){ var cn = cargaDaNota(nf, e); return cn ? cn.idx === c.idx : cs.length === 1; });
+          if (status === "sem_nota" && canc.length) status = "cancelada";
+          var atraso = "";
+          if (status === "descarregada" && descarga){ var d = diasEntre(iso, descarga); atraso = d === 0 ? "no dia" : (d > 0 ? "+" + d + " dia(s)" : Math.abs(d) + " dia(s) antes"); }
+          else if ((status === "sem_nota" || status === "emitida") && iso < hoje){ var a2 = diasEntre(iso, hoje); atraso = "atrasada " + a2 + " dia(s)"; }
+          out.push({iso: iso, e: e, c: c, status: status, progSt: e.status || "", nfs: nfs, canc: canc, descarga: descarga, atraso: atraso, atrasada: /^atrasada/.test(atraso)});
+        });
+      });
+    });
+    out.sort(function(a, b){ return a.iso < b.iso ? 1 : (a.iso > b.iso ? -1 : 0); });   // dia mais recente primeiro (mantém a ordem da programação dentro do dia)
+    return out;
+  }
+  var PED_PROG_ABAS = [
+    ["acomp", "Acompanhamento", function(l){ return l.status !== "adiado" && !(l.progSt === "ok" && l.status === "sem_nota"); }],
+    ["descarregada", "Descarregadas", function(l){ return l.status === "descarregada"; }],
+    ["emitida", "Emitidas — falta descarregar", function(l){ return l.status === "emitida"; }],
+    ["oksem", "Tudo OK sem nota", function(l){ return l.progSt === "ok" && l.status === "sem_nota"; }],
+    ["adiado", "Adiadas", function(l){ return l.status === "adiado"; }],
+    ["todas", "Todas", function(){ return true; }]
+  ];
+  function paintPedidosProg(){
+    pedidosPicker.updateLabel();
+    var linhas = pedProgLinhas();
+    var ativas = linhas.filter(function(l){ return l.status !== "adiado"; });
+    el("pedDayInfo").textContent = ativas.length + " carga(s) programada(s) no período · " + linhas.filter(function(l){ return l.status === "adiado"; }).length + " adiada(s)";
+    var cnt = function(f){ return linhas.filter(f).length; };
+    el("pedProgStats").innerHTML = '<div class="stat-grid">' +
+      [["Cargas programadas", ativas.length, "accent"],
+       ["Descarregadas", cnt(function(l){ return l.status === "descarregada"; }), "success"],
+       ["Emitidas (falta descarregar)", cnt(function(l){ return l.status === "emitida"; }), "warning"],
+       ["Sem nota", cnt(function(l){ return l.status === "sem_nota"; }), "neutral"],
+       ["Atrasadas", cnt(function(l){ return l.atrasada; }), "danger"],
+       ["Adiadas", cnt(function(l){ return l.status === "adiado"; }), "warning"]
+      ].map(function(s){ return '<div class="stat" style="--stat-accent:var(--'+s[2]+');"><div class="stat-top"><span>'+s[0]+'</span></div><div class="stat-val">'+s[1]+'</div></div>'; }).join("") +
+      '</div>';
+    var aba = PED_PROG_ABAS.find(function(a){ return a[0] === pedProgFiltro; }) || PED_PROG_ABAS[0];
+    var tabs = PED_PROG_ABAS.map(function(a){
+      return '<button data-aba="'+a[0]+'" class="'+(a[0] === aba[0] ? "active" : "")+'">'+a[1]+' ('+cnt(a[2])+')</button>';
+    }).join("");
+    var lista = linhas.filter(aba[2]);
+    var statusBadge = function(l){
+      return l.status === "descarregada" ? '<span class="badge success">✅ Descarregada</span>'
+        : l.status === "emitida" ? '<span class="badge warning">Emitida</span>'
+        : l.status === "cancelada" ? '<span class="badge danger">🚫 NF cancelada</span>'
+        : l.status === "adiado" ? '<span class="badge warning">Adiado</span>'
+        : '<span class="badge '+(l.atrasada ? 'danger' : 'neutral')+'">Sem nota</span>';
+    };
+    var progBadge = function(s){ return s === "ok" ? '<span class="badge success">Tudo OK</span>' : (s === "conferir" ? '<span class="badge warning">Conferir</span>' : (s === "adiado" ? '<span class="badge warning">Adiado</span>' : '<span class="faint">—</span>')); };
+    var rows = lista.map(function(l){
+      var nfTxt = l.nfs.length ? l.nfs.map(function(nf){ return esc(nf.numero); }).join(", ") : '<span class="faint">—</span>';
+      if (l.canc.length) nfTxt += ' <span class="badge danger" title="Nota cancelada no SEFAZ">🚫 '+l.canc.map(function(nf){ return esc(nf.numero); }).join(", ")+'</span>';
+      var emis = l.nfs.length ? esc(brDate(l.nfs.map(function(nf){ return nf.emissao; }).sort()[0])) : '<span class="faint">—</span>';
+      return '<tr' + (l.status === "adiado" ? ' class="prog-row-adiado"' : '') + '>' +
+        '<td style="white-space:nowrap;">'+esc(brDate(l.iso))+'</td>' +
+        '<td class="cell-strong">'+esc(l.e.usina)+'</td>' +
+        '<td>'+esc(l.c.fabrica)+'</td>' +
+        '<td>'+esc(l.c.pedido)+'</td>' +
+        '<td>'+esc(l.c.placa)+'</td>' +
+        '<td>'+progBadge(l.progSt)+'</td>' +
+        '<td style="white-space:nowrap;">'+nfTxt+'</td>' +
+        '<td style="white-space:nowrap;">'+emis+'</td>' +
+        '<td>'+statusBadge(l)+'</td>' +
+        '<td style="white-space:nowrap;">'+(l.descarga ? esc(brDate(l.descarga)) : '<span class="faint">—</span>')+'</td>' +
+        '<td style="white-space:nowrap;'+(l.atrasada ? 'color:var(--danger);font-weight:700;' : '')+'">'+(esc(l.atraso) || '<span class="faint">—</span>')+'</td>' +
+        '</tr>';
+    }).join("");
+    el("pedProgCard").innerHTML =
+      '<div class="pedidos-tabs">'+tabs+'</div>' +
+      (lista.length
+        ? '<div class="table-wrap"><table><thead><tr><th>Dia programado</th><th>Usina</th><th>Fábrica</th><th>Pedido</th><th>Placa</th><th>Status prog.</th><th>NF (SEFAZ)</th><th>Emissão NF</th><th>Situação</th><th>Data de descarga</th><th>Prazo</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+        : '<p class="prog-empty">Nenhuma carga nesta aba, no período selecionado.</p>');
+    el("pedProgCard").querySelectorAll(".pedidos-tabs button").forEach(function(b){
+      b.addEventListener("click", function(){ pedProgFiltro = b.dataset.aba; paintPedidosProg(); });
+    });
+    xlEnhance(el("pedProgCard"), "ped-prog-" + aba[0]);
+  }
+  function paintPedidosNotas(){
     pedidosPicker.updateLabel();
     el("pedDayInfo").textContent = pedidosNFesNoPeriodo().length + " nota(s) de " + cementNFes.length + " no total exibida(s) no período selecionado";
 

@@ -1677,6 +1677,9 @@
       recomputeEntradasFromPuzl();
       paintPuzl(); paintNFes(); paintBaseDados(); renderMateriaisNovos();
     }
+    else if (h && h.registros > 0 && /PUZL|SEFAZ/i.test(h.modulo || "")){
+      if (!window.confirm("Esta importação é anterior à ligação com os registros, então os dados dela não podem ser apagados por aqui — só a linha do histórico será apagada.\n\nContinuar?")) return false;
+    }
     if (typeof unpersistImport === "function") unpersistImport(h);
     return true;
   }

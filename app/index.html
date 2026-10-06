@@ -1946,7 +1946,8 @@
     fornecedor: ["fornecedor"], cnpjFornecedor: ["cpf cnpj", "cnpj fornecedor", "cnpj do fornecedor"],
     tipo: ["tipo"], grupo: ["plano de contas", "grupo"], categoria: ["categoria"], item: ["item"],
     documento: ["documento"], serie: ["serie"], emissaoNF: ["emissao", "emissao nf"],
-    unCompra: ["und compra", "un de compra", "un compra", "unidade de compra"], quantidade: ["quantidade"]
+    unCompra: ["und compra", "un de compra", "un compra", "unidade de compra"], quantidade: ["quantidade"],
+    chaveNota: ["chave da nota", "chave de acesso"], observacoes: ["observacoes", "descricao complementar"]
   };
   // Devolve {campo: índice da coluna} se a linha for um cabeçalho com pelo menos Documento e Item; senão null.
   // Nomes repetidos (ex: "Série" aparece duas vezes) valem pela 1ª ocorrência.
@@ -1986,7 +1987,8 @@
           fornecedor: g("fornecedor"), cnpjFornecedor: g("cnpjFornecedor"),
           tipo: g("tipo"), grupo: g("grupo"), categoria: g("categoria"),
           item: g("item"), documento: g("documento"), serie: g("serie"),
-          emissaoNF: normalizeDateToISO(g("emissaoNF")), unCompra: g("unCompra"), quantidade: g("quantidade")
+          emissaoNF: normalizeDateToISO(g("emissaoNF")), unCompra: g("unCompra"), quantidade: g("quantidade"),
+          chaveNota: g("chaveNota").replace(/\s+/g, ""), observacoes: g("observacoes")
         };
       } else {
         if (parts.length < 12) { invalid++; ign("Poucas colunas (" + parts.length + "; esperado 12 ou mais)", line); return; }
@@ -1999,9 +2001,12 @@
           fornecedor: parts[4]||"", cnpjFornecedor: parts[5]||"",
           tipo: parts[6]||"", grupo: parts[7]||"", categoria: parts[9]||"",
           item: parts[10]||"", documento: parts[11]||"", serie: parts[12]||"",
-          emissaoNF: normalizeDateToISO(parts[13]), unCompra: parts[17]||"", quantidade: parts[18]||""
+          emissaoNF: normalizeDateToISO(parts[13]), unCompra: parts[17]||"", quantidade: parts[18]||"",
+          chaveNota: String(parts[21]||"").replace(/\s+/g, ""), observacoes: ""
         };
       }
+      // Pedido: extraído da Descrição Complementar com a regra do fornecedor (mesma usada nas notas do SEFAZ).
+      try { p.pedido = (p.observacoes ? (extractFromDescricao(p.fornecedor, p.observacoes).pedido || "") : ""); } catch(e){ p.pedido = ""; }
       if (stripAccents(String(p.categoria||"")).trim().toUpperCase() !== "AGLOMERANTE"){ foraCategoria++; ign("Categoria diferente de AGLOMERANTE" + (p.categoria ? " (" + p.categoria + ")" : " (vazia)"), line); return; }
       if (!p.documento || !p.item){ invalid++; ign(!p.documento ? "Sem número de documento" : "Sem item", line); return; }
       if (!materialEhCimento(p.item)){ naoCimento++; ign("Item fora do Catálogo de Cimentos: " + p.item, line); return; }
@@ -2010,7 +2015,7 @@
       if (ja){
         // já existe: só completa o que estava vazio
         var mudou = false;
-        ["serie", "emissaoNF", "unCompra", "quantidade", "dataEntrada", "cnpjFornecedor", "cnpjComprador", "tipo", "grupo", "categoria"].forEach(function(c){
+        ["serie", "emissaoNF", "unCompra", "quantidade", "dataEntrada", "cnpjFornecedor", "cnpjComprador", "tipo", "grupo", "categoria", "chaveNota", "observacoes", "pedido"].forEach(function(c){
           if (!String(ja[c] || "").trim() && String(p[c] || "").trim()){ ja[c] = p[c]; mudou = true; }
         });
         if (mudou) atualizadas++; else { skipped++; ign("Repetida (mesmo documento, central e fornecedor já lançados): documento " + p.documento, line); }
@@ -2644,6 +2649,9 @@
         '<td class="muted">'+esc(p.item)+'</td>' +
         '<td class="muted">'+esc(p.centralEntrada)+'</td>' +
         '<td class="muted">'+esc(p.quantidade)+' '+esc(p.unCompra)+'</td>' +
+        '<td class="cell-strong">'+esc(p.pedido || "")+'</td>' +
+        '<td class="muted" title="'+esc(p.observacoes || "")+'" style="max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(p.observacoes || "")+'</td>' +
+        '<td class="muted" style="font-family:monospace;font-size:11px;white-space:nowrap;">'+esc(p.chaveNota || "")+'</td>' +
         '<td style="padding:4px 6px;"><button class="btn-ghost" data-delpuzl="'+p.id+'" style="padding:5px 8px;">🗑</button></td>' +
         '</tr>';
     }).join("");
@@ -2651,7 +2659,7 @@
       '<details'+(puzlListOpen?" open":"")+'><summary style="cursor:pointer;padding:12px 18px;font-size:13.5px;font-weight:600;color:var(--text);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);">Lançamentos importados da PUZL ('+puzlEntradas.length+')</summary>' +
       '<div class="card" style="margin-top:8px;">' +
       (puzlEntradas.length
-        ? '<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Emissão</th><th>Data de entrada</th><th>Fornecedor</th><th>Item</th><th>Central (entrada)</th><th>Quantidade</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+        ? '<div class="table-wrap"><table><thead><tr><th>Documento</th><th>Emissão</th><th>Data de entrada</th><th>Fornecedor</th><th>Item</th><th>Central (entrada)</th><th>Quantidade</th><th>Pedido</th><th>Descrição complementar</th><th>Chave da nota</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
         : '<p class="prog-empty">Nenhum lançamento da PUZL importado ainda.</p>') +
       '</div></details>';
     cardEl.querySelector("details").addEventListener("toggle", function(e){ puzlListOpen = e.target.open; });
@@ -2665,7 +2673,7 @@
         renderMateriaisNovos();
       });
     });
-    xlEnhance(cardEl, "puzl", [7]);
+    xlEnhance(cardEl, "puzl", [10]);
   }
 
   // Alerta de materiais possivelmente novos (ver computeMateriaisNovosPendentes):
@@ -4103,7 +4111,7 @@
     pRows.forEach(function(p, i){
       puzlEntradas.push({ id: i + 1, centralCompradora: nz(p.central_compradora), cnpjComprador: nz(p.cnpj_comprador), centralEntrada: nz(p.central_entrada), dataEntrada: nz(p.data_entrada),
         fornecedor: nz(p.fornecedor), cnpjFornecedor: nz(p.cnpj_fornecedor), tipo: nz(p.tipo), grupo: nz(p.grupo), categoria: nz(p.categoria), item: nz(p.item), documento: nz(p.documento),
-        serie: nz(p.serie), emissaoNF: nz(p.emissao_nf), unCompra: nz(p.un_compra), quantidade: fmtQtd(p.quantidade), impId: nz(p.importacao_id) || null });
+        serie: nz(p.serie), emissaoNF: nz(p.emissao_nf), unCompra: nz(p.un_compra), quantidade: fmtQtd(p.quantidade), pedido: nz(p.pedido), observacoes: nz(p.observacoes), chaveNota: nz(p.chave_nota), impId: nz(p.importacao_id) || null });
     });
     puzlSeq = puzlEntradas.length;
 
@@ -4197,7 +4205,7 @@
       var k = puzlKey(p); if (!String(p.documento || "").trim()) return;
       s.puzl[k] = JSON.stringify({ central_compradora: p.centralCompradora || "", cnpj_comprador: p.cnpjComprador || "", central_entrada: p.centralEntrada || "", data_entrada: toIsoDate(p.dataEntrada),
         fornecedor: p.fornecedor || "", cnpj_fornecedor: p.cnpjFornecedor || "", tipo: p.tipo || "", grupo: p.grupo || "", categoria: p.categoria || "", item: p.item || "", documento: String(p.documento).trim(),
-        serie: p.serie || "", emissao_nf: toIsoDate(p.emissaoNF), un_compra: p.unCompra || "", quantidade: parseQtd(p.quantidade), importacao_id: p.impId || null });
+        serie: p.serie || "", emissao_nf: toIsoDate(p.emissaoNF), un_compra: p.unCompra || "", quantidade: parseQtd(p.quantidade), pedido: p.pedido || "", observacoes: p.observacoes || "", chave_nota: p.chaveNota || "", importacao_id: p.impId || null });
     });
     usinasCadastro.forEach(function(u){
       var k = String(u.usina || "").trim().toUpperCase(); if (!k) return;

@@ -342,6 +342,77 @@
     .content{padding:16px;}
   }
 
+  /* ===== Melhorias visuais (06/10) ===== */
+  html{-webkit-font-smoothing:antialiased;}
+  body{font-feature-settings:"tnum" 1, "cv11" 1;}
+  .topbar{position:sticky; top:0; z-index:12; gap:12px; box-shadow:0 1px 0 var(--border), 0 4px 14px rgba(0,0,0,.10);}
+  .topbar-title{flex:1; min-width:0;}
+  .topbar h1{font-size:16px;}
+  .menu-toggle{flex:none; width:34px; height:34px; border-radius:8px; border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text-muted); font-size:16px; line-height:1; display:flex; align-items:center; justify-content:center; transition:background .12s,color .12s,border-color .12s;}
+  .menu-toggle:hover{background:var(--accent-soft); color:var(--accent-strong); border-color:var(--accent);}
+  .sidebar{transition:width .18s ease; overflow:hidden;}
+  .sidebar > *{min-width:252px;}
+  #app.menu-hidden .sidebar{width:0; border-right-width:0;}
+  .sidebar-head{background:linear-gradient(180deg, var(--surface-2), var(--surface));}
+  .nav-item{padding:10px 10px 10px 12px; font-size:13.2px;}
+  .nav-item.active{box-shadow:inset 0 0 0 1px rgba(79,143,227,.18);}
+  .content{padding:22px 26px 40px; scroll-behavior:auto;}
+  .card, .prog-block, .import-card{border-radius:12px;}
+  .prog-block{margin-bottom:22px; box-shadow:0 2px 10px rgba(0,0,0,.14);}
+  .prog-block-head{background:linear-gradient(180deg, var(--surface-3), var(--surface-2));}
+  .prog-block-head .title{font-size:13px; letter-spacing:.05em;}
+  th{background:var(--surface-3); color:var(--text-muted); font-size:10.5px; padding:10px 12px; border-bottom:2px solid var(--border-strong);}
+  td{padding:9px 12px;}
+  tbody tr:nth-child(even) td{background:rgba(127,140,160,.045);}
+  tbody tr:hover td{background:var(--accent-soft) !important;}
+  tr.prog-row-ok td{background:var(--success-soft) !important;}
+  tr.prog-row-conferir td, tr.prog-row-adiado td{background:var(--warning-soft) !important;}
+  tr.prog-row-ok:hover td{background:var(--success-soft) !important; filter:brightness(1.12);}
+  tr.prog-row-conferir:hover td, tr.prog-row-adiado:hover td{background:var(--warning-soft) !important; filter:brightness(1.12);}
+  tr.prog-row-ok td:first-child{box-shadow:inset 4px 0 0 var(--success);}
+  tr.prog-row-conferir td:first-child, tr.prog-row-adiado td:first-child{box-shadow:inset 4px 0 0 var(--warning);}
+  tr.prog-row-adiado input{font-style:italic; opacity:.75;}
+  tr.prog-row-ok .status-select{border-color:var(--success); color:var(--success); font-weight:700;}
+  tr.prog-row-conferir .status-select, tr.prog-row-adiado .status-select{border-color:var(--warning); color:var(--warning); font-weight:700;}
+  .status-select{height:32px; font-weight:600;}
+  select:focus, input:focus, button:focus-visible{outline:2px solid var(--accent); outline-offset:1px;}
+  .badge{box-shadow:inset 0 0 0 1px rgba(127,140,160,.18);}
+  .btn-mini{border-radius:8px;}
+  ::-webkit-scrollbar{width:11px; height:11px;}
+  ::-webkit-scrollbar-thumb{background:var(--border-strong); border-radius:99px; border:3px solid transparent; background-clip:content-box;}
+  ::-webkit-scrollbar-thumb:hover{background:var(--text-faint); background-clip:content-box; border:3px solid transparent;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  .table-wrap{scrollbar-width:thin;}
+  /* botão de filtro (▾) bem visível + limpar filtros */
+  .xl-filter-btn{
+    display:inline-flex; align-items:center; justify-content:center; min-width:24px; height:22px; padding:0 6px; margin-left:8px;
+    font-size:13px; font-weight:800; line-height:1; color:var(--accent-strong);
+    background:var(--accent-soft); border:1px solid var(--accent); border-radius:6px; cursor:pointer;
+    box-shadow:0 1px 2px rgba(0,0,0,.18); transition:background .12s, color .12s, transform .08s;
+  }
+  .xl-filter-btn:hover, .xl-filter-btn.active{background:var(--accent); color:#fff; transform:translateY(-1px);}
+  .xl-filter-btn.filtered{background:var(--warning); color:#1a1205; border-color:var(--warning);}
+  .xl-filter-btn.filtered::after{content:"●"; font-size:7px; margin-left:3px;}
+  .xl-clear-bar{display:flex; align-items:center; justify-content:flex-end; gap:10px; padding:6px 12px; border-bottom:1px solid var(--border); background:var(--surface);}
+  .xl-clear-info{font-size:11px; color:var(--text-faint);}
+  .xl-clear-bar.on .xl-clear-info{color:var(--warning); font-weight:700;}
+  .xl-clear-btn{border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text-faint); border-radius:7px; padding:4px 10px; font-size:11.5px; font-weight:700; cursor:default; opacity:.7;}
+  .xl-clear-bar.on .xl-clear-btn{cursor:pointer; opacity:1; color:var(--warning); border-color:var(--warning); background:var(--warning-soft);}
+  .xl-clear-bar.on .xl-clear-btn:hover{background:var(--warning); color:#1a1205;}
+  /* quadros do dia dentro de cada bloco da Programação */
+  .prog-day-stats{display:flex; flex-wrap:wrap; gap:8px; padding:9px 12px; background:var(--surface); border-bottom:1px solid var(--border);}
+  .dstat{display:flex; align-items:baseline; gap:8px; padding:5px 12px; border:1px solid var(--border); border-left:3px solid var(--dstat, var(--border-strong)); border-radius:8px; background:var(--surface-2);}
+  .dstat b{font-size:17px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--text);}
+  .dstat span{font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted);}
+  .dstat.ok{--dstat:var(--success);} .dstat.conf{--dstat:var(--warning);} .dstat.adi{--dstat:var(--warning);} .dstat.prog{--dstat:var(--info);} .dstat.pend{--dstat:var(--border-strong);}
+  @media (max-width:760px){
+    #app.menu-hidden .sidebar{display:none;}
+    .sidebar{overflow-x:auto; overflow-y:hidden; transition:none;}
+    .sidebar > *{min-width:0;}
+    .topbar{padding:0 12px;}
+    .content{padding:14px 12px 30px;}
+  }
+
   tr.nf-cancelada td{background:var(--danger-soft) !important; color:var(--danger);}
   tr.nf-cancelada td .badge.neutral{background:transparent; color:var(--danger); border:1px solid var(--danger);}
   tr.nf-transf td{background:var(--info-soft) !important;}
@@ -439,6 +510,7 @@
 
   <div class="main">
     <div class="topbar">
+      <button type="button" class="menu-toggle" id="btnMenu" title="Ocultar / mostrar o menu" aria-label="Ocultar ou mostrar o menu">☰</button>
       <div class="topbar-title">
         <h1 id="viewTitle">Programação de Cimento</h1>
         <p class="crumb" id="viewCrumb"></p>
@@ -777,10 +849,10 @@
   function fabricaRotulo(fornecedor, material){ return fornecedor + " — " + material; }
   function fabricaSelectOptionsHtml(selecionado){
     var opts = '<option value="">—</option>' + FABRICAS_CATALOGO.map(function(f){
-      return '<optgroup label="'+esc(f.fornecedor)+'">' + f.materiais.map(function(mat){
+      return f.materiais.map(function(mat){
         var rotulo = fabricaRotulo(f.fornecedor, mat);
-        return '<option value="'+esc(rotulo)+'"'+(rotulo===selecionado?" selected":"")+'>'+esc(mat)+'</option>';
-      }).join("") + '</optgroup>';
+        return '<option value="'+esc(rotulo)+'"'+(rotulo===selecionado?" selected":"")+'>'+esc(mat + " — " + f.fornecedor)+'</option>';
+      }).join("");
     }).join("");
     // Valor vindo de uma importação (ou digitado antes de existir essa Base
     // de Fábricas) que não bate com nenhuma opção cadastrada: em vez de sumir
@@ -872,16 +944,18 @@
   // confere; (3) mesma data + fábrica só (usina não bate ou pedido ausente) ->
   // sem_certeza; (4) fábrica aparece em programação de até 3 dias de distância
   // (outra data) -> data_incorreta; (5) nada encontrado -> nao_realizado.
+  // Linhas marcadas como "Adiado" não entram em nenhuma ligação (nota, entrada, PUZL)
+  function progAtivos(day){ return day.entries.filter(function(e){ return e.status !== "adiado"; }); }
   function matchProgramacao(entrada){
     var fabricaAlvo = String(entrada.fabrica||"").trim().toUpperCase();
     var pedidoAlvo = String(entrada.pedido||"").trim();
     var day = cementScheduleByDate[entrada.data];
     if (day){
       if (pedidoAlvo){
-        var porPedido = day.entries.find(function(e){ return pedidoListFrom(e.pedido).indexOf(pedidoAlvo) !== -1; });
+        var porPedido = progAtivos(day).find(function(e){ return pedidoListFrom(e.pedido).indexOf(pedidoAlvo) !== -1; });
         if (porPedido) return {situacao:"confere", entry:porPedido, dataProgramada:entrada.data};
       }
-      var porFabrica = day.entries.filter(function(e){ return fabricaListFrom(e.fabrica).some(function(f){ return fabricaMatches(f, fabricaAlvo); }); });
+      var porFabrica = progAtivos(day).filter(function(e){ return fabricaListFrom(e.fabrica).some(function(f){ return fabricaMatches(f, fabricaAlvo); }); });
       if (porFabrica.length){
         var porUsina = porFabrica.find(function(e){ return String(e.usina||"").trim().toUpperCase() === String(entrada.usina||"").trim().toUpperCase(); });
         if (porUsina) return {situacao:"confere", entry:porUsina, dataProgramada:entrada.data};
@@ -894,7 +968,7 @@
       var iso2 = toISO(addDays(base, d));
       var day2 = cementScheduleByDate[iso2];
       if (!day2) continue;
-      var found2 = day2.entries.filter(function(e){ return fabricaListFrom(e.fabrica).some(function(f){ return fabricaMatches(f, fabricaAlvo); }); });
+      var found2 = progAtivos(day2).filter(function(e){ return fabricaListFrom(e.fabrica).some(function(f){ return fabricaMatches(f, fabricaAlvo); }); });
       if (found2.length) return {situacao:"data_incorreta", entry:found2[0], dataProgramada:iso2};
     }
     return {situacao:"nao_realizado", entry:null, dataProgramada:null};
@@ -984,6 +1058,7 @@
     var tbody = table.querySelector("tbody");
     if (!tbody) return;
     var rows = Array.from(tbody.querySelectorAll("tr"));
+    rows.forEach(function(tr, i){ if (tr.__xlIdx === undefined) tr.__xlIdx = i; });   // posição original (pra "limpar" a ordenação)
 
     // Filtro: uma linha some se, pra QUALQUER coluna com filtro ativo, o
     // valor dela não estiver marcado.
@@ -1014,6 +1089,8 @@
         return dir === "desc" ? -cmp : cmp;
       });
       sorted.forEach(function(tr){ tbody.appendChild(tr); });
+    } else {
+      rows.slice().sort(function(a, b){ return a.__xlIdx - b.__xlIdx; }).forEach(function(tr){ tbody.appendChild(tr); });
     }
 
     // Indicador visual (funil colorido) nas colunas com filtro ativo.
@@ -1021,6 +1098,16 @@
       var colIdx = parseInt(btn.dataset.col, 10);
       btn.classList.toggle("filtered", !!state.filters[colIdx]);
     });
+    xlAtualizaBarra(table, state);
+  }
+  function xlAtualizaBarra(table, state){
+    var bar = table.__xlBar; if (!bar) return;
+    var nf = Object.keys(state.filters).length, ord = !!state.sort;
+    var partes = [];
+    if (nf) partes.push(nf + (nf === 1 ? " filtro ativo" : " filtros ativos"));
+    if (ord) partes.push("ordenada");
+    bar.classList.toggle("on", !!(nf || ord));
+    bar.querySelector(".xl-clear-info").textContent = partes.length ? partes.join(" · ") : "Sem filtros";
   }
 
   function xlOpenPopover(table, colIdx, key, btn){
@@ -1109,6 +1196,23 @@
     var table = containerEl && containerEl.querySelector ? containerEl.querySelector("table") : null;
     if (!table) return;
     skipCols = skipCols || [];
+    // barra "Limpar filtros" logo acima da tabela
+    var ancora = table.closest(".table-wrap") || table;
+    var velha = ancora.previousElementSibling;
+    if (velha && velha.classList && velha.classList.contains("xl-clear-bar")) velha.remove();
+    var bar = document.createElement("div");
+    bar.className = "xl-clear-bar";
+    bar.innerHTML = '<span class="xl-clear-info">Sem filtros</span><button type="button" class="xl-clear-btn" title="Remove todos os filtros e a ordenação desta tabela">✕ Limpar filtros</button>';
+    bar.querySelector(".xl-clear-btn").addEventListener("click", function(e){
+      e.stopPropagation();
+      var st = xlGetState(key);
+      if (!Object.keys(st.filters).length && !st.sort) return;
+      st.filters = {}; st.sort = null;
+      xlCloseAllPopovers();
+      xlApplyState(table, key, skipCols);
+    });
+    ancora.parentNode.insertBefore(bar, ancora);
+    table.__xlBar = bar;
     var ths = Array.from(table.querySelectorAll("thead th"));
     ths.forEach(function(th, colIdx){
       if (skipCols.indexOf(colIdx) !== -1) return;
@@ -1136,6 +1240,44 @@
   window.addEventListener("resize", agendaFit);
   document.addEventListener("toggle", agendaFit, true);
   new MutationObserver(agendaFit).observe(document.body, {childList: true, subtree: true});
+  // Menu lateral: botão ☰ na barra de cima (lembra a escolha neste navegador)
+  (function(){
+    var app = el("app"), btn = el("btnMenu");
+    function ler(){ try { return localStorage.getItem("ls_menu_oculto") === "1"; } catch(e){ return false; } }
+    function gravar(v){ try { localStorage.setItem("ls_menu_oculto", v ? "1" : "0"); } catch(e){} }
+    function aplicar(oculto){ app.classList.toggle("menu-hidden", oculto); btn.setAttribute("aria-pressed", oculto ? "true" : "false"); btn.title = oculto ? "Mostrar o menu" : "Ocultar o menu"; }
+    aplicar(ler());
+    btn.addEventListener("click", function(){ var novo = !app.classList.contains("menu-hidden"); aplicar(novo); gravar(novo); setTimeout(agendaFit, 220); });
+  })();
+  // Roda do mouse mais lenta/suave: cada "clique" da roda anda ~45% do normal, com animação.
+  // (touchpad/rolagem fina e Ctrl+roda ficam como estão)
+  (function(){
+    var estado = new WeakMap();
+    function podeRolar(n, dy){
+      if (!n || n === document.body || n === document.documentElement) return false;
+      var cs = getComputedStyle(n);
+      if (!/(auto|scroll)/.test(cs.overflowY) || n.scrollHeight <= n.clientHeight + 1) return false;
+      return dy > 0 ? n.scrollTop < n.scrollHeight - n.clientHeight - 1 : n.scrollTop > 0;
+    }
+    function anima(n, dy){
+      var s = estado.get(n); if (!s){ s = {alvo:n.scrollTop, raf:0}; estado.set(n, s); }
+      if (!s.raf) s.alvo = n.scrollTop;
+      s.alvo = Math.max(0, Math.min(n.scrollHeight - n.clientHeight, s.alvo + dy));
+      if (s.raf) return;
+      (function passo(){
+        var d = s.alvo - n.scrollTop;
+        if (Math.abs(d) < 0.6){ n.scrollTop = s.alvo; s.raf = 0; return; }
+        n.scrollTop += d * 0.2; s.raf = requestAnimationFrame(passo);
+      })();
+    }
+    document.addEventListener("wheel", function(e){
+      if (e.ctrlKey || e.defaultPrevented || e.deltaMode !== 0 || Math.abs(e.deltaY) < 50 || Math.abs(e.deltaX) > 0) return;
+      for (var n = e.target; n && n !== document.body; n = n.parentElement){
+        if (n.tagName === "TEXTAREA") return;
+        if (podeRolar(n, e.deltaY)){ e.preventDefault(); anima(n, e.deltaY * 0.45); return; }
+      }
+    }, {passive:false});
+  })();
   /* ---------------- Nav ---------------- */
   var navCimentoEl = el("navCimento");
   NAV_CIMENTO.forEach(function(item){
@@ -1388,7 +1530,6 @@
   /* ---------------- Programação de Cimento ---------------- */
   function renderProgramacaoCimento(){
     el("view-programacao-cimento").innerHTML =
-      '<div id="progStats"></div>' +
       '<div class="card" style="margin-bottom:16px;"><div class="filters" style="align-items:center;">' +
       '<div class="filter-field"><span>Período</span>' +
       '<div class="daterange"><button class="daterange-btn" id="drBtn">📅 <span id="drLabel"></span> <span style="opacity:.6;">▾</span></button>' +
@@ -1400,12 +1541,32 @@
     paintBlocks();
   }
 
+  function progDayStatsHtml(c){
+    return '<div class="dstat prog"><b>'+c.programadas+'</b><span>Usinas programadas</span></div>' +
+      '<div class="dstat ok"><b>'+c.ok+'</b><span>Tudo OK</span></div>' +
+      '<div class="dstat conf"><b>'+c.conferir+'</b><span>A conferir</span></div>' +
+      '<div class="dstat adi"><b>'+c.adiado+'</b><span>Adiado</span></div>' +
+      '<div class="dstat pend"><b>'+c.pendentes+'</b><span>Sem status</span></div>';
+  }
+  // Recalcula os quadros do dia olhando a tabela (usado ao mudar status/placas sem repintar tudo)
+  function progDayStatsFromDom(block){
+    var c = {programadas:0, ok:0, conferir:0, adiado:0, pendentes:0};
+    block.querySelectorAll("tbody tr").forEach(function(tr){
+      var st = tr.querySelector("select.status-select"); var v = st ? st.value : "";
+      var temCarreta = Array.prototype.some.call(tr.querySelectorAll('.multi-field[data-field="carretas"] input'), function(i){ return String(i.value).trim(); });
+      if (!temCarreta && v !== "adiado") return;
+      c.programadas++;
+      if (v === "ok") c.ok++; else if (v === "conferir") c.conferir++; else if (v === "adiado") c.adiado++; else c.pendentes++;
+    });
+    return c;
+  }
   function paintBlocks(){
     progPicker.updateLabel();
     var days = rangeDays(progPicker.state);
 
     var shown = 0;
     var agg = { programadas:0, ok:0, conferir:0, pendentes:0 };
+    var dcs = {};
     var html = days.map(function(day){
       var iso = toISO(day);
       var data = cementDayData(iso);
@@ -1427,13 +1588,15 @@
       }
 
       var refText = data.ref || fmtBR(addDays(day,-1)) + " (" + weekdayLong(addDays(day,-1)) + ")";
+      var dc = {programadas:0, ok:0, conferir:0, adiado:0, pendentes:0};
       var rows = entries.map(function(e){
         var key = entryKey(e);
-        if (String(e.carretas||"").trim()){
-          agg.programadas++;
-          if (e.status === "ok") agg.ok++;
-          else if (e.status === "conferir") agg.conferir++;
-          else agg.pendentes++;
+        if (String(e.carretas||"").trim() || e.status === "adiado"){
+          agg.programadas++; dc.programadas++;
+          if (e.status === "ok"){ agg.ok++; dc.ok++; }
+          else if (e.status === "conferir"){ agg.conferir++; dc.conferir++; }
+          else if (e.status === "adiado"){ dc.adiado++; }
+          else { agg.pendentes++; dc.pendentes++; }
         }
         var statusClass = e.status === "ok" ? "usina-ok" : (e.status === "conferir" ? "usina-conferir" : "");
         var usinaCell = MASTER_USINAS.indexOf(e.usina) !== -1
@@ -1443,6 +1606,7 @@
           '<option value=""'+(!e.status?" selected":"")+'>—</option>' +
           '<option value="ok"'+(e.status==="ok"?" selected":"")+'>Tudo OK</option>' +
           '<option value="conferir"'+(e.status==="conferir"?" selected":"")+'>Conferir</option>' +
+          '<option value="adiado"'+(e.status==="adiado"?" selected":"")+'>Adiado</option>' +
           '</select></td>';
         // NF (SEFAZ): traz a conferência de Controle de Pedidos até aqui —
         // se alguma entrada que já bate com essa linha da programação tiver
@@ -1457,7 +1621,8 @@
           '<span class="faint" style="font-style:italic;font-size:11px;">—</span>'
         ) + '</td>';
         var nfCell = progNFCelulaMulti(e, nfCanc, nfSt) || nfCell0;
-        return '<tr>' + usinaCell +
+        var rowCls = e.status === "ok" ? "prog-row-ok" : (e.status === "conferir" ? "prog-row-conferir" : (e.status === "adiado" ? "prog-row-adiado" : ""));
+        return '<tr class="'+rowCls+'">' + usinaCell +
           progMultiInput(iso, key, "carretas", e.carretas) +
           progMultiFabricaSelect(iso, key, e.fabrica) +
           progMultiInput(iso, key, "pedido", e.pedido) +
@@ -1467,6 +1632,7 @@
       }).join("");
       return '<div class="prog-block'+(data.isException?" exception":"")+'" data-iso="'+iso+'">' +
         '<div class="prog-block-head"><div class="ref">'+esc(refText)+'</div><div class="title">PROGRAMAÇÃO PARA O DIA '+esc(fmtBR(day).toUpperCase())+' ('+esc(weekdayLong(day).toUpperCase())+')'+(data.isException?' · EXCEÇÃO':'')+'</div></div>' +
+        '<div class="prog-day-stats">' + progDayStatsHtml(dc) + '</div>' +
         (entries.length
           ? '<div class="table-wrap"><table><thead><tr><th>Usina</th><th>Carretas</th><th>Fábrica</th><th>Número do Pedido</th><th>Observação</th><th>NF (SEFAZ)</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
           : '<p class="prog-empty">Nenhuma usina registrada para este dia.</p>') +
@@ -1477,13 +1643,7 @@
     el("dayInfo").textContent = shown + " dia(s) exibido(s) de " + days.length + " selecionado(s)" + (days.length > shown ? " · domingo(s) sem carga ocultado(s) automaticamente" : "");
     el("progBlocks").innerHTML = html || '<div class="notice"><h3>Nenhum dia para exibir</h3><p>O período selecionado só contém domingos sem carga programada.</p></div>';
 
-    el("progStats").innerHTML = '<div class="stat-grid">' +
-      '<div class="stat" style="--stat-accent:var(--info);"><div class="stat-top"><span>Dias no período</span><span class="stat-icn" style="background:var(--info-soft);color:var(--info);">📅</span></div><div class="stat-val">'+shown+'</div><div class="stat-sub">de '+days.length+' selecionado(s)</div></div>' +
-      '<div class="stat" style="--stat-accent:var(--neutral);"><div class="stat-top"><span>Usinas programadas</span><span class="stat-icn" style="background:var(--neutral-soft);color:var(--neutral);">🚛</span></div><div class="stat-val">'+agg.programadas+'</div></div>' +
-      '<div class="stat" style="--stat-accent:var(--success);"><div class="stat-top"><span>Tudo OK</span><span class="stat-icn" style="background:var(--success-soft);color:var(--success);">✅</span></div><div class="stat-val">'+agg.ok+'</div></div>' +
-      '<div class="stat" style="--stat-accent:var(--warning);"><div class="stat-top"><span>A conferir</span><span class="stat-icn" style="background:var(--warning-soft);color:var(--warning);">⏳</span></div><div class="stat-val">'+agg.conferir+'</div></div>' +
-      '<div class="stat" style="--stat-accent:var(--border-strong);"><div class="stat-top"><span>Sem status</span><span class="stat-icn" style="background:var(--neutral-soft);color:var(--text-faint);">—</span></div><div class="stat-val">'+agg.pendentes+'</div></div>' +
-      '</div>';
+
 
     el("progBlocks").querySelectorAll("input[data-iso]").forEach(function(inp){
       inp.addEventListener("change", function(){
@@ -1496,10 +1656,22 @@
       sel.addEventListener("change", function(){
         var entry = getOrCreateEntry(sel.dataset.iso, sel.dataset.key);
         entry.status = sel.value;
-        var usinaTd = sel.closest("tr").querySelector("td:first-child");
+        var tr = sel.closest("tr");
+        var usinaTd = tr.querySelector("td:first-child");
         usinaTd.classList.remove("usina-ok", "usina-conferir");
-        if (sel.value === "ok") usinaTd.classList.add("usina-ok");
-        else if (sel.value === "conferir") usinaTd.classList.add("usina-conferir");
+        tr.classList.remove("prog-row-ok", "prog-row-conferir", "prog-row-adiado");
+        if (sel.value === "ok"){ usinaTd.classList.add("usina-ok"); tr.classList.add("prog-row-ok"); }
+        else if (sel.value === "conferir"){ usinaTd.classList.add("usina-conferir"); tr.classList.add("prog-row-conferir"); }
+        else if (sel.value === "adiado"){ usinaTd.classList.add("usina-conferir"); tr.classList.add("prog-row-adiado"); }
+        // adiado muda as ligações (a linha deixa de contar) → repinta a tela inteira
+        if (sel.value === "adiado" || sel.dataset.antes === "adiado"){ sel.dataset.antes = sel.value; paintBlocks(); return; }
+        sel.dataset.antes = sel.value;
+      });
+    });
+    el("progBlocks").querySelectorAll("select.status-select").forEach(function(sel){ sel.dataset.antes = sel.value; });
+    el("progBlocks").querySelectorAll(".prog-block[data-iso]").forEach(function(block){
+      block.addEventListener("change", function(){
+        var box = block.querySelector(".prog-day-stats"); if (box) box.innerHTML = progDayStatsHtml(progDayStatsFromDom(block));
       });
     });
     el("progBlocks").querySelectorAll(".prog-add").forEach(function(btn){
@@ -2268,6 +2440,7 @@
     return '<td style="padding:4px 6px;">' + nfCanc + '<div style="display:flex;flex-direction:column;gap:3px;">' + linhas + '</div></td>';
   }
   function progEntryNFStatus(progEntry){
+    if (progEntry.status === "adiado") return "none";
     var best = "none";
     entradasParaProgEntry(progEntry).forEach(function(en){
       var st = entradaNFStatus(en).status;
@@ -2319,7 +2492,7 @@
       var achou = null, achouIso = null;
       Object.keys(cementScheduleByDate).some(function(iso){
         var day = cementScheduleByDate[iso];
-        var entry = day.entries.find(function(e){
+        var entry = progAtivos(day).find(function(e){
           return pedidoListFrom(e.pedido).some(function(p){ return normalizePedidoNum(p) === pedidoAlvoNorm; });
         });
         if (entry){ achou = entry; achouIso = iso; return true; }
@@ -2336,7 +2509,7 @@
     if (!day) return null;
     var usinaAlvo = String(nf.usina||"").trim().toUpperCase();
     if (!usinaAlvo) return null;
-    var byUsina = day.entries.filter(function(e){ return String(e.usina||"").trim().toUpperCase() === usinaAlvo; });
+    var byUsina = progAtivos(day).filter(function(e){ return String(e.usina||"").trim().toUpperCase() === usinaAlvo; });
     if (!byUsina.length) return null;
     var placaAlvo = String(nf.placa||"").trim().toUpperCase();
     var comPlaca = placaAlvo && byUsina.find(function(e){ return String(e.carretas||"").toUpperCase().indexOf(placaAlvo) !== -1; });

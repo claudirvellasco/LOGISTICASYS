@@ -1965,7 +1965,7 @@
     ignoradasUltima = [];
     var existing = {};
     puzlEntradas.forEach(function(p){ existing[puzlKey2(p)] = p; });
-    var added = 0, skipped = 0, invalid = 0, naoCimento = 0, atualizadas = 0;
+    var added = 0, skipped = 0, invalid = 0, naoCimento = 0, atualizadas = 0, foraCategoria = 0;
     var linhasP = String(text||"").split(/\r?\n/), mapa = null, iCab = -1;
     for (var li = 0; li < linhasP.length && iCab < 0; li++){
       var m0 = puzlMapaCabecalho(linhasP[li].split("\t"));
@@ -2002,6 +2002,7 @@
           emissaoNF: normalizeDateToISO(parts[13]), unCompra: parts[17]||"", quantidade: parts[18]||""
         };
       }
+      if (stripAccents(String(p.categoria||"")).trim().toUpperCase() !== "AGLOMERANTE"){ foraCategoria++; ign("Categoria diferente de AGLOMERANTE" + (p.categoria ? " (" + p.categoria + ")" : " (vazia)"), line); return; }
       if (!p.documento || !p.item){ invalid++; ign(!p.documento ? "Sem número de documento" : "Sem item", line); return; }
       if (!materialEhCimento(p.item)){ naoCimento++; ign("Item fora do Catálogo de Cimentos: " + p.item, line); return; }
       var key = puzlKey2(p);
@@ -2020,7 +2021,7 @@
       puzlEntradas.push(p);
       added++;
     });
-    return {added:added, skipped:skipped, invalid:invalid, naoCimento:naoCimento, atualizadas:atualizadas};
+    return {added:added, skipped:skipped, invalid:invalid, naoCimento:naoCimento, atualizadas:atualizadas, foraCategoria:foraCategoria};
   }
   // Acha o(s) lançamento(s) da PUZL cujo Documento bate com um nº de nota do
   // SEFAZ (mesma tolerância a zero à esquerda usada em pedidos, via
@@ -2484,7 +2485,7 @@
           como:'<ul><li>Aceita o arquivo do SEFAZ como ele vem (com cabeçalho): número, emissão, status, nome, material e descrição complementar.</li><li>O número perde a série (430652/0 vira 430652) para casar com o documento da PUZL.</li><li>Pedido, placa e usina saem da descrição complementar, por fornecedor.</li><li>Nota cancelada aparece em vermelho; transferência da própria Concrelagos aparece em azul. Nenhuma das duas entra nas conferências.</li><li>A nota fica como descarregada quando existe uma entrada da PUZL com o mesmo número de documento.</li></ul>'}) +
         impCard({id:'puzl', tom:'neutral', icone:'📋', titulo:'Lançamentos (PUZL)', sub:'Resumo de entradas', res:'importPuzlResult', txt:'importPuzlText', btn:'importPuzlBtn', ph:'04 | ROS | RIO DAS OSTRAS\t07.015.016/0004-60\t04 | ROS | RIO DAS OSTRAS\t...\tPOZOLANA\t3561\t1\t...',
           lead:'Forma as Entradas e confirma o material da nota pelo número do documento.',
-          como:'<p>Exportação da PUZL (“Resumo de Entradas”). Só entra a linha cujo Item bate com o Catálogo de Cimentos (inclusive pozolana). Valores, preço e frete são ignorados de propósito. Linhas de total e rodapé são descartadas.</p>'}) +
+          como:'<p>Exportação da PUZL (“Resumo de Entradas”). Só entra a linha cuja <b>Categoria é AGLOMERANTE</b> (as demais, ou sem categoria, são descartadas) e cujo Item bate com o Catálogo de Cimentos (inclusive pozolana). Valores, preço e frete são ignorados de propósito. Linhas de total e rodapé são descartadas.</p>'}) +
         impCard({id:'inbound', tom:'success', icone:'🚚', titulo:'Inbound completo', sub:'CNPJ e motorista', res:'importInboundResult', txt:'importInboundText', btn:'importInboundBtn', ph:'Cole aqui a planilha inteira do reportCompleteInbound (com cabeçalho)',
           lead:'Complementa notas já importadas com usina, motorista e placa.',
           como:'<p>Export mais completo do SEFAZ, sem material: não cria nota nova, só enriquece uma nota já importada, casada pelo número (a chave de acesso é a trava). A usina vem do CNPJ do destinatário; motorista e placa só preenchem o que estiver vazio. Cole a planilha inteira, com cabeçalho.</p>'}) +
@@ -2518,9 +2519,9 @@
     }
     function runImportPuzl(txt, arquivo){
       var r = importPuzlFromText(txt);
-      var msg = r.added+" novo(s) importado(s)"+(r.atualizadas?", "+r.atualizadas+" completado(s) com dados que faltavam":"")+", "+r.skipped+" já cadastrado(s) ignorado(s)"+(r.naoCimento?", "+r.naoCimento+" ignorado(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+".";
+      var msg = r.added+" novo(s) importado(s)"+(r.atualizadas?", "+r.atualizadas+" completado(s) com dados que faltavam":"")+", "+r.skipped+" já cadastrado(s) ignorado(s)"+(r.foraCategoria?", "+r.foraCategoria+" descartado(s) por categoria diferente de AGLOMERANTE":"")+(r.naoCimento?", "+r.naoCimento+" ignorado(s) por não ser cimento (fora do Catálogo)":"")+(r.invalid?", "+r.invalid+" linha(s) inválida(s)":"")+".";
       el("importPuzlResult").textContent = msg; mostrarIgnoradas("importPuzlResult");
-      if (r.added || r.skipped || r.naoCimento || r.atualizadas) logImport(arquivo, "Lançamentos (PUZL)", r.added, r.added + r.skipped + r.invalid + r.naoCimento);
+      if (r.added || r.skipped || r.naoCimento || r.atualizadas || r.foraCategoria) logImport(arquivo, "Lançamentos (PUZL)", r.added, r.added + r.skipped + r.invalid + r.naoCimento + r.foraCategoria);
       el("importPuzlText").value = "";
       delete el("importPuzlText").dataset.arquivo;
       el("puzlFileLabel").textContent = "Arraste ou clique para selecionar";

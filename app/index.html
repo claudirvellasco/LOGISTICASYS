@@ -1450,12 +1450,13 @@
         // documento lançado mas ainda sem confirmação no SEFAZ, "Emitida".
         var nfSt = progEntryNFStatus(e);
         var nfCanc = nfCanceladasLigadas(e).map(function(nf){ return '<span class="badge danger" title="Esta nota está CANCELADA no SEFAZ">🚫 NF '+esc(nf.numero)+' CANCELADA</span>'; }).join(" ");
-        var nfCell = '<td style="padding:4px 6px;">' + nfCanc + (
+        var nfCell0 = '<td style="padding:4px 6px;">' + nfCanc + (
           nfSt === "cancelada" ? '<span class="badge danger">🚫 NF CANCELADA</span>' :
           nfSt === "confirmada" ? '<span class="badge success">✅ Descarregada</span>' :
           nfSt === "emitida" ? '<span class="badge warning">Emitida</span>' :
           '<span class="faint" style="font-style:italic;font-size:11px;">—</span>'
         ) + '</td>';
+        var nfCell = progNFCelulaMulti(e, nfCanc, nfSt) || nfCell0;
         return '<tr>' + usinaCell +
           progMultiInput(iso, key, "carretas", e.carretas) +
           progMultiFabricaSelect(iso, key, e.fabrica) +
@@ -2208,6 +2209,64 @@
       return !!m && m.entry === progEntry && m.matchedBy !== "usina_data_placa_diverge";
     });
   }
+  // Cargas de uma linha da programação: placa, fábrica e pedido na mesma posição (separados por "/").
+  function cargasDaLinha(e){
+    var sp = function(s){ return String(s == null ? "" : s).split("/").map(function(x){ return x.trim(); }); };
+    var pl = sp(e.carretas), fb = sp(e.fabrica), pd = sp(e.pedido);
+    var n = Math.max(pl.length, fb.length, pd.length), out = [];
+    for (var k = 0; k < n; k++){
+      var ped = pd[k] || ""; if (/^[—–-]+$/.test(ped)) ped = "";
+      if (pl[k] || fb[k] || ped) out.push({placa: pl[k] || "", fabrica: fb[k] || "", pedido: ped, idx: k});
+    }
+    return out;
+  }
+  // Carga da linha a que esta nota pertence: pelo pedido; sem pedido, pela placa.
+  function cargaDaNota(nf, entry){
+    if (!entry) return null;
+    var cs = cargasDaLinha(entry);
+    var pn = normalizePedidoNum(String(nf.pedido || "").trim());
+    var c = pn && cs.find(function(x){ return x.pedido && normalizePedidoNum(x.pedido) === pn; });
+    if (!c && nf.placa) c = cs.find(function(x){ return x.placa && x.placa.toUpperCase() === String(nf.placa).trim().toUpperCase(); });
+    return c || null;
+  }
+  // Status da NF de cada carga de uma linha com várias cargas (só ligações firmes, notas ativas).
+  function progNFPorCarga(progEntry){
+    var cs = cargasDaLinha(progEntry);
+    var res = cs.map(function(c){ return {carga: c, nfs: [], status: "none"}; });
+    var usinaProg = String(progEntry.usina || "").trim().toUpperCase();
+    cementNFes.forEach(function(nf){
+      if (nfSoRegistro(nf)) return;
+      var np = String(nf.pedido || "").trim();
+      if (!np && String(nf.usina || "").trim().toUpperCase() !== usinaProg) return;
+      if (np && !cs.some(function(c){ return c.pedido && normalizePedidoNum(c.pedido) === normalizePedidoNum(np); })) return;
+      var s = nfSituacao(nf);
+      if (s.entry !== progEntry || s.situacao !== "confere") return;
+      var carga = cargaDaNota(nf, progEntry);
+      var r = carga && res.find(function(x){ return x.carga.idx === carga.idx; });
+      if (!r) return;
+      var st = nfEntradaMatch(nf) ? "confirmada" : "emitida";
+      r.nfs.push({nf: nf, st: st});
+      if (st === "confirmada") r.status = "confirmada"; else if (r.status === "none") r.status = "emitida";
+    });
+    return res;
+  }
+  function progNFCelulaMulti(progEntry, nfCanc, nfStLinha){
+    var cs = cargasDaLinha(progEntry);
+    if (cs.length < 2) return null;
+    var res = progNFPorCarga(progEntry);
+    if (res.every(function(r){ return r.status === "none"; })) return null;      // nada pela cadeia da nota: segue o selo único
+    var badge = function(st){
+      return st === "confirmada" ? '<span class="badge success">✅ Descarregada</span>'
+           : st === "emitida" ? '<span class="badge warning">Emitida</span>'
+           : '<span class="faint" style="font-style:italic;font-size:11px;">—</span>';
+    };
+    var linhas = res.map(function(r, i){
+      var nome = r.carga.pedido || r.carga.placa || ("carga " + (i + 1));
+      var dica = [r.carga.placa, r.carga.fabrica].filter(Boolean).join(" · ") + (r.nfs.length ? " — NF " + r.nfs.map(function(x){ return x.nf.numero; }).join(", ") : "");
+      return '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;" title="'+esc(dica)+'"><span class="faint" style="font-size:10.5px;min-width:64px;">'+esc(nome)+'</span>'+badge(r.status)+'</div>';
+    }).join("");
+    return '<td style="padding:4px 6px;">' + nfCanc + '<div style="display:flex;flex-direction:column;gap:3px;">' + linhas + '</div></td>';
+  }
   function progEntryNFStatus(progEntry){
     var best = "none";
     entradasParaProgEntry(progEntry).forEach(function(en){
@@ -2297,7 +2356,8 @@
     if (m.matchedBy === "usina_placa_data") return {situacao:"confere", entry:m.entry, iso:m.iso, placaOk:true, matchedBy:m.matchedBy};
     if (m.matchedBy === "usina_data_placa_diverge") return {situacao:"sem_certeza", entry:m.entry, iso:m.iso, placaOk:false, matchedBy:m.matchedBy};
     var placaAlvo = String(nf.placa||"").trim().toUpperCase();
-    var placaProg = String(m.entry.carretas||"").trim().toUpperCase();
+    var cargaP = cargaDaNota(nf, m.entry);
+    var placaProg = String((cargaP && cargaP.placa) ? cargaP.placa : (m.entry.carretas||"")).trim().toUpperCase();
     var placaOk = !placaAlvo ? null : (placaProg.indexOf(placaAlvo) !== -1);
     return {situacao: (placaOk === false ? "sem_certeza" : "confere"), entry:m.entry, iso:m.iso, placaOk:placaOk, matchedBy:"pedido"};
   }
@@ -3258,6 +3318,7 @@
     var toneToBadge = {"usina-ok":"success","usina-conferir":"warning","usina-danger":"danger"};
     var rows = list.map(function(x){
       var nf = x.nf, s = x.s; if (nfTransf(nf)) s = {situacao:"nao_vinculado", entry:null, iso:null, placaOk:null, matchedBy:null};
+      var cargaNF = s.entry ? cargaDaNota(nf, s.entry) : null;
       var meta = SITUACAO_OPTS_NF.find(function(m){ return m.value === s.situacao; });
       var toneClass = nfCancelada(nf) ? "usina-danger" : (nfTransf(nf) ? "usina-info" : (meta ? meta.tone : ""));
       var vinculoLabel = (meta ? meta.label : "—") + (NF_MATCH_LABEL[s.matchedBy] || "");
@@ -3265,10 +3326,10 @@
       var vinculoBadge = '<td style="padding:4px 6px;">'+avisoNf+(nfTransf(nf) || (nfCancelada(nf) && !s.entry) ? '' : '<span class="badge '+(toneToBadge[s.situacao === "nao_vinculado" ? "usina-danger" : (s.situacao === "sem_certeza" ? "usina-conferir" : "usina-ok")]||"neutral")+'">'+esc(vinculoLabel)+'</span>')+'</td>';
       var pedidoCell = nf.pedido
         ? esc(nf.pedido)
-        : (s.entry ? '<span class="faint" style="font-size:11px;">(via prog: '+esc(s.entry.pedido)+')</span>' : '<span class="faint" style="font-style:italic;">—</span>');
+        : (s.entry ? '<span class="faint" style="font-size:11px;">(via prog: '+esc(cargaNF && cargaNF.pedido ? cargaNF.pedido : s.entry.pedido)+')</span>' : '<span class="faint" style="font-style:italic;">—</span>');
       var usina = s.entry ? esc(s.entry.usina) : (nf.usina ? esc(nf.usina) : '<span class="faint" style="font-style:italic;">—</span>');
-      var fabrica = s.entry ? esc(s.entry.fabrica) : "";
-      var placaProg = s.entry ? esc(s.entry.carretas) : "";
+      var fabrica = s.entry ? esc(cargaNF && cargaNF.fabrica ? cargaNF.fabrica : s.entry.fabrica) : "";
+      var placaProg = s.entry ? esc(cargaNF && cargaNF.placa ? cargaNF.placa : s.entry.carretas) : "";
       var placaCell = s.placaOk === false
         ? (nf.placa
             ? '<span class="badge danger">'+esc(nf.placa)+' ≠ '+placaProg+'</span>'

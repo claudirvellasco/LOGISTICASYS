@@ -3512,6 +3512,7 @@
         var res = adiado ? null : progNFPorCarga(e);
         var cancAll = adiado ? [] : nfCanceladasLigadas(e);
         cs.forEach(function(c){
+          if (!String(c.fabrica || "").trim()) return;     // sem fábrica/material: fica só na Programação, não vai pro Controle
           var r = res && res.find(function(x){ return x.carga.idx === c.idx; });
           var nfs = r ? r.nfs.map(function(x){ return x.nf; }) : [];
           var status = adiado ? "adiado" : (r && r.status === "confirmada" ? "descarregada" : (r && r.status === "emitida" ? "emitida" : "sem_nota"));

@@ -952,7 +952,8 @@
     var day = cementScheduleByDate[entrada.data];
     if (day){
       if (pedidoAlvo){
-        var porPedido = progAtivos(day).find(function(e){ return pedidoListFrom(e.pedido).indexOf(pedidoAlvo) !== -1; });
+        var pedidoAlvoN = normalizePedidoNum(pedidoAlvo);
+        var porPedido = progAtivos(day).find(function(e){ return pedidoListFrom(e.pedido).some(function(p){ return normalizePedidoNum(p) === pedidoAlvoN; }); });
         if (porPedido) return {situacao:"confere", entry:porPedido, dataProgramada:entrada.data};
       }
       var porFabrica = progAtivos(day).filter(function(e){ return fabricaListFrom(e.fabrica).some(function(f){ return fabricaMatches(f, fabricaAlvo); }); });
@@ -2240,8 +2241,38 @@
     var ta = fornTokens(nf.fornecedor), tb = fornTokens(p.fornecedor);
     return ta.some(function(w){ return tb.indexOf(w) !== -1; });
   }
+  // Índices por chave de acesso (44 dígitos) — refeitos quando a base muda
+  var __idx = null, __idxSig = "", __idxVer = 0, __idxPuzl = null, __idxNFes = null;
+  function soDigitos(s){ return String(s || "").replace(/\D/g, ""); }
+  function indicesPuzl(){
+    var sig = __idxVer + ":" + puzlEntradas.length + ":" + cementNFes.length;
+    if (!__idx || __idxSig !== sig || __idxPuzl !== puzlEntradas || __idxNFes !== cementNFes){
+      __idx = {puzlPorChave:new Map(), nfPorChave:new Map(), puzlPorId:new Map(), pedidoDaNota:new Map()};
+      puzlEntradas.forEach(function(p){ var c = soDigitos(p.chaveNota); if (c.length === 44) __idx.puzlPorChave.set(c, p); __idx.puzlPorId.set(p.id, p); });
+      cementNFes.forEach(function(n){ var c = soDigitos(n.chave); if (c.length === 44) __idx.nfPorChave.set(c, n); });
+      __idxSig = sig; __idxPuzl = puzlEntradas; __idxNFes = cementNFes;
+    }
+    return __idx;
+  }
+  // Pedido da nota: o do SEFAZ; se a nota veio sem pedido, o da PUZL (ligada pelo nº da nota ou pela chave)
+  function pedidoEfetivo(nf){
+    var p = String(nf.pedido || "").trim();
+    if (p) return p;
+    var ix = indicesPuzl();
+    if (ix.pedidoDaNota.has(nf)) return ix.pedidoDaNota.get(nf);
+    var m = puzlMatchParaNF(nf);
+    var v = (m && m.pedido) ? String(m.pedido).trim() : "";
+    ix.pedidoDaNota.set(nf, v);
+    return v;
+  }
   function puzlMatchParaNF(nf){
     var candidatos = puzlEntradasByDocumento(nf.numero).filter(function(p){ return puzlFornecedorCompativel(nf, p); });
+    var chaveNF = soDigitos(nf.chave);
+    if (chaveNF.length === 44){
+      var porChave = indicesPuzl().puzlPorChave.get(chaveNF);
+      if (porChave) return porChave;                                    // chave de acesso = identificação exata
+      candidatos = candidatos.filter(function(p){ var c = soDigitos(p.chaveNota); return c.length !== 44 || c === chaveNF; });   // chaves diferentes: não é a mesma nota
+    }
     if (!candidatos.length) return null;
     if (candidatos.length === 1) return candidatos[0];
     var alvo = normalizeMaterial(nf.fornecedor);
@@ -2326,17 +2357,19 @@
   // importada ainda, fica vazio (matchProgramacao então cai pro critério de
   // fábrica+usina, igual sempre fez quando faltava pedido).
   function recomputeEntradasFromPuzl(){
+    __idxVer++;
     cementEntradas = puzlEntradas.map(function(p){
       var usinaCad = usinasCadastro.find(function(u){ return u.puzl && u.puzl === p.centralEntrada; });
       var fabEntry = fabricaEntryForFornecedor(p.fornecedor);
       var fabrica = fabricaRotulo(fabEntry ? fabEntry.fornecedor : p.fornecedor, p.item);
-      var nfMatch = nfByNumero(p.documento);
+      var ckp = soDigitos(p.chaveNota);
+      var nfMatch = nfByNumero(p.documento) || (ckp.length === 44 ? (indicesPuzl().nfPorChave.get(ckp) || null) : null);
       return {
         id: p.id,
         data: p.dataEntrada,
         usina: usinaCad ? usinaCad.usina : (p.centralEntrada || ""),
         fabrica: fabrica,
-        pedido: nfMatch ? String(nfMatch.pedido||"") : "",
+        pedido: (nfMatch && String(nfMatch.pedido||"").trim()) ? String(nfMatch.pedido) : String(p.pedido||""),
         documento: p.documento,
         quantidade: String(p.quantidade||"") + (p.unCompra ? " " + p.unCompra : ""),
         obs: ""
@@ -2356,6 +2389,10 @@
     var doc = String(en.documento||"").trim();
     if (!doc) return {status:"sem_doc", nf:null};
     var nf = nfByNumero(doc);
+    if (!nf){
+      var ix = indicesPuzl(), pz = ix.puzlPorId.get(en.id), ck = pz ? soDigitos(pz.chaveNota) : "";
+      if (ck.length === 44) nf = ix.nfPorChave.get(ck) || null;     // número diferente, mas a chave de acesso é a mesma
+    }
     if (nf && nfCancelada(nf)) return {status:"cancelada", nf:nf};
     return nf ? {status:"confirmada", nf:nf} : {status:"emitida", nf:null};
   }
@@ -2365,7 +2402,14 @@
   function nfEntradaMatch(nf){
     var alvo = nfKey(nf);
     if (!alvo) return null;
-    return cementEntradas.find(function(en){ return String(en.documento||"").trim().toUpperCase() === alvo; }) || null;
+    var achou = cementEntradas.find(function(en){ return String(en.documento||"").trim().toUpperCase() === alvo; });
+    if (achou) return achou;
+    var ck = soDigitos(nf.chave);
+    if (ck.length === 44){
+      var pz = indicesPuzl().puzlPorChave.get(ck);
+      if (pz) return cementEntradas.find(function(en){ return en.id === pz.id; }) || null;
+    }
+    return null;
   }
   // Traz a conversa até a Programação de Cimento: acha a(s) entrada(s) que já
   // conferem contra esse item da programação (mesma lógica do Controle de
@@ -2396,7 +2440,7 @@
   function cargaDaNota(nf, entry){
     if (!entry) return null;
     var cs = cargasDaLinha(entry);
-    var pn = normalizePedidoNum(String(nf.pedido || "").trim());
+    var pn = normalizePedidoNum(pedidoEfetivo(nf));
     var c = pn && cs.find(function(x){ return x.pedido && normalizePedidoNum(x.pedido) === pn; });
     if (!c && nf.placa) c = cs.find(function(x){ return x.placa && x.placa.toUpperCase() === String(nf.placa).trim().toUpperCase(); });
     return c || null;
@@ -2408,7 +2452,7 @@
     var usinaProg = String(progEntry.usina || "").trim().toUpperCase();
     cementNFes.forEach(function(nf){
       if (nfSoRegistro(nf)) return;
-      var np = String(nf.pedido || "").trim();
+      var np = pedidoEfetivo(nf);
       if (!np && String(nf.usina || "").trim().toUpperCase() !== usinaProg) return;
       if (np && !cs.some(function(c){ return c.pedido && normalizePedidoNum(c.pedido) === normalizePedidoNum(np); })) return;
       var s = nfSituacao(nf);
@@ -2453,7 +2497,7 @@
     var usinaProg = String(progEntry.usina || "").trim().toUpperCase();
     cementNFes.forEach(function(nf){
       if (nfSoRegistro(nf)) return;                                   // cancelada / transferência: não conta
-      var np = String(nf.pedido || "").trim();
+      var np = pedidoEfetivo(nf);
       // pré-filtro exato: só chama a ligação completa se o pedido da nota está nesta linha (ou, sem pedido, a usina é a mesma)
       if (np ? ped.indexOf(normalizePedidoNum(np)) === -1 : String(nf.usina || "").trim().toUpperCase() !== usinaProg) return;
       var s = nfSituacao(nf);
@@ -2486,7 +2530,8 @@
     {value:"nao_vinculado", label:"Não vinculado", tone:"usina-danger"}
   ];
   function nfProgMatch(nf){
-    var pedidoAlvo = String(nf.pedido||"").trim();
+    var pedidoAlvo = pedidoEfetivo(nf);
+    var viaPuzl = !String(nf.pedido||"").trim() && !!pedidoAlvo;
     if (pedidoAlvo){
       var pedidoAlvoNorm = normalizePedidoNum(pedidoAlvo);
       var achou = null, achouIso = null;
@@ -2498,8 +2543,10 @@
         if (entry){ achou = entry; achouIso = iso; return true; }
         return false;
       });
-      if (achou) return {entry:achou, iso:achouIso, matchedBy:"pedido"};
-      return null; // tem pedido mas não achou — não cai pro fallback (pedido errado precisa ser corrigido, não "adivinhado" por usina/placa/data)
+      if (achou) return {entry:achou, iso:achouIso, matchedBy:"pedido", viaPuzl:viaPuzl};
+      if (!viaPuzl) return null; // pedido da PRÓPRIA nota não achado: não "adivinha" por usina/placa/data (pedido da PUZL não achado: tenta o 2º critério)
+      // (continua abaixo, no critério Usina + Placa + Data)
+      // — não cai pro fallback (pedido errado precisa ser corrigido, não "adivinhado" por usina/placa/data)
     }
     // Sem pedido na nota: fallback por Usina + Placa + Data (emissão da nota
     // = dia programado). Sem uma dessas três referências (a data, no mínimo,
@@ -2521,6 +2568,7 @@
   var NF_MATCH_LABEL = {
     pedido: "",
     usina_placa_data: " · via usina+placa+data",
+    pedido_puzl: " · pedido da PUZL",
     usina_data_placa_diverge: " · placa diverge/ausente"
   };
   function nfSituacao(nf){
@@ -2532,7 +2580,7 @@
     var cargaP = cargaDaNota(nf, m.entry);
     var placaProg = String((cargaP && cargaP.placa) ? cargaP.placa : (m.entry.carretas||"")).trim().toUpperCase();
     var placaOk = !placaAlvo ? null : (placaProg.indexOf(placaAlvo) !== -1);
-    return {situacao: (placaOk === false ? "sem_certeza" : "confere"), entry:m.entry, iso:m.iso, placaOk:placaOk, matchedBy:"pedido"};
+    return {situacao: (placaOk === false ? "sem_certeza" : "confere"), entry:m.entry, iso:m.iso, placaOk:placaOk, matchedBy:"pedido", viaPuzl:!!m.viaPuzl};
   }
   // Colunas aceitas: Número, Emissão, Fornecedor, Material, Pedido, Placa,
   // Usina, e opcionalmente Descrição Complementar (o texto cru da nota do
@@ -3622,12 +3670,13 @@
       var cargaNF = s.entry ? cargaDaNota(nf, s.entry) : null;
       var meta = SITUACAO_OPTS_NF.find(function(m){ return m.value === s.situacao; });
       var toneClass = nfCancelada(nf) ? "usina-danger" : (nfTransf(nf) ? "usina-info" : (meta ? meta.tone : ""));
-      var vinculoLabel = (meta ? meta.label : "—") + (NF_MATCH_LABEL[s.matchedBy] || "");
+      var vinculoLabel = (meta ? meta.label : "—") + (s.viaPuzl ? NF_MATCH_LABEL.pedido_puzl : (NF_MATCH_LABEL[s.matchedBy] || ""));
       var avisoNf = nfCancelada(nf) ? '<span class="badge danger" style="margin-right:4px;">🚫 NOTA CANCELADA</span>' : (nfTransf(nf) ? '<span class="badge info" style="margin-right:4px;">🔁 Transferência — só registro</span>' : '');
       var vinculoBadge = '<td style="padding:4px 6px;">'+avisoNf+(nfTransf(nf) || (nfCancelada(nf) && !s.entry) ? '' : '<span class="badge '+(toneToBadge[s.situacao === "nao_vinculado" ? "usina-danger" : (s.situacao === "sem_certeza" ? "usina-conferir" : "usina-ok")]||"neutral")+'">'+esc(vinculoLabel)+'</span>')+'</td>';
       var pedidoCell = nf.pedido
         ? esc(nf.pedido)
-        : (s.entry ? '<span class="faint" style="font-size:11px;">(via prog: '+esc(cargaNF && cargaNF.pedido ? cargaNF.pedido : s.entry.pedido)+')</span>' : '<span class="faint" style="font-style:italic;">—</span>');
+        : (s.viaPuzl ? esc(pedidoEfetivo(nf)) + ' <span class="faint" style="font-size:11px;">(da PUZL)</span>'
+        : (s.entry ? '<span class="faint" style="font-size:11px;">(via prog: '+esc(cargaNF && cargaNF.pedido ? cargaNF.pedido : s.entry.pedido)+')</span>' : '<span class="faint" style="font-style:italic;">—</span>'));
       var usina = s.entry ? esc(s.entry.usina) : (nf.usina ? esc(nf.usina) : '<span class="faint" style="font-style:italic;">—</span>');
       var fabrica = s.entry ? esc(cargaNF && cargaNF.fabrica ? cargaNF.fabrica : s.entry.fabrica) : "";
       var placaProg = s.entry ? esc(cargaNF && cargaNF.placa ? cargaNF.placa : s.entry.carretas) : "";

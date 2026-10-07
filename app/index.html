@@ -426,11 +426,32 @@
   .dkpi-t{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
   .dkpi-v{font-size:32px; font-weight:800; line-height:1.15; font-variant-numeric:tabular-nums; letter-spacing:-.02em; margin:4px 0 2px;}
   .dkpi-s{font-size:11px; color:var(--text-faint); line-height:1.35;}
+  .dsum{background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--accent); border-radius:12px; padding:14px 18px; margin-bottom:16px; font-size:14.5px; line-height:1.6; box-shadow:var(--shadow);}
+  .dash-top{display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-bottom:16px; align-items:stretch;}
+  .dpie{display:flex; align-items:center; gap:28px; padding:20px 22px; flex-wrap:wrap; justify-content:center;}
+  .dpie-svg{position:relative; width:210px; height:210px; flex:none;}
+  .dpie-svg svg{width:100%; height:100%; display:block;}
+  .dpie-svg circle[data-tip]:hover{stroke-width:8;}
+  .dpie-c{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none;}
+  .dpie-c b{font-size:40px; font-weight:800; line-height:1; letter-spacing:-.02em;}
+  .dpie-c span{font-size:11px; color:var(--text-muted); margin-top:4px; text-transform:uppercase; letter-spacing:.05em;}
+  .dpie-leg{display:flex; flex-direction:column; gap:12px; min-width:200px; flex:1;}
+  .dpie-i{display:grid; grid-template-columns:14px 1fr auto; align-items:center; gap:10px;}
+  .dpie-i .dseg{width:14px; height:14px; border-radius:4px; box-shadow:none;}
+  .dpie-t{display:flex; flex-direction:column; line-height:1.25;} .dpie-t span{font-size:13.5px; font-weight:600;} .dpie-t small{font-size:11px; color:var(--text-faint);}
+  .dpie-i b{font-size:22px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .dpie-tot{font-size:12px; color:var(--text-muted); border-top:1px solid var(--border); padding-top:10px;}
+  .dcall{margin:14px 18px 4px; padding:14px 16px; border-radius:10px; background:var(--danger-soft); border:1px solid var(--border);}
+  .dcall-k{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--danger);}
+  .dcall-name{font-size:26px; font-weight:800; letter-spacing:-.01em; margin:2px 0;}
+  .dcall-n{font-size:14px;} .dcall-n b{font-size:20px;} .dcall-n span{color:var(--text-muted); font-size:12px;}
+  .dcall-s{font-size:11.5px; color:var(--text-muted); margin-top:4px;}
+  @media (max-width:980px){ .dash-top{grid-template-columns:1fr;} }
   .dash-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(380px,1fr)); gap:16px; align-items:start;}
   .dash-wide{grid-column:1 / -1;}
   .dash-card .card-head{align-items:center;}
   .dseg{display:block; background:var(--neutral); border-radius:0; min-width:0; min-height:0; box-shadow:0 0 0 1px var(--surface);}
-  .dseg.ok{background:var(--success);} .dseg.emi{background:var(--warning);} .dseg.pend{background:var(--neutral); opacity:.55;}
+  .dseg.ok{background:var(--success);} .dseg.emi{background:var(--warning);} .dseg.pend{background:var(--danger); opacity:.85;}
   .dleg{display:flex; gap:14px; flex-wrap:nowrap; white-space:nowrap; flex:none; font-size:11.5px; color:var(--text-muted);}
   .dleg span{display:inline-flex; align-items:center; gap:6px;}
   .dleg .dseg{width:10px; height:10px; border-radius:3px; display:inline-block; box-shadow:none;}
@@ -4138,7 +4159,7 @@
       '<div class="daterange"><button class="daterange-btn" id="dashDrBtn">📅 <span id="dashDrLabel"></span> <span style="opacity:.6;">▾</span></button>' +
       '<div class="daterange-panel" id="dashDrPanel"></div></div></div>' +
       '<div class="filter-count" id="dashInfo"></div></div></div>' +
-      '<div id="dashKpis"></div><div id="dashCharts"></div><div id="dashTip" class="dash-tip" role="tooltip"></div>';
+      '<div id="dashTop"></div><div id="dashKpis"></div><div id="dashCharts"></div><div id="dashTip" class="dash-tip" role="tooltip"></div>';
     dashPicker = makeRangePicker({btn:"dashDrBtn", panel:"dashDrPanel", label:"dashDrLabel"}, paintDashboard);
     dashPicker.state.rangeStart = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
     dashPicker.state.rangeEnd = new Date(TODAY);
@@ -4192,9 +4213,61 @@
       '</div>';
 
     if (!P){
+      el("dashTop").innerHTML = "";
       el("dashCharts").innerHTML = '<div class="notice"><h3>Nenhuma carga programada no período</h3><p>Escolha outro período. Só entram cargas com fábrica/material definidos na Programação.</p></div>';
       return;
     }
+
+    // ----- Resumo em frase + pizza + fornecedor com mais pendências
+    var nD = entregues.length, nE = emitidas.length, nP = pendentes.length;
+    var pD = dashPct(nD, P), pE = dashPct(nE, P), pP = dashPct(nP, P);
+    var fm = {}, fk = [];
+    ativas.forEach(function(l){
+      var k = String(l.c.fabrica || "").split(" — ")[0].trim() || "(sem informação)";
+      if (!fm[k]){ fm[k] = {d:0, e:0, p:0}; fk.push(k); }
+      if (l.status === "descarregada") fm[k].d++; else if (l.status === "emitida") fm[k].e++; else fm[k].p++;
+    });
+    var abertas = function(k){ return fm[k].e + fm[k].p; }, totF = function(k){ return fm[k].d + fm[k].e + fm[k].p; };
+    fk.sort(function(a, b){ return abertas(b) - abertas(a) || totF(b) - totF(a) || a.localeCompare(b, "pt-BR"); });
+    var totAberto = nE + nP;
+    var topF = (fk.length && abertas(fk[0])) ? fk[0] : null;
+
+    var resumo = 'Das <b>' + P + '</b> cargas programadas no período, <b style="color:var(--success)">' + nD + ' (' + pD + '%)</b> já foram descarregadas, ' +
+      '<b style="color:var(--warning)">' + nE + ' (' + pE + '%)</b> têm nota emitida e aguardam descarga e <b style="color:var(--danger)">' + nP + ' (' + pP + '%)</b> ainda não têm nota.' +
+      (topF ? ' O fornecedor com mais cargas em aberto é <b>' + esc(topF) + '</b> (' + abertas(topF) + ').' : ' Nenhuma carga em aberto no período.');
+
+    var fatias = [["Descarregadas", nD, "var(--success)", 1, "ok"], ["Emitidas", nE, "var(--warning)", 1, "emi"], ["Pendentes", nP, "var(--danger)", .85, "pend"]];
+    var usadas = fatias.filter(function(f){ return f[1]; }).length, acc = 0, aneis = "";
+    fatias.forEach(function(f){
+      if (!f[1]) return;
+      var frac = f[1] * 100 / P, vis = Math.max(frac - (usadas > 1 ? 0.8 : 0), 0.3);
+      aneis += '<circle r="15.915" cx="21" cy="21" fill="none" stroke-width="7" stroke-dasharray="' + vis + ' ' + (100 - vis) + '" stroke-dashoffset="' + (-acc) + '" style="stroke:' + f[2] + ';opacity:' + f[3] + ';" data-tip="' + esc(f[0] + ": " + f[1] + " de " + P + " cargas (" + dashPct(f[1], P) + "%)") + '"></circle>';
+      acc += frac;
+    });
+    var pizza = '<div class="card dash-card"><div class="card-head"><div><h2>Situação das cargas programadas</h2><p>Proporção do total programado no período</p></div></div>' +
+      '<div class="dpie"><div class="dpie-svg"><svg viewBox="0 0 42 42" role="img" aria-label="Situação das cargas"><circle r="15.915" cx="21" cy="21" fill="none" stroke-width="7" style="stroke:var(--surface-2);"></circle><g transform="rotate(-90 21 21)">' + aneis + '</g></svg>' +
+      '<div class="dpie-c"><b>' + pD + '%</b><span>descarregadas</span></div></div>' +
+      '<div class="dpie-leg">' + fatias.map(function(f){
+        return '<div class="dpie-i" data-tip="' + esc(f[0] + ": " + f[1] + " de " + P) + '"><i class="dseg ' + f[4] + '"></i><div class="dpie-t"><span>' + f[0] + '</span><small>' + f[1] + ' carga(s)</small></div><b>' + dashPct(f[1], P) + '%</b></div>';
+      }).join("") + '<div class="dpie-tot">Total programado: <b>' + P + '</b> cargas</div></div></div></div>';
+
+    var maxAb = 0; fk.forEach(function(k){ maxAb = Math.max(maxAb, abertas(k)); });
+    var rankHtml = fk.filter(function(k){ return abertas(k); }).slice(0, 8).map(function(k){
+      var g = fm[k], ab = g.e + g.p;
+      var tip = k + " — " + ab + " em aberto (" + g.p + " sem nota · " + g.e + " emitida(s)) de " + totF(k) + " programada(s)";
+      return '<div class="dbar-row" data-tip="' + esc(tip) + '"><div class="dbar-l" title="' + esc(k) + '">' + esc(k) + '</div><div class="dbar-track"><div class="dbar-stack" style="width:' + (ab * 100 / maxAb) + '%;">' +
+        (g.p ? '<i class="dseg pend" style="flex:' + g.p + ' 1 0;"></i>' : "") + (g.e ? '<i class="dseg emi" style="flex:' + g.e + ' 1 0;"></i>' : "") +
+        '</div></div><div class="dbar-n">' + ab + '</div></div>';
+    }).join("");
+    var fornCard = '<div class="card dash-card"><div class="card-head"><div><h2>Fornecedor com mais pendências</h2><p>Cargas ainda não descarregadas (sem nota + emitidas)</p></div>' +
+      '<div class="dleg"><span><i class="dseg pend"></i>Sem nota</span><span><i class="dseg emi"></i>Emitidas</span></div></div>' +
+      (topF
+        ? '<div class="dcall"><div class="dcall-k">Maior número de pendências</div><div class="dcall-name">' + esc(topF) + '</div>' +
+          '<div class="dcall-n"><b>' + abertas(topF) + '</b> carga(s) em aberto <span>de ' + totF(topF) + ' programada(s) — ' + dashPct(abertas(topF), totF(topF)) + '% dele ainda não chegou</span></div>' +
+          '<div class="dcall-s">Representa ' + dashPct(abertas(topF), totAberto) + '% de todas as cargas em aberto do período (' + totAberto + ').</div></div>' +
+          '<div class="dbars">' + rankHtml + '</div>'
+        : '<p class="dnote" style="padding-top:18px;">Nenhuma carga em aberto no período — tudo descarregado.</p>') + '</div>';
+    el("dashTop").innerHTML = '<div class="dsum">' + resumo + '</div><div class="dash-top">' + pizza + fornCard + '</div>';
 
     // ----- 1) Funil: programadas -> com nota emitida -> descarregadas
     var comNota = emitidas.length + entregues.length;
@@ -4274,7 +4347,7 @@
           '<div class="dchart"><div class="dgrid">'+grade+'</div><div class="dcols">'+cols+'</div></div>'+tabelaDias+'</div>' +
         '<div class="card dash-card"><div class="card-head"><div><h2>Do programado ao descarregado</h2><p>Quantas cargas passam por cada etapa</p></div></div><div class="dfun">'+funil+'</div></div>' +
         '<div class="card dash-card"><div class="card-head"><div><h2>Tempo até descarregar</h2><p>Dias entre o dia programado e a data de descarga (PUZL)</p></div></div>'+prazo+'</div>' +
-        '<div class="card dash-card"><div class="card-head"><div><h2>Por fornecedor</h2><p>Cargas programadas por fábrica (até 10)</p></div>'+legenda+'</div><div class="dbars">'+porFornecedor+'</div></div>' +
+        '<div class="card dash-card"><div class="card-head"><div><h2>Volume por fornecedor</h2><p>Cargas programadas por fábrica (até 10)</p></div>'+legenda+'</div><div class="dbars">'+porFornecedor+'</div></div>' +
         '<div class="card dash-card"><div class="card-head"><div><h2>Onde estão as pendências</h2><p>Usinas com carga ainda não descarregada (até 10)</p></div>'+legenda+'</div><div class="dbars">'+porUsina+'</div></div>' +
       '</div>';
   }

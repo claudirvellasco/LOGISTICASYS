@@ -221,6 +221,8 @@
   tr.clickable:hover{background:var(--surface-2);}
   .table-wrap{overflow:auto; max-height:max(320px, calc(100vh - 250px));}
   .table-wrap thead th{position:sticky; top:0; z-index:3;}
+  /* Programação de Cimento: cada dia tem sua tabela com altura fixa (o dobro do que ficava nos dias de baixo) */
+  #progBlocks .table-wrap{height:720px; max-height:none;}
   .muted{color:var(--text-muted);}
   .faint{color:var(--text-faint);}
   .cell-strong{font-weight:700;}
@@ -1368,6 +1370,7 @@
     document.querySelectorAll(".table-wrap").forEach(function(w){
       if (!w.offsetParent) return;                                     // escondida (aba/details fechado)
       var topo = w.getBoundingClientRect().top + window.scrollY;
+      if (w.closest("#progBlocks")) return;                            // Programação de Cimento: altura fixa por tabela (CSS)
       w.style.maxHeight = Math.max(260, window.innerHeight - topo - 24) + "px";
     });
   }
@@ -1773,6 +1776,7 @@
           '<span class="faint" style="font-style:italic;font-size:11px;">—</span>'
         ) + '</td>';
         var nfCell = progNFCelulaMulti(e, nfCanc, nfSt) || nfCell0;
+        if (nfSt === "none" && cargasDaLinha(e).length < 2 && linhaCompleta(e) && progLinhaSituacao(e) === "pendente") nfCell = '<td style="padding:4px 6px;">' + nfCanc + BADGE_PENDENTE + '</td>';
         var rowCls = e.status === "ok" ? "prog-row-ok" : (e.status === "conferir" ? "prog-row-conferir" : (e.status === "adiado" ? "prog-row-adiado" : ""));
         return '<tr class="'+rowCls+'" data-pk="'+esc(iso+"|"+key)+'">' + usinaCell +
           progMultiInput(iso, key, "carretas", e.carretas) +
@@ -2618,20 +2622,30 @@
     });
     return res;
   }
+  // "Pendente": a linha está TODA preenchida (placa, fábrica e pedido em cada carga), não está adiada
+  // e ainda não tem nota emitida no SEFAZ nem correspondência na PUZL.
+  function cargaCompleta(c){ return !!(c && c.placa && c.fabrica && c.pedido); }
+  function linhaCompleta(e){
+    if (!e || e.status === "adiado") return false;
+    var cs = cargasDaLinha(e);
+    return cs.length > 0 && cs.every(cargaCompleta);
+  }
+  var BADGE_PENDENTE = '<span class="badge danger" title="Programação completa, mas ainda sem nota no SEFAZ nem lançamento na PUZL">⏳ Pendente</span>';
   function progNFCelulaMulti(progEntry, nfCanc, nfStLinha){
     var cs = cargasDaLinha(progEntry);
     if (cs.length < 2) return null;
     var res = progNFPorCarga(progEntry);
-    if (res.every(function(r){ return r.status === "none"; })) return null;      // nada pela cadeia da nota: segue o selo único
-    var badge = function(st){
+    var algumaCompleta = progEntry.status !== "adiado" && res.some(function(r){ return cargaCompleta(r.carga); });
+    if (res.every(function(r){ return r.status === "none"; }) && !algumaCompleta) return null;      // nada pela cadeia da nota e nada a sinalizar: segue o selo único
+    var badge = function(st, cargaOk){
       return st === "confirmada" ? '<span class="badge success">✅ Descarregada</span>'
            : st === "emitida" ? '<span class="badge warning">Emitida</span>'
-           : '<span class="faint" style="font-style:italic;font-size:11px;">—</span>';
+           : (cargaOk ? BADGE_PENDENTE : '<span class="faint" style="font-style:italic;font-size:11px;">—</span>');
     };
     var linhas = res.map(function(r, i){
       var nome = r.carga.pedido || r.carga.placa || ("carga " + (i + 1));
       var dica = [r.carga.placa, r.carga.fabrica].filter(Boolean).join(" · ") + (r.nfs.length ? " — NF " + r.nfs.map(function(x){ return x.nf.numero; }).join(", ") : "");
-      return '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;" title="'+esc(dica)+'"><span class="faint" style="font-size:10.5px;min-width:64px;">'+esc(nome)+'</span>'+badge(r.status)+'</div>';
+      return '<div style="display:flex;align-items:center;gap:6px;white-space:nowrap;" title="'+esc(dica)+'"><span class="faint" style="font-size:10.5px;min-width:64px;">'+esc(nome)+'</span>'+badge(r.status, r.status === "none" && r.carga.placa && r.carga.fabrica && r.carga.pedido && progEntry.status !== "adiado")+'</div>';
     }).join("");
     return '<td style="padding:4px 6px;">' + nfCanc + '<div style="display:flex;flex-direction:column;gap:3px;">' + linhas + '</div></td>';
   }

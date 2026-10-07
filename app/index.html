@@ -849,10 +849,10 @@
   function fabricaRotulo(fornecedor, material){ return fornecedor + " — " + material; }
   function fabricaSelectOptionsHtml(selecionado){
     var opts = '<option value="">—</option>' + FABRICAS_CATALOGO.map(function(f){
-      return f.materiais.map(function(mat){
+      return '<optgroup label="'+esc(f.fornecedor)+'">' + f.materiais.map(function(mat){
         var rotulo = fabricaRotulo(f.fornecedor, mat);
         return '<option value="'+esc(rotulo)+'"'+(rotulo===selecionado?" selected":"")+'>'+esc(mat + " — " + f.fornecedor)+'</option>';
-      }).join("");
+      }).join("") + '</optgroup>';
     }).join("");
     // Valor vindo de uma importação (ou digitado antes de existir essa Base
     // de Fábricas) que não bate com nenhuma opção cadastrada: em vez de sumir

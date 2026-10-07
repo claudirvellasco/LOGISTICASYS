@@ -7,18 +7,18 @@
 <link rel="icon" type="image/png" sizes="16x16" href="favicon-16.png">
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta name="theme-color" content="#0b0f15">
+<meta name="theme-color" content="#070a10">
 <style>
   :root{
     /* Dark corporativo elegante — padrão ERP/logística premium. */
-    --bg:#0b0f15; --surface:#121821; --surface-2:#182029; --surface-3:#1c2530;
+    --bg:#070a10; --surface:#0f141c; --surface-2:#151b24; --surface-3:#1b222c;
     --border:#232c38; --border-strong:#374353;
     --text:#e8ecf2; --text-muted:#98a5b6; --text-faint:#65727f;
-    --accent:#4f8fe3; --accent-strong:#8bbdf2; --accent-soft:#15263c;
+    --accent:#ff3d6e; --accent-strong:#ff7a99; --accent-soft:#2a0f1a; --accent-btn:#e11d48;
     --success:#38c793; --success-soft:#0f2620;
     --warning:#e7ac55; --warning-soft:#2c2211;
-    --danger:#f0748a; --danger-soft:#2f1620;
-    --info:#5cb2ea; --info-soft:#122334;
+    --danger:#ff8a5c; --danger-soft:#2d1810;
+    --info:#b794f6; --info-soft:#201733;
     --neutral:#9aa6b6; --neutral-soft:#1a212b;
     --shadow:0 4px 14px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.35);
     --radius:10px;
@@ -28,11 +28,11 @@
     --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f1f4f8; --surface-3:#e9edf2;
     --border:#e2e6ec; --border-strong:#cbd2dc;
     --text:#1c2530; --text-muted:#65707d; --text-faint:#98a2ae;
-    --accent:#2d5482; --accent-strong:#1e324c; --accent-soft:#e8eef6;
+    --accent:#c0153f; --accent-strong:#8f0f30; --accent-soft:#fde8ee; --accent-btn:#c0153f;
     --success:#0d7a4f; --success-soft:#e5f5ee;
     --warning:#9a5b06; --warning-soft:#fdf1e0;
-    --danger:#b3273f; --danger-soft:#fbe7ea;
-    --info:#1c6ea4; --info-soft:#e6f2fa;
+    --danger:#c2410c; --danger-soft:#fdeee6;
+    --info:#6d4fc2; --info-soft:#efe9fb;
     --neutral:#4b5563; --neutral-soft:#eef0f2;
     --shadow:0 1px 2px rgba(20,30,45,.06), 0 1px 3px rgba(20,30,45,.08);
     --radius:10px;
@@ -80,6 +80,19 @@
   .btn-primary:hover{opacity:.92;}
   .login-note{margin-top:12px; text-align:center; font-size:11px; color:var(--text-faint);}
 
+  /* fundo do login (imagem) — cartão sempre escuro, mesmo no tema claro */
+  #login{
+    background:#060a12 url("login-bg.webp") center center / cover no-repeat;
+    --surface:#0f141c; --surface-2:#151b24; --border:#232b37; --border-strong:#36414f;
+    --text:#e8ecf2; --text-muted:#98a5b6; --text-faint:#7a8696; --danger:#ff8a5c;
+    color-scheme:dark; color:var(--text);
+  }
+  .login-card{background:rgba(12,17,25,.80); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px); border-color:rgba(255,255,255,.07); box-shadow:0 18px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,61,110,.05);}
+  .login-mark{background:linear-gradient(155deg,#ff3d6e,#c0153f); box-shadow:0 4px 16px rgba(255,61,110,.35);}
+  .field-input:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,61,110,.16);}
+  .btn-primary,.dr-day.range-start,.dr-day.range-end,.dr-day.single{background:var(--accent-btn);}
+  .btn-primary:hover{opacity:1; filter:brightness(1.12);}
+  .field-input input:focus, .field-input input:focus-visible{outline:none !important; box-shadow:none;}
   /* ---------- Shell ---------- */
   #app{display:none; min-height:100vh;}
   #app.active{display:flex;}
@@ -91,7 +104,7 @@
   .sidebar-mark{
     width:34px; height:34px; border-radius:8px; background:linear-gradient(155deg, var(--accent) 0%, var(--accent-strong) 130%);
     color:#0b0f15; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:13px; flex:none;
-    box-shadow:0 2px 8px rgba(79,143,227,.35);
+    box-shadow:0 2px 8px rgba(255,61,110,.38);
   }
   .sidebar-head strong{display:block; font-size:13.5px; letter-spacing:.01em;}
   .sidebar-head span{display:block; font-size:10.5px; color:var(--text-faint); margin-top:1px;}
@@ -361,7 +374,7 @@
   #app.menu-hidden .sidebar{width:0; border-right-width:0;}
   .sidebar-head{background:linear-gradient(180deg, var(--surface-2), var(--surface));}
   .nav-item{padding:10px 10px 10px 12px; font-size:13.2px;}
-  .nav-item.active{box-shadow:inset 0 0 0 1px rgba(79,143,227,.18);}
+  .nav-item.active{box-shadow:inset 0 0 0 1px rgba(255,61,110,.22);}
   .content{padding:22px 26px 40px; scroll-behavior:auto;}
   .card, .prog-block, .import-card{border-radius:12px;}
   .prog-block{margin-bottom:22px; box-shadow:0 2px 10px rgba(0,0,0,.14);}
@@ -3990,9 +4003,9 @@
       var s = cementSuppliers.find(function(x){ return x.id === id; });
       el("supTabs").querySelectorAll("button").forEach(function(b){
         var active = b.dataset.sup === id;
-        b.style.background = active ? "var(--accent-strong)" : "var(--surface)";
+        b.style.background = active ? "var(--accent-btn)" : "var(--surface)";
         b.style.color = active ? "#fff" : "var(--text-muted)";
-        b.style.borderColor = active ? "var(--accent-strong)" : "var(--border-strong)";
+        b.style.borderColor = active ? "var(--accent-btn)" : "var(--border-strong)";
       });
       var rows = s.codigos.map(function(c, i){
         return '<tr>' +
@@ -4060,9 +4073,9 @@
       el("fabTabs").querySelectorAll("button").forEach(function(b){
         var i = parseInt(b.dataset.fidx, 10);
         var active = i === activeIdx;
-        b.style.background = active ? "var(--accent-strong)" : "var(--surface)";
+        b.style.background = active ? "var(--accent-btn)" : "var(--surface)";
         b.style.color = active ? "#fff" : "var(--text-muted)";
-        b.style.borderColor = active ? "var(--accent-strong)" : "var(--border-strong)";
+        b.style.borderColor = active ? "var(--accent-btn)" : "var(--border-strong)";
         b.addEventListener("click", function(){ activeIdx = i; detailsOpen = true; paint(); });
       });
       el("fabAddFornecedorBtn").addEventListener("click", function(){

@@ -410,7 +410,7 @@
   .dstat{display:flex; align-items:baseline; gap:8px; padding:5px 12px; border:1px solid var(--border); border-left:3px solid var(--dstat, var(--border-strong)); border-radius:8px; background:var(--surface-2);}
   .dstat b{font-size:17px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--text);}
   .dstat span{font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted);}
-  .dstat.ok{--dstat:var(--success);} .dstat.conf{--dstat:var(--warning);} .dstat.adi{--dstat:var(--warning);} .dstat.prog{--dstat:var(--info);} .dstat.pend{--dstat:var(--border-strong);}
+  .dstat.ok{--dstat:var(--success);} .dstat.emi{--dstat:var(--warning);} .dstat.adi{--dstat:var(--warning);} .dstat.prog{--dstat:var(--info);} .dstat.pend{--dstat:var(--neutral);} .dstat.sem{--dstat:var(--border-strong);}
   @media (max-width:760px){
     #app.menu-hidden .sidebar{display:none;}
     .sidebar{overflow-x:auto; overflow-y:hidden; transition:none;}
@@ -418,6 +418,58 @@
     .topbar{padding:0 12px;}
     .content{padding:14px 12px 30px;}
   }
+
+  /* ===== Dashboard ===== */
+  .dkpi-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(165px,1fr)); gap:12px; margin-bottom:16px;}
+  .dkpi{position:relative; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:14px 16px 14px 18px; box-shadow:var(--shadow); overflow:hidden;}
+  .dkpi::before{content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--k, var(--border-strong));}
+  .dkpi-t{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);}
+  .dkpi-v{font-size:32px; font-weight:800; line-height:1.15; font-variant-numeric:tabular-nums; letter-spacing:-.02em; margin:4px 0 2px;}
+  .dkpi-s{font-size:11px; color:var(--text-faint); line-height:1.35;}
+  .dash-grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(380px,1fr)); gap:16px; align-items:start;}
+  .dash-wide{grid-column:1 / -1;}
+  .dash-card .card-head{align-items:center;}
+  .dseg{display:block; background:var(--neutral); border-radius:0; min-width:0; min-height:0; box-shadow:0 0 0 1px var(--surface);}
+  .dseg.ok{background:var(--success);} .dseg.emi{background:var(--warning);} .dseg.pend{background:var(--neutral); opacity:.55;}
+  .dleg{display:flex; gap:14px; flex-wrap:nowrap; white-space:nowrap; flex:none; font-size:11.5px; color:var(--text-muted);}
+  .dleg span{display:inline-flex; align-items:center; gap:6px;}
+  .dleg .dseg{width:10px; height:10px; border-radius:3px; display:inline-block; box-shadow:none;}
+  .dchart{position:relative; padding:18px 18px 8px 44px;}
+  .dgrid{position:absolute; left:44px; right:18px; top:18px; height:220px; pointer-events:none;}
+  .dgrid-l{position:absolute; left:0; right:0; border-top:1px solid var(--border);}
+  .dgrid-l span{position:absolute; left:-36px; top:-8px; width:30px; text-align:right; font-size:10.5px; color:var(--text-faint); font-variant-numeric:tabular-nums;}
+  .dcols{position:relative; display:flex; align-items:flex-start; gap:6px; overflow-x:auto; overflow-y:hidden; padding-bottom:4px;}
+  .dcol{flex:1 0 32px; max-width:64px; display:flex; flex-direction:column; align-items:stretch; cursor:default;}
+  .dcol-area{height:220px; display:flex; align-items:flex-end;}
+  .dcol-stack{width:100%; display:flex; flex-direction:column-reverse; gap:2px; min-height:0;}
+  .dcol-stack .dseg:last-child{border-radius:4px 4px 0 0;}
+  .dcol:hover .dcol-stack{filter:brightness(1.18);}
+  .dcol-x{height:22px; padding-top:6px; font-size:10px; color:var(--text-faint); white-space:nowrap; text-align:center;}
+  .dtable{padding:0 18px 14px;} .dtable summary{cursor:pointer; font-size:12px; color:var(--accent-strong); font-weight:600; padding:6px 0;}
+  .dfun{padding:6px 18px 18px; display:flex; flex-direction:column; gap:14px;}
+  .dfun-row{display:grid; grid-template-columns:150px 1fr 44px; align-items:center; gap:12px;}
+  .dfun-lbl{font-size:12.5px; font-weight:600; display:flex; flex-direction:column; line-height:1.25;}
+  .dfun-conv{font-size:10.5px; color:var(--text-faint); font-weight:400;}
+  .dfun-track{height:26px; background:var(--surface-2); border-radius:6px; overflow:hidden;}
+  .dfun-bar{display:block; height:100%; border-radius:0 6px 6px 0; opacity:.9;}
+  .dfun-n{font-size:18px; font-weight:800; text-align:right; font-variant-numeric:tabular-nums;}
+  .dbars{padding:6px 18px 14px; display:flex; flex-direction:column; gap:8px;}
+  .dbar-row{display:grid; grid-template-columns:minmax(90px, 38%) 1fr 34px; align-items:center; gap:10px; cursor:default;}
+  .dbar-l{font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:600;}
+  .dbar-track{height:16px; background:var(--surface-2); border-radius:4px; overflow:hidden;}
+  .dbar-stack{display:flex; height:100%; gap:2px;}
+  .dbar-stack .dseg:last-child{border-radius:0 4px 4px 0;}
+  .dbar-row:hover .dbar-stack{filter:brightness(1.18);}
+  .dbar-n{font-size:12px; font-weight:700; text-align:right; font-variant-numeric:tabular-nums;}
+  .dprazo{display:flex; align-items:flex-end; gap:12px; height:190px; padding:22px 18px 6px;}
+  .dprazo-c{flex:1; height:100%; display:grid; grid-template-rows:auto 1fr auto; gap:4px; justify-items:center; cursor:default;}
+  .dprazo-n{font-size:13px; font-weight:800; font-variant-numeric:tabular-nums;}
+  .dprazo-bar{align-self:end; width:100%; max-width:54px; background:var(--accent); border-radius:5px 5px 0 0; min-height:0;}
+  .dprazo-c:hover .dprazo-bar{filter:brightness(1.2);}
+  .dprazo-x{font-size:10.5px; color:var(--text-muted); text-align:center;}
+  .dnote{margin:0; padding:8px 18px 14px; font-size:11.5px; color:var(--text-faint);}
+  .dash-tip{position:fixed; z-index:80; display:none; pointer-events:none; background:var(--surface-3); color:var(--text); border:1px solid var(--border-strong); border-radius:8px; padding:7px 10px; font-size:12px; max-width:320px; box-shadow:var(--shadow);}
+  @media (max-width:760px){ .dash-grid{grid-template-columns:1fr;} .dfun-row{grid-template-columns:110px 1fr 36px;} }
 
   tr.nf-cancelada td{background:var(--danger-soft) !important; color:var(--danger);}
   tr.nf-cancelada td .badge.neutral{background:transparent; color:var(--danger); border:1px solid var(--danger);}
@@ -984,6 +1036,7 @@
   var NAV_CIMENTO = [
     {id:"programacao-cimento", label:"Programação de Cimento", icon:"📋"},
     {id:"controle-pedidos-cimento", label:"Controle de Pedidos", icon:"🚚"},
+    {id:"dashboard", label:"Dashboard", icon:"📊"},
     {id:"vpo", label:"VPO", icon:"🧾"}
   ];
   var NAV_DADOS = [
@@ -993,7 +1046,7 @@
   ];
   var NAV = [
     {id:"consultas", label:"Consultas", icon:"🔎"},
-    {id:"dashboard", label:"Dashboard", icon:"📊"}, {id:"operacoes", label:"Operação", icon:"🚦"},
+    {id:"operacoes", label:"Operação", icon:"🚦"},
     {id:"exececoes", label:"Exceções", icon:"🛡️"}, {id:"dados", label:"Dados", icon:"🗂️"}, {id:"relatorios", label:"Relatórios", icon:"📈"},
     {id:"auditoria", label:"Auditoria", icon:"🔍"}, {id:"configuracoes", label:"Configurações", icon:"⚙️"}
   ];
@@ -1012,7 +1065,7 @@
     "controle-pedidos-cimento":"Cimento <b>›</b> Controle de Pedidos — conferência automática",
     "vpo":"Cimento <b>›</b> VPO — pedágio por roteiro",
     "consultas":"Outros <b>›</b> Consulta geral e consulta de pedágio",
-    dashboard:"Outros <b>›</b> Visão geral das operações",
+    dashboard:"Cimento <b>›</b> Dashboard — programado × emitido × descarregado",
     operacoes:"Outros <b>›</b> Acompanhamento de operações",
     exececoes:"Outros <b>›</b> Itens que exigem intervenção humana",
     dados:"Outros <b>›</b> Cadastros em definição",
@@ -1358,6 +1411,7 @@
     // por acaso (novo import, trocar período etc.). Repinta as 3 sempre que a
     // tela é aberta, pra qualquer edição em qualquer uma aparecer nas demais.
     if (id === "controle-pedidos-cimento") paintPedidos();
+    if (id === "dashboard") paintDashboard();
     else if (id === "base-dados-cimento") paintBaseDados();
     else if (id === "notas-sefaz") paintNFes();
     else if (id === "lancamentos-puzl") paintPuzl();
@@ -1548,24 +1602,37 @@
     paintBlocks();
   }
 
-  function progDayStatsHtml(c){
-    return '<div class="dstat prog"><b>'+c.programadas+'</b><span>Usinas programadas</span></div>' +
-      '<div class="dstat ok"><b>'+c.ok+'</b><span>Tudo OK</span></div>' +
-      '<div class="dstat conf"><b>'+c.conferir+'</b><span>A conferir</span></div>' +
-      '<div class="dstat adi"><b>'+c.adiado+'</b><span>Adiado</span></div>' +
-      '<div class="dstat pend"><b>'+c.pendentes+'</b><span>Sem status</span></div>';
+  // Situação de uma linha da Programação na cadeia Programação → nota emitida (SEFAZ) → descarregada (PUZL)
+  function progLinhaSituacao(e){
+    if (cargasDaLinha(e).length >= 2){
+      var res = progNFPorCarga(e);
+      var algum = res.some(function(r){ return r.status !== "none"; });
+      if (algum) return res.every(function(r){ return r.status === "confirmada"; }) ? "descarregada" : "emitida";
+    }
+    var st = progEntryNFStatus(e);
+    return st === "confirmada" ? "descarregada" : (st === "emitida" ? "emitida" : "pendente");
   }
-  // Recalcula os quadros do dia olhando a tabela (usado ao mudar status/placas sem repintar tudo)
-  function progDayStatsFromDom(block){
-    var c = {programadas:0, ok:0, conferir:0, adiado:0, pendentes:0};
-    block.querySelectorAll("tbody tr").forEach(function(tr){
-      var st = tr.querySelector("select.status-select"); var v = st ? st.value : "";
-      var temCarreta = Array.prototype.some.call(tr.querySelectorAll('.multi-field[data-field="carretas"] input'), function(i){ return String(i.value).trim(); });
-      if (!temCarreta && v !== "adiado") return;
+  // Contagem do dia (por usina programada): descarregadas / emitidas / pendentes (nada emitido) / sem status
+  function progDayCounts(iso){
+    var c = {programadas:0, descarregadas:0, emitidas:0, pendentes:0, semStatus:0, adiado:0};
+    cementDayData(iso).entries.forEach(function(e){
+      var adiado = e.status === "adiado";
+      if (!String(e.carretas || "").trim() && !adiado) return;
       c.programadas++;
-      if (v === "ok") c.ok++; else if (v === "conferir") c.conferir++; else if (v === "adiado") c.adiado++; else c.pendentes++;
+      if (adiado){ c.adiado++; return; }
+      if (!e.status) c.semStatus++;
+      var s = progLinhaSituacao(e);
+      if (s === "descarregada") c.descarregadas++; else if (s === "emitida") c.emitidas++; else c.pendentes++;
     });
     return c;
+  }
+  function progDayStatsHtml(c){
+    return '<div class="dstat prog"><b>'+c.programadas+'</b><span>Usinas programadas</span></div>' +
+      '<div class="dstat ok"><b>'+c.descarregadas+'</b><span>Descarregadas</span></div>' +
+      '<div class="dstat emi"><b>'+c.emitidas+'</b><span>Emitidas</span></div>' +
+      '<div class="dstat pend"><b>'+c.pendentes+'</b><span>Pendentes</span></div>' +
+      '<div class="dstat sem"><b>'+c.semStatus+'</b><span>Sem status</span></div>' +
+      (c.adiado ? '<div class="dstat adi"><b>'+c.adiado+'</b><span>Adiado</span></div>' : '');
   }
   function paintBlocks(){
     progPicker.updateLabel();
@@ -1639,7 +1706,7 @@
       }).join("");
       return '<div class="prog-block'+(data.isException?" exception":"")+'" data-iso="'+iso+'">' +
         '<div class="prog-block-head"><div class="ref">'+esc(refText)+'</div><div class="title">PROGRAMAÇÃO PARA O DIA '+esc(fmtBR(day).toUpperCase())+' ('+esc(weekdayLong(day).toUpperCase())+')'+(data.isException?' · EXCEÇÃO':'')+'</div></div>' +
-        '<div class="prog-day-stats">' + progDayStatsHtml(dc) + '</div>' +
+        '<div class="prog-day-stats">' + progDayStatsHtml(progDayCounts(iso)) + '</div>' +
         (entries.length
           ? '<div class="table-wrap"><table><thead><tr><th>Usina</th><th>Carretas</th><th>Fábrica</th><th>Número do Pedido</th><th>Observação</th><th>NF (SEFAZ)</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
           : '<p class="prog-empty">Nenhuma usina registrada para este dia.</p>') +
@@ -1678,7 +1745,7 @@
     el("progBlocks").querySelectorAll("select.status-select").forEach(function(sel){ sel.dataset.antes = sel.value; });
     el("progBlocks").querySelectorAll(".prog-block[data-iso]").forEach(function(block){
       block.addEventListener("change", function(){
-        var box = block.querySelector(".prog-day-stats"); if (box) box.innerHTML = progDayStatsHtml(progDayStatsFromDom(block));
+        var box = block.querySelector(".prog-day-stats"); if (box) box.innerHTML = progDayStatsHtml(progDayCounts(block.dataset.iso));
       });
     });
     el("progBlocks").querySelectorAll(".prog-add").forEach(function(btn){
@@ -3550,8 +3617,8 @@
   function diasEntre(isoA, isoB){ return Math.round((fromISO(isoB) - fromISO(isoA)) / 86400000); }
   // Uma linha por CARGA programada (placa/fábrica/pedido), com a situação dela na cadeia
   // Programação → nota emitida (SEFAZ) → descarregada (PUZL).
-  function pedProgLinhas(){
-    var st = pedidosPicker.state, hoje = toISO(TODAY), out = [];
+  function pedProgLinhas(stArg){
+    var st = stArg || pedidosPicker.state, hoje = toISO(TODAY), out = [];
     var entPorLinha = new Map();
     cementEntradas.forEach(function(en){
       var m = matchProgramacao(en);
@@ -4064,56 +4131,153 @@
   }
 
   /* ---------------- Dashboard ---------------- */
+  var dashPicker = null;
   function renderDashboard(){
-    // Bloco "Cimento" — dados reais do sistema atual (entradas cadastradas em
-    // Base de Dados, conferidas contra a Programação de Cimento), diferente
-    // do bloco de Operações abaixo, que ainda usa a base genérica fictícia.
-    var cimStats = [
-      ["Total de pedidos", cementEntradas.length, "accent", "📦"],
-      ["Confere", pedidosCount("confere"), "success", "✅"],
-      ["Sem certeza", pedidosCount("sem_certeza"), "warning", "🕒"],
-      ["Data incorreta", pedidosCount("data_incorreta"), "info", "📆"],
-      ["Não realizado", pedidosCount("nao_realizado"), "danger", "🚫"]
-    ];
-    var cimStatsHtml = '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>Cimento — pedidos</h2><p>Total de pedidos e situação, a partir das entradas cadastradas em Base de Dados</p></div></div>' +
-      '<div class="stat-grid">' + cimStats.map(function(s){
-        return '<div class="stat" style="--stat-accent:var(--'+s[2]+');"><div class="stat-top"><span>'+esc(s[0])+'</span><span class="stat-icn" style="background:var(--'+s[2]+'-soft);color:var(--'+s[2]+');">'+s[3]+'</span></div><div class="stat-val">'+s[1]+'</div></div>';
-      }).join("") + '</div></div>';
-
-    var today = operations.filter(function(o){ return o.date === "2026-09-18"; });
-    var count = function(st){ return today.filter(function(o){ return o.status === st; }).length; };
-    var openExc = exceptions.filter(function(e){ return e.status !== "RESOLVED" && e.status !== "IGNORED_JUSTIFIED"; }).length;
-
-    var stats = [
-      ["Operações do dia", today.length, "info", "📋"],
-      ["Pendentes", count("PENDING"), "neutral", "⏳"],
-      ["Com divergência", count("DIVERGENCE"), "danger", "⚠️"],
-      ["Aguardando confirmação", count("AWAITING_CONFIRMATION"), "warning", "🕒"],
-      ["Finalizadas", count("COMPLETED"), "success", "✅"],
-      ["Exceções abertas", openExc, "danger", "🛡️"]
-    ];
-    var toneBg = {info:"var(--info-soft)", neutral:"var(--neutral-soft)", danger:"var(--danger-soft)", warning:"var(--warning-soft)", success:"var(--success-soft)"};
-    var toneFg = {info:"var(--info)", neutral:"var(--neutral)", danger:"var(--danger)", warning:"var(--warning)", success:"var(--success)"};
-
-    var statsHtml = '<div class="stat-grid">' + stats.map(function(s){
-      return '<div class="stat"><div class="stat-top"><span>'+esc(s[0])+'</span><span class="stat-icn" style="background:'+toneBg[s[2]]+';color:'+toneFg[s[2]]+'">'+s[3]+'</span></div><div class="stat-val">'+s[1]+'</div></div>';
-    }).join("") + '</div>';
-
-    var attRows = operations.filter(function(o){ return o.status === "DIVERGENCE" || o.status === "EXCEPTION"; }).map(function(o){
-      return '<tr><td class="cell-strong">'+esc(o.code)+'</td><td>Operação</td><td>'+esc(o.usina)+'</td><td>'+esc(o.transp)+'</td><td>'+badge(STATUS[o.status])+'</td><td class="muted">'+esc(o.situacao)+'</td><td>—</td><td><a href="#" class="lnk" data-goto="exececoes" style="color:var(--accent-strong);font-weight:600;text-decoration:none;">Ver na fila</a></td></tr>';
-    }).join("");
-    var attRows2 = exceptions.filter(function(e){ return e.status === "AWAITING_ACTION" || e.status === "UNDER_ANALYSIS" || e.status === "INFO_REQUESTED"; }).map(function(e){
-      return '<tr><td class="cell-strong">'+esc(e.op)+'</td><td>Exceção</td><td>—</td><td>'+esc(e.resp)+'</td><td>'+badge(EXC_STATUS[e.status])+'</td><td class="muted">'+esc(e.problema)+'</td><td>'+esc(e.tempo)+'</td><td><a href="#" class="lnk" data-goto="exececoes" style="color:var(--accent-strong);font-weight:600;text-decoration:none;">Tratar</a></td></tr>';
-    }).join("");
-
-    el("view-dashboard").innerHTML = cimStatsHtml + statsHtml +
-      '<div class="card"><div class="card-head"><div><h2>Pendências que precisam de atenção</h2><p>Itens que exigem intervenção humana — controle por exceção (dados fictícios)</p></div></div>' +
-      '<div class="table-wrap"><table><thead><tr><th>ID</th><th>Tipo</th><th>Usina</th><th>Transportadora</th><th>Status</th><th>Motivo</th><th>Tempo pendente</th><th>Ação</th></tr></thead><tbody>' +
-      attRows + attRows2 + '</tbody></table></div></div>';
-
-    el("view-dashboard").querySelectorAll("[data-goto]").forEach(function(a){
-      a.addEventListener("click", function(ev){ ev.preventDefault(); showView(a.dataset.goto); });
+    el("view-dashboard").innerHTML =
+      '<div class="card" style="margin-bottom:16px;"><div class="filters" style="align-items:center;">' +
+      '<div class="filter-field"><span>Período (dia programado)</span>' +
+      '<div class="daterange"><button class="daterange-btn" id="dashDrBtn">📅 <span id="dashDrLabel"></span> <span style="opacity:.6;">▾</span></button>' +
+      '<div class="daterange-panel" id="dashDrPanel"></div></div></div>' +
+      '<div class="filter-count" id="dashInfo"></div></div></div>' +
+      '<div id="dashKpis"></div><div id="dashCharts"></div><div id="dashTip" class="dash-tip" role="tooltip"></div>';
+    dashPicker = makeRangePicker({btn:"dashDrBtn", panel:"dashDrPanel", label:"dashDrLabel"}, paintDashboard);
+    dashPicker.state.rangeStart = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+    dashPicker.state.rangeEnd = new Date(TODAY);
+    dashPicker.state.calViewMonth = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
+    var tip = el("dashTip"), root = el("view-dashboard");
+    root.addEventListener("mousemove", function(ev){
+      var t = ev.target.closest ? ev.target.closest("[data-tip]") : null;
+      if (!t){ tip.style.display = "none"; return; }
+      tip.innerHTML = t.getAttribute("data-tip");
+      tip.style.display = "block";
+      var w = tip.offsetWidth, hh = tip.offsetHeight;
+      var x = Math.min(ev.clientX + 14, window.innerWidth - w - 8), y = ev.clientY - hh - 12; if (y < 8) y = ev.clientY + 16;
+      tip.style.left = x + "px"; tip.style.top = y + "px";
     });
+    root.addEventListener("mouseleave", function(){ tip.style.display = "none"; });
+    paintDashboard();
+  }
+  function dashNiceMax(m){
+    if (m <= 4) return 4;
+    var p = Math.pow(10, Math.floor(Math.log(m) / Math.LN10)), n = m / p;
+    return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 4 ? 4 : n <= 5 ? 5 : 10) * p;
+  }
+  function dashPct(a, b){ return b ? Math.round(a * 100 / b) : 0; }
+  function dashSeg(cls, n, tot, tip){
+    return n ? '<i class="dseg '+cls+'" style="flex:'+n+' 1 0;" data-tip="'+esc(tip)+'"></i>' : "";
+  }
+  function paintDashboard(){
+    if (!dashPicker) return;
+    dashPicker.updateLabel();
+    var linhas = pedProgLinhas(dashPicker.state);
+    var ativas = linhas.filter(function(l){ return l.status !== "adiado"; });
+    var adiadas = linhas.length - ativas.length;
+    var entregues = ativas.filter(function(l){ return l.status === "descarregada"; });
+    var emitidas = ativas.filter(function(l){ return l.status === "emitida"; });
+    var pendentes = ativas.filter(function(l){ return l.status === "sem_nota" || l.status === "cancelada"; });
+    var atrasadas = ativas.filter(function(l){ return l.status !== "descarregada" && l.atrasada; });
+    var P = ativas.length;
+    el("dashInfo").textContent = P + " carga(s) programada(s) no período" + (adiadas ? " · " + adiadas + " adiada(s) fora da conta" : "");
+
+    // ----- KPIs
+    var kpi = function(titulo, valor, sub, cor, extra){
+      return '<div class="dkpi" style="--k:var(--'+cor+');">'+
+        '<div class="dkpi-t">'+esc(titulo)+'</div><div class="dkpi-v">'+valor+'</div><div class="dkpi-s">'+sub+'</div>'+(extra||"")+'</div>';
+    };
+    el("dashKpis").innerHTML = '<div class="dkpi-grid">' +
+      kpi("Programadas", P, "cargas no período", "info") +
+      kpi("Entregues", entregues.length, dashPct(entregues.length, P) + "% das programadas · nota + descarga", "success") +
+      kpi("Emitidas", emitidas.length, "nota emitida, falta descarregar" + (emitidas.filter(function(l){ return l.atrasada; }).length ? ' · <b style="color:var(--danger)">' + emitidas.filter(function(l){ return l.atrasada; }).length + ' em atraso</b>' : ""), "warning") +
+      kpi("Pendentes", pendentes.length, "nem emitidas nem descarregadas" + (pendentes.filter(function(l){ return l.atrasada; }).length ? ' · <b style="color:var(--danger)">' + pendentes.filter(function(l){ return l.atrasada; }).length + ' em atraso</b>' : ""), "neutral") +
+      kpi("Desviadas", "—", "disponível quando o módulo de desvio entrar", "border-strong", "") +
+      '</div>';
+
+    if (!P){
+      el("dashCharts").innerHTML = '<div class="notice"><h3>Nenhuma carga programada no período</h3><p>Escolha outro período. Só entram cargas com fábrica/material definidos na Programação.</p></div>';
+      return;
+    }
+
+    // ----- 1) Funil: programadas -> com nota emitida -> descarregadas
+    var comNota = emitidas.length + entregues.length;
+    var funil = [["Programadas", P, "info"], ["Nota emitida (SEFAZ)", comNota, "warning"], ["Descarregadas (PUZL)", entregues.length, "success"]].map(function(f, i, a){
+      var prev = i ? a[i-1][1] : P;
+      var conv = i ? '<span class="dfun-conv">' + dashPct(f[1], prev) + '% da etapa anterior</span>' : '<span class="dfun-conv">base 100%</span>';
+      return '<div class="dfun-row" data-tip="'+esc(f[0]+": "+f[1]+" ("+dashPct(f[1], P)+"% das programadas)")+'"><div class="dfun-lbl">'+esc(f[0])+conv+'</div>' +
+        '<div class="dfun-track"><i class="dfun-bar" style="width:'+Math.max(dashPct(f[1], P), f[1] ? 1.5 : 0)+'%;background:var(--'+f[2]+');"></i></div><div class="dfun-n">'+f[1]+'</div></div>';
+    }).join("");
+
+    // ----- 2) Por dia (ou por semana, em períodos longos)
+    var dias = rangeDays(dashPicker.state), semana = dias.length > 45;
+    var grupos = {}, ordem = [];
+    ativas.forEach(function(l){
+      var d = fromISO(l.iso), key = l.iso, lbl = l.iso.slice(8) + "/" + l.iso.slice(5, 7);
+      if (semana){ var seg = addDays(d, -((d.getDay() + 6) % 7)); key = toISO(seg); lbl = "sem " + key.slice(8) + "/" + key.slice(5, 7); }
+      if (!grupos[key]){ grupos[key] = {lbl:lbl, d:0, e:0, p:0}; ordem.push(key); }
+      var g = grupos[key]; if (l.status === "descarregada") g.d++; else if (l.status === "emitida") g.e++; else g.p++;
+    });
+    ordem.sort();
+    var maxDia = 0; ordem.forEach(function(k){ var g = grupos[k]; maxDia = Math.max(maxDia, g.d + g.e + g.p); });
+    var topo = dashNiceMax(maxDia);
+    var grade = [0, 1, 2, 3, 4].map(function(i){ var v = topo * (4 - i) / 4; return '<div class="dgrid-l" style="top:'+(i * 25)+'%;"><span>'+(Math.round(v * 10) / 10)+'</span></div>'; }).join("");
+    var cols = ordem.map(function(k){
+      var g = grupos[k], tot = g.d + g.e + g.p;
+      var tip = g.lbl + " — " + tot + " programada(s): " + g.d + " descarregada(s) · " + g.e + " emitida(s) · " + g.p + " pendente(s)";
+      return '<div class="dcol" data-tip="'+esc(tip)+'"><div class="dcol-area"><div class="dcol-stack" style="height:'+(tot * 100 / topo)+'%;">' +
+        (g.d ? '<i class="dseg ok" style="flex:'+g.d+' 1 0;"></i>' : "") + (g.e ? '<i class="dseg emi" style="flex:'+g.e+' 1 0;"></i>' : "") + (g.p ? '<i class="dseg pend" style="flex:'+g.p+' 1 0;"></i>' : "") +
+        '</div></div><div class="dcol-x">'+esc(g.lbl)+'</div></div>';
+    }).join("");
+    var tabelaDias = '<details class="dtable"><summary>Ver como tabela</summary><div class="table-wrap"><table><thead><tr><th>'+(semana ? "Semana" : "Dia")+'</th><th>Programadas</th><th>Descarregadas</th><th>Emitidas</th><th>Pendentes</th></tr></thead><tbody>' +
+      ordem.map(function(k){ var g = grupos[k]; return '<tr><td>'+esc(g.lbl)+'</td><td>'+(g.d+g.e+g.p)+'</td><td>'+g.d+'</td><td>'+g.e+'</td><td>'+g.p+'</td></tr>'; }).join("") + '</tbody></table></div></details>';
+
+    // ----- 3) Por fornecedor (fábrica) e 4) pendências por usina — barras horizontais empilhadas
+    var barrasH = function(chave, lista, limite){
+      var mapa = {}, ks = [];
+      lista.forEach(function(l){
+        var k = chave(l) || "(sem informação)";
+        if (!mapa[k]){ mapa[k] = {d:0, e:0, p:0}; ks.push(k); }
+        if (l.status === "descarregada") mapa[k].d++; else if (l.status === "emitida") mapa[k].e++; else mapa[k].p++;
+      });
+      ks.sort(function(a, b){ var A = mapa[a], B = mapa[b]; return (B.d + B.e + B.p) - (A.d + A.e + A.p) || a.localeCompare(b, "pt-BR"); });
+      var cortados = ks.length > limite ? ks.length - limite : 0; ks = ks.slice(0, limite);
+      var mx = 0; ks.forEach(function(k){ mx = Math.max(mx, mapa[k].d + mapa[k].e + mapa[k].p); });
+      return ks.map(function(k){
+        var g = mapa[k], tot = g.d + g.e + g.p;
+        var tip = k + " — " + tot + " programada(s): " + g.d + " descarregada(s) · " + g.e + " emitida(s) · " + g.p + " pendente(s)";
+        return '<div class="dbar-row" data-tip="'+esc(tip)+'"><div class="dbar-l" title="'+esc(k)+'">'+esc(k)+'</div><div class="dbar-track"><div class="dbar-stack" style="width:'+(tot * 100 / mx)+'%;">' +
+          (g.d ? '<i class="dseg ok" style="flex:'+g.d+' 1 0;"></i>' : "") + (g.e ? '<i class="dseg emi" style="flex:'+g.e+' 1 0;"></i>' : "") + (g.p ? '<i class="dseg pend" style="flex:'+g.p+' 1 0;"></i>' : "") +
+          '</div></div><div class="dbar-n">'+tot+'</div></div>';
+      }).join("") + (cortados ? '<p class="dnote">+ '+cortados+' outros não exibidos</p>' : "");
+    };
+    var porFornecedor = barrasH(function(l){ return String(l.c.fabrica || "").split(" — ")[0].trim(); }, ativas, 10);
+    var comPend = ativas.filter(function(l){ return l.status !== "descarregada"; });
+    var porUsina = comPend.length ? barrasH(function(l){ return l.e.usina; }, comPend, 10) : '<p class="dnote">Nada em aberto no período — tudo descarregado.</p>';
+
+    // ----- 5) Tempo até descarregar (dias entre o dia programado e a descarga)
+    var faixas = [["No dia", 0], ["+1 dia", 1], ["+2 dias", 2], ["+3 dias", 3], ["4 ou mais", 99]].map(function(f){ return {l:f[0], max:f[1], n:0}; });
+    var antes = 0;
+    entregues.forEach(function(l){
+      if (!l.descarga){ return; }
+      var d = diasEntre(l.iso, l.descarga);
+      if (d < 0){ antes++; d = 0; }
+      var fx = faixas.find(function(f){ return d <= f.max; }); fx.n++;
+    });
+    var mxF = 0; faixas.forEach(function(f){ mxF = Math.max(mxF, f.n); });
+    var prazo = entregues.length
+      ? '<div class="dprazo">' + faixas.map(function(f){
+          return '<div class="dprazo-c" data-tip="'+esc(f.l+": "+f.n+" carga(s) ("+dashPct(f.n, entregues.length)+"%)")+'"><div class="dprazo-n">'+f.n+'</div><div class="dprazo-bar" style="height:'+(mxF ? Math.max(f.n * 100 / mxF, f.n ? 3 : 0) : 0)+'%;"></div><div class="dprazo-x">'+esc(f.l)+'</div></div>';
+        }).join("") + '</div><p class="dnote">'+dashPct(faixas[0].n, entregues.length)+'% das entregues chegaram no próprio dia programado.' + (antes ? ' ('+antes+' antes do dia programado.)' : '') + '</p>'
+      : '<p class="dnote">Nenhuma carga descarregada no período ainda.</p>';
+
+    var legenda = '<div class="dleg"><span><i class="dseg ok"></i>Descarregadas</span><span><i class="dseg emi"></i>Emitidas</span><span><i class="dseg pend"></i>Pendentes</span></div>';
+    el("dashCharts").innerHTML =
+      '<div class="dash-grid">' +
+        '<div class="card dash-card dash-wide"><div class="card-head"><div><h2>Situação por '+(semana ? 'semana' : 'dia programado')+'</h2><p>Cada coluna = cargas programadas naquele '+(semana ? 'período' : 'dia')+', separadas pela etapa em que estão</p></div>'+legenda+'</div>' +
+          '<div class="dchart"><div class="dgrid">'+grade+'</div><div class="dcols">'+cols+'</div></div>'+tabelaDias+'</div>' +
+        '<div class="card dash-card"><div class="card-head"><div><h2>Do programado ao descarregado</h2><p>Quantas cargas passam por cada etapa</p></div></div><div class="dfun">'+funil+'</div></div>' +
+        '<div class="card dash-card"><div class="card-head"><div><h2>Tempo até descarregar</h2><p>Dias entre o dia programado e a data de descarga (PUZL)</p></div></div>'+prazo+'</div>' +
+        '<div class="card dash-card"><div class="card-head"><div><h2>Por fornecedor</h2><p>Cargas programadas por fábrica (até 10)</p></div>'+legenda+'</div><div class="dbars">'+porFornecedor+'</div></div>' +
+        '<div class="card dash-card"><div class="card-head"><div><h2>Onde estão as pendências</h2><p>Usinas com carga ainda não descarregada (até 10)</p></div>'+legenda+'</div><div class="dbars">'+porUsina+'</div></div>' +
+      '</div>';
   }
 
   /* ---------------- Operações ---------------- */

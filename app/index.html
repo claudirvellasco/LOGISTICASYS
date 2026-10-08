@@ -164,6 +164,7 @@
   .adm-ktbl td{overflow-wrap:anywhere;}
   #admChavesCard .adm-ktbl .adm-acoes{min-width:0;}
   .adm-kvazio{padding:22px 18px; text-align:center;}
+  .adm-kexp{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; font-size:12.5px;} .adm-kexp .faint{flex:1 1 280px; min-width:0;}
   .adm-kcode{display:inline-block; margin-top:6px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px; letter-spacing:.04em; background:var(--surface); border:1px solid var(--border-strong); padding:3px 7px; border-radius:6px; user-select:all;}
   /* ---------- Shell ---------- */
   #app{display:none; min-height:100vh;}
@@ -5302,7 +5303,7 @@
     return "—";
   }
   var ADM_ACAO = { RESET_SENHA: "Senha redefinida", ALTERAR_PAPEL: "Papel alterado", ATIVAR: "Conta ativada", DESATIVAR: "Conta desativada",
-    GERAR_CHAVE: "Chave de acesso gerada", GERAR_CHAVES_LOTE: "Chaves geradas em lote", DESATIVAR_CHAVE: "Chave de acesso desativada", VER_CHAVE: "Chave de acesso copiada", ENCARREGADO: "Encarregado salvo", ENCARREGADO_USINAS: "Usinas do encarregado alteradas" };
+    GERAR_CHAVE: "Chave de acesso gerada", GERAR_CHAVES_LOTE: "Chaves geradas em lote", DESATIVAR_CHAVE: "Chave de acesso desativada", VER_CHAVE: "Chave de acesso copiada", EXPORTAR_CHAVES: "Chaves exportadas (Excel)", ENCARREGADO: "Encarregado salvo", ENCARREGADO_USINAS: "Usinas do encarregado alteradas" };
   var ADM_CHECK = [
     ["Alta", "painel", "Cadastro público desligado", "No painel do Supabase: Authentication → Sign In / Providers → desmarque “Allow new users to sign up”. Hoje uma conta nova não enxerga nenhum dado (o banco exige ser membro), mas desligar fecha a porta de vez."],
     ["Alta", "feito", "Senha só pelo administrador", "O sistema não oferece troca de senha ao usuário: só o administrador redefine (aqui no Adm) e as sessões antigas caem na hora. Observação: o Supabase ainda permitiria, tecnicamente, que alguém logado chamasse a API para trocar a própria senha — isso não abre dados de ninguém e você redefine em seguida."],
@@ -5346,7 +5347,7 @@
     h += admChavesHtml();
     h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>🧾 Últimas ações de administração</h2><p>Quem fez o quê, e quando. A senha nunca é gravada.</p></div></div>';
     h += ADM.hist.length ? '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Quando</th><th>Ação</th><th>Usuário</th><th>Detalhe</th></tr></thead><tbody>' + ADM.hist.map(function(x){
-      var det = x.acao === "ALTERAR_PAPEL" ? esc(((x.antes || {}).papel || "?") + " → " + ((x.depois || {}).papel || "?")) : (x.acao === "GERAR_CHAVES_LOTE" ? esc((x.depois || {}).qtd + " chave(s)") : (x.acao === "ENCARREGADO_USINAS" ? esc((x.depois || {}).qtd_usinas + " usina(s)") : ""));
+      var det = x.acao === "ALTERAR_PAPEL" ? esc(((x.antes || {}).papel || "?") + " → " + ((x.depois || {}).papel || "?")) : ((x.acao === "GERAR_CHAVES_LOTE" || x.acao === "EXPORTAR_CHAVES") ? esc((x.depois || {}).qtd + " chave(s)") : (x.acao === "ENCARREGADO_USINAS" ? esc((x.depois || {}).qtd_usinas + " usina(s)") : ""));
       return '<tr><td class="muted">' + esc(admFmt(x.em)) + '</td><td>' + esc(ADM_ACAO[x.acao] || x.acao) + '</td><td>' + esc(admAlvoHist(x)) + '</td><td class="muted">' + det + '</td></tr>';
     }).join("") + '</tbody></table></div>' : '<div class="adm-pad faint">Nenhuma ação registrada ainda.</div>';
     h += '</div>';
@@ -5443,6 +5444,7 @@
     var h = '<div class="card" style="margin-bottom:16px;" id="admChavesCard"><div class="card-head"><div><h2>🔑 Chaves de acesso — Solicitação de Cimento</h2><p>Um único link para todas as usinas. Cada usina entra só com a chave dela; cada encarregado, com a dele (vê, autoriza e preenche as usinas vinculadas). A chave fica guardada cifrada: use <b>Copiar chave</b> na linha sempre que precisar (só o administrador copia, e cada cópia fica registrada no histórico).</p></div></div>';
     if (ADM.msg && ADM.where === "ch") h += '<div class="adm-msg ' + (ADM.ruim ? "bad" : "ok") + '" role="status">' + esc(ADM.msg) + '</div>';
     h += '<div class="adm-pad"><div class="adm-pw"><input type="text" id="admLinkSol" readonly value="' + esc(solLink()) + '" aria-label="Link das usinas"><button type="button" class="btn-ghost" data-cact="copiar" data-txt="' + esc(solLink()) + '">Copiar link</button></div></div>';
+    h += '<div class="adm-pad adm-kexp" style="padding-top:0"><button type="button" class="btn-ghost" data-cact="exportar">⬇ Exportar todas as chaves (Excel)</button><span class="faint">Planilha com a chave de cada usina e de cada encarregado, o link e os contatos — para enviar a todos. Guarde o arquivo com cuidado: quem tem a chave entra.</span></div>';
     if (ADM.revela){
       var R = ADM.revela;
       h += '<div class="adm-pad"><div class="adm-key-box" role="alert"><b>' + esc(R.titulo) + '</b><p>Copie e envie por um canal seguro. Depois, você ainda pode copiar de novo pelo botão <b>Copiar chave</b> da linha.</p>' +
@@ -5494,6 +5496,28 @@
     var falha = function(e){ ADM.msg = dbErr(e); ADM.ruim = true; ADM.sureKey = null; admRender(); };
     if (a === "copiar"){ admCopiar(b.dataset.txt || "", b); return; }
     if (a === "fechar"){ ADM.revela = null; admRender(); return; }
+    if (a === "exportar"){
+      var rot1 = b.dataset.rot || b.textContent; b.dataset.rot = rot1; b.disabled = true; b.textContent = "Gerando planilha…";
+      var rx = await sb.rpc("admin_chaves_exportar");
+      b.disabled = false; b.textContent = rot1;
+      if (rx.error){ ADM.msg = dbErr(rx.error); ADM.ruim = true; admRender(); return; }
+      if (typeof XLSX === "undefined"){ ADM.msg = "A biblioteca de planilha não carregou. Recarregue a página (Ctrl+F5) e tente de novo."; ADM.ruim = true; admRender(); return; }
+      var Dx = rx.data || {}, lk = solLink(), nOk = 0, nSem = 0;
+      var obsX = function(x){ if (x.chave){ nOk++; return ""; } nSem++; return x.tem_chave ? "Chave antiga: gere uma nova para ela entrar na planilha" : "Sem chave: gere uma"; };
+      var aoaU = [["Usina", "Sigla", "Regional", "Encarregado", "WhatsApp da usina", "E-mail da usina", "Chave", "Link", "Observação"]].concat((Dx.usinas || []).map(function(x){
+        return [x.usina || "", x.sigla || "", x.regional || "", x.encarregado || "", x.whatsapp || "", x.email || "", x.chave || "", lk, obsX(x)]; }));
+      var aoaE = [["Encarregado", "Usinas dele", "WhatsApp", "E-mail", "Chave", "Link", "Observação"]].concat((Dx.encarregados || []).map(function(x){
+        var o = x.ativo === false ? "Desativado" : obsX(x); if (x.ativo === false) { if (x.chave) nOk++; else nSem++; }
+        return [x.encarregado || "", x.usinas || "", x.whatsapp || "", x.email || "", x.chave || "", lk, o]; }));
+      var wbx = XLSX.utils.book_new();
+      var wsU = XLSX.utils.aoa_to_sheet(aoaU); wsU["!cols"] = [{ wch: 26 }, { wch: 8 }, { wch: 16 }, { wch: 26 }, { wch: 18 }, { wch: 30 }, { wch: 28 }, { wch: 46 }, { wch: 44 }];
+      var wsE = XLSX.utils.aoa_to_sheet(aoaE); wsE["!cols"] = [{ wch: 26 }, { wch: 46 }, { wch: 18 }, { wch: 30 }, { wch: 28 }, { wch: 46 }, { wch: 44 }];
+      XLSX.utils.book_append_sheet(wbx, wsU, "Usinas"); XLSX.utils.book_append_sheet(wbx, wsE, "Encarregados");
+      var hoje = new Date().toLocaleDateString("sv-SE", { timeZone: SOL_TZ });
+      try { XLSX.writeFile(wbx, "chaves-solicitacao-cimento-" + hoje + ".xlsx"); }
+      catch (e) { ADM.msg = "Não consegui gerar o arquivo neste navegador."; ADM.ruim = true; admRender(); return; }
+      ADM.msg = "Planilha baixada com " + nOk + " chave(s)." + (nSem ? " " + nSem + " linha(s) ficaram sem chave (sem chave ou chave antiga) — gere as chaves e exporte de novo." : ""); ADM.ruim = false; admRender(); return;
+    }
     if (a === "copiar-chave"){
       var rot0 = b.dataset.rot || b.textContent; b.dataset.rot = rot0; b.disabled = true; b.textContent = "…";
       var rr = await sb.rpc("admin_chave_revelar", { p_chave_id: b.dataset.cid });

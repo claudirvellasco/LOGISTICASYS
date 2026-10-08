@@ -128,6 +128,32 @@
   tr.prog-peer td:first-child{box-shadow:inset 4px 0 0 var(--info);}
   .pw-eye{flex:none; background:none; border:none; padding:2px 4px; margin:0 -4px 0 0; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; border-radius:6px;}
   .pw-eye:hover{color:var(--accent-strong);} .pw-eye:focus-visible{outline:2px solid var(--accent);}
+  .nav-badge{margin-left:auto; min-width:18px; height:18px; padding:0 6px; border-radius:99px; background:var(--accent-btn); color:#fff; font-size:10.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums;}
+  .nav-badge[hidden]{display:none;}
+  .sol-barra{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  .sol-barra input[type=date]{background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:6px 9px; font-size:12.5px; font-family:inherit; color-scheme:dark;}
+  .sol-nota{font-size:12.5px; color:var(--text-muted); padding-top:12px; padding-bottom:4px;}
+  .sol-tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; padding:10px 18px 18px;}
+  .sol-tile{text-align:left; background:var(--surface-2); border:1px solid var(--border); border-left:3px solid var(--st, var(--border-strong)); border-radius:8px; padding:10px 14px; color:var(--text); cursor:pointer; font-family:inherit;}
+  .sol-tile b{display:block; font-size:22px; line-height:1.15; font-variant-numeric:tabular-nums;}
+  .sol-tile span{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted);}
+  .sol-tile:hover, .sol-tile.sel{border-color:var(--accent); background:var(--accent-soft);}
+  .sol-aut{display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; padding:12px 18px; border-top:1px solid var(--border);}
+  .sol-aut b{display:block; font-size:13.5px;} .sol-aut span{font-size:12px; color:var(--text-muted);}
+  .sol-tbl td, #admChavesCard .adm-tbl td{vertical-align:top; white-space:normal;} .sol-tbl td .badge{margin:0 4px 4px 0;} #admChavesCard .adm-acoes{min-width:200px;}
+  .sol-tbl td:nth-child(3){min-width:170px;} .sol-tbl .sol-pedido{white-space:normal; min-width:200px; font-size:12.5px;}
+  .sol-hist td{background:var(--surface-2); white-space:normal !important;}
+  .sol-v{padding:6px 0; font-size:12.5px; border-top:1px solid var(--border);} .sol-v:first-child{border-top:none;}
+  .prog-tag.sol{background:var(--success-soft); color:var(--success); border:1px solid var(--success); max-width:340px; overflow:hidden; text-overflow:ellipsis; cursor:help;}
+  .adm-sub{padding:14px 18px 6px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); border-top:1px solid var(--border);}
+  .adm-novo{display:flex; gap:8px; flex-wrap:wrap;} .adm-novo input{flex:1 1 220px; min-width:0; background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:8px 11px; font-size:13px; font-family:inherit;}
+  .adm-key-box{background:var(--warning-soft); border:1px solid var(--warning); border-radius:10px; padding:14px 16px; font-size:13px;}
+  .adm-key-box p{margin:4px 0 10px; font-size:12.5px; color:var(--text-muted);}
+  .adm-key-row{display:flex; gap:10px; align-items:center; flex-wrap:wrap; padding:6px 0; border-top:1px solid var(--border);}
+  .adm-key-row span{flex:1 1 160px; font-weight:600;} .adm-key-row code{font-family:ui-monospace,Menlo,Consolas,monospace; font-size:13px; letter-spacing:.04em; background:var(--surface); border:1px solid var(--border-strong); padding:4px 8px; border-radius:6px; user-select:all;}
+  .adm-grid-us{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:6px 14px; margin-top:10px;}
+  .adm-us{display:flex; gap:7px; align-items:center; font-size:12.5px; text-transform:none; letter-spacing:0; font-weight:500; color:var(--text);}
+  .adm-edit td{background:var(--surface-2); white-space:normal !important;}
   /* ---------- Shell ---------- */
   #app{display:none; min-height:100vh;}
   #app.active{display:flex;}
@@ -654,6 +680,7 @@
     <div class="content">
 
       <section class="view active" id="view-programacao-cimento"></section>
+      <section class="view" id="view-solicitacoes"></section>
       <section class="view" id="view-base-dados-cimento"></section>
       <section class="view" id="view-notas-sefaz"></section>
       <section class="view" id="view-lancamentos-puzl"></section>
@@ -1112,6 +1139,7 @@
   }
 
   var NAV_CIMENTO = [
+    {id:"solicitacoes", label:"Solicitações", icon:"📥"},
     {id:"programacao-cimento", label:"Programação de Cimento", icon:"📋"},
     {id:"controle-pedidos-cimento", label:"Controle de Pedidos", icon:"🚚"},
     {id:"vpo", label:"VPO", icon:"🧾"}
@@ -1128,13 +1156,14 @@
     {id:"auditoria", label:"Auditoria", icon:"🔍"}, {id:"configuracoes", label:"Configurações", icon:"⚙️"}
   ];
   var TITLES = {
-    "programacao-cimento":"Programação de Cimento", "base-dados-cimento":"Base de Dados — Entradas de Cimento",
+    "solicitacoes":"Solicitações de Cimento", "programacao-cimento":"Programação de Cimento", "base-dados-cimento":"Base de Dados — Entradas de Cimento",
     "notas-sefaz":"Notas Fiscais (SEFAZ)", "lancamentos-puzl":"Lançamentos (PUZL)",
     "controle-pedidos-cimento":"Controle de Pedidos de Cimento", "consultas":"Consultas",
     dashboard:"Dashboard", operacoes:"Operação", vpo:"VPO — Vale Pedágio Obrigatório", exececoes:"Fila de Exceções",
     dados:"Dados", relatorios:"Relatórios", auditoria:"Auditoria", configuracoes:"Configurações", adm:"Administração"
   };
   var CRUMBS = {
+    "solicitacoes":"Cimento <b>›</b> Solicitações — o que cada usina precisa",
     "programacao-cimento":"Cimento <b>›</b> Programação — envio diário por usina",
     "base-dados-cimento":"Dados <b>›</b> Base de Dados — importação e cadastro",
     "notas-sefaz":"Dados <b>›</b> Notas Fiscais (SEFAZ) — todas as notas importadas",
@@ -5165,7 +5194,7 @@
     bootRender();
     document.body.classList.toggle("somente-leitura", ME.papel === "leitura");
     setSyncState(ME.papel === "leitura" ? "leitura" : "salvo");
-    admInit(); idleIniciar(); presIniciar(); progAgenda();
+    admInit(); idleIniciar(); presIniciar(); progAgenda(); solInit(); solProgCarregar().then(progDecorar);
     overlay(false);
     return true;
   }
@@ -5215,7 +5244,7 @@
      As regras valem no BANCO (funções admin_*): esta tela só chama elas.
      Ninguém além do administrador troca senha — nem a própria.
      ====================================================================== */
-  var ADM = { usuarios: [], hist: [], alvo: null, msg: "", ruim: false, carregando: false };
+  var ADM = { usuarios: [], hist: [], alvo: null, msg: "", ruim: false, carregando: false, ch: null, revela: null, editEnc: null, editSel: [], novoEnc: "", sureKey: null };
   var ADM_REGRAS = [
     ["12 caracteres ou mais (máx. 72)", function(s){ return s.length >= 12 && s.length <= 72; }],
     ["uma letra minúscula", function(s){ return /[a-z]/.test(s); }],
@@ -5247,12 +5276,21 @@
     var r = await sb.rpc("admin_listar_usuarios");
     if (r.error){ ADM.msg = dbErr(r.error); ADM.ruim = true; ADM.usuarios = []; }
     else ADM.usuarios = r.data || [];
-    var h = await sb.from("historico_alteracoes").select("acao,registro_id,antes,depois,em").eq("tabela", "usuarios").order("em", { ascending: false }).limit(15);
+    await admChavesRecarregar();
+    var h = await sb.from("historico_alteracoes").select("tabela,acao,registro_id,antes,depois,em").in("tabela", ["usuarios", "chaves"]).order("em", { ascending: false }).limit(15);
     ADM.hist = h.error ? [] : (h.data || []);
     ADM.carregando = false; admRender();
   }
   function admNome(id){ var u = ADM.usuarios.find(function(x){ return x.user_id === id; }); return u ? (u.nome || u.usuario) : "(usuário)"; }
-  var ADM_ACAO = { RESET_SENHA: "Senha redefinida", ALTERAR_PAPEL: "Papel alterado", ATIVAR: "Conta ativada", DESATIVAR: "Conta desativada" };
+  function admAlvoHist(x){
+    if (x.tabela !== "chaves") return admNome(x.registro_id);
+    var C = ADM.ch; if (!C || !x.registro_id) return "—";
+    var e = C.encarregados.find(function(k){ return k.id === x.registro_id; }); if (e) return "Encarregado " + e.nome;
+    var u = C.usinas.find(function(k){ return k.usina_id === x.registro_id; }); if (u) return "Usina " + u.usina;
+    return "—";
+  }
+  var ADM_ACAO = { RESET_SENHA: "Senha redefinida", ALTERAR_PAPEL: "Papel alterado", ATIVAR: "Conta ativada", DESATIVAR: "Conta desativada",
+    GERAR_CHAVE: "Chave de acesso gerada", GERAR_CHAVES_LOTE: "Chaves geradas em lote", DESATIVAR_CHAVE: "Chave de acesso desativada", ENCARREGADO: "Encarregado salvo", ENCARREGADO_USINAS: "Usinas do encarregado alteradas" };
   var ADM_CHECK = [
     ["Alta", "painel", "Cadastro público desligado", "No painel do Supabase: Authentication → Sign In / Providers → desmarque “Allow new users to sign up”. Hoje uma conta nova não enxerga nenhum dado (o banco exige ser membro), mas desligar fecha a porta de vez."],
     ["Alta", "feito", "Senha só pelo administrador", "O sistema não oferece troca de senha ao usuário: só o administrador redefine (aqui no Adm) e as sessões antigas caem na hora. Observação: o Supabase ainda permitiria, tecnicamente, que alguém logado chamasse a API para trocar a própria senha — isso não abre dados de ninguém e você redefine em seguida."],
@@ -5268,7 +5306,7 @@
   ];
   function admRender(){
     var v = el("view-adm"), h = "";
-    var bd = ADM.msg ? '<div class="adm-msg ' + (ADM.ruim ? "bad" : "ok") + '" role="status">' + esc(ADM.msg) + '</div>' : "";
+    var bd = ADM.msg && ADM.where !== "ch" ? '<div class="adm-msg ' + (ADM.ruim ? "bad" : "ok") + '" role="status">' + esc(ADM.msg) + '</div>' : "";
     h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>🔐 Usuários e senhas</h2><p>Somente o administrador cria, troca senha, muda papel ou desativa contas. Os usuários comuns não alteram a própria senha.</p></div></div>';
     h += bd;
     if (ADM.carregando) h += '<div class="adm-pad faint">Carregando…</div>';
@@ -5293,10 +5331,11 @@
         '<ul class="adm-regras" id="admRegras"></ul>' +
         '<div><button class="btn-primary" id="admSalvar" style="width:auto;padding:10px 18px;" disabled>Salvar nova senha</button></div></div></div>';
     }
+    h += admChavesHtml();
     h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>🧾 Últimas ações de administração</h2><p>Quem fez o quê, e quando. A senha nunca é gravada.</p></div></div>';
     h += ADM.hist.length ? '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Quando</th><th>Ação</th><th>Usuário</th><th>Detalhe</th></tr></thead><tbody>' + ADM.hist.map(function(x){
-      var det = x.acao === "ALTERAR_PAPEL" ? esc(((x.antes || {}).papel || "?") + " → " + ((x.depois || {}).papel || "?")) : "";
-      return '<tr><td class="muted">' + esc(admFmt(x.em)) + '</td><td>' + esc(ADM_ACAO[x.acao] || x.acao) + '</td><td>' + esc(admNome(x.registro_id)) + '</td><td class="muted">' + det + '</td></tr>';
+      var det = x.acao === "ALTERAR_PAPEL" ? esc(((x.antes || {}).papel || "?") + " → " + ((x.depois || {}).papel || "?")) : (x.acao === "GERAR_CHAVES_LOTE" ? esc((x.depois || {}).qtd + " chave(s)") : (x.acao === "ENCARREGADO_USINAS" ? esc((x.depois || {}).qtd_usinas + " usina(s)") : ""));
+      return '<tr><td class="muted">' + esc(admFmt(x.em)) + '</td><td>' + esc(ADM_ACAO[x.acao] || x.acao) + '</td><td>' + esc(admAlvoHist(x)) + '</td><td class="muted">' + det + '</td></tr>';
     }).join("") + '</tbody></table></div>' : '<div class="adm-pad faint">Nenhuma ação registrada ainda.</div>';
     h += '</div>';
     h += '<div class="card"><div class="card-head"><div><h2>🛡️ Checklist de segurança</h2><p>O que protege os dados da Concrelagos, por que importa e o que ainda depende de você.</p></div></div><div class="adm-check">' +
@@ -5318,13 +5357,14 @@
   el("view-adm").addEventListener("input", function(ev){ if (ev.target.id === "admPw1" || ev.target.id === "admPw2") admRegras(); });
   el("view-adm").addEventListener("change", async function(ev){
     var sel = ev.target.closest && ev.target.closest(".adm-papel"); if (!sel) return;
-    var uid = sel.closest("tr").dataset.uid, novo = sel.value;
+    ADM.where = ""; var uid = sel.closest("tr").dataset.uid, novo = sel.value;
     var r = await sb.rpc("admin_alterar_papel", { p_user_id: uid, p_papel: novo });
     ADM.msg = r.error ? dbErr(r.error) : "Papel atualizado."; ADM.ruim = !!r.error; await paintAdm();
   });
   el("view-adm").addEventListener("click", async function(ev){
     var b = ev.target.closest && ev.target.closest("button"); if (!b) return;
     var tr = b.closest("tr"), uid = tr && tr.dataset.uid;
+    ADM.where = "";
     if (b.dataset.act === "senha"){ ADM.alvo = uid; ADM.msg = ""; admRender(); var c = el("admSenhaCard"); if (c) c.scrollIntoView({ block: "nearest" }); var p = el("admPw1"); if (p) p.focus(); }
     else if (b.dataset.act === "cancelar"){ ADM.alvo = null; admRender(); }
     else if (b.dataset.act === "ativo"){
@@ -5341,6 +5381,130 @@
       var nome = admNome(ADM.alvo);
       if (r2.error){ ADM.msg = dbErr(r2.error); ADM.ruim = true; b.textContent = "Salvar nova senha"; admRegras(); admRender(); return; }
       ADM.msg = "Senha de " + nome + " redefinida. Entregue a nova senha a essa pessoa por um canal seguro."; ADM.ruim = false; ADM.alvo = null; await paintAdm();
+    }
+  });
+
+  /* ---------- Chaves de acesso (Solicitação de Cimento) ---------- */
+  function admChaveInfo(c){
+    if (!c) return '<span class="badge danger">sem chave</span>';
+    return '<span class="badge success">ativa</span> <span class="faint">…' + esc(c.final) + ' · criada ' + esc(admFmt(c.criada_em)) + ' · ' + (c.ultimo_uso ? "último uso " + esc(admFmt(c.ultimo_uso)) : "nunca usada") + '</span>';
+  }
+  function admChavesHtml(){
+    var C = ADM.ch; if (!C) return "";
+    var h = '<div class="card" style="margin-bottom:16px;" id="admChavesCard"><div class="card-head"><div><h2>🔑 Chaves de acesso — Solicitação de Cimento</h2><p>Um único link para todas as usinas. Cada usina entra só com a chave dela; cada encarregado, com a dele (vê, autoriza e preenche as usinas vinculadas). A chave aparece uma única vez, ao gerar.</p></div></div>';
+    if (ADM.msg && ADM.where === "ch") h += '<div class="adm-msg ' + (ADM.ruim ? "bad" : "ok") + '" role="status">' + esc(ADM.msg) + '</div>';
+    h += '<div class="adm-pad"><div class="adm-pw"><input type="text" id="admLinkSol" readonly value="' + esc(solLink()) + '" aria-label="Link das usinas"><button type="button" class="btn-ghost" data-cact="copiar" data-txt="' + esc(solLink()) + '">Copiar link</button></div></div>';
+    if (ADM.revela){
+      var R = ADM.revela;
+      h += '<div class="adm-pad"><div class="adm-key-box" role="alert"><b>' + esc(R.titulo) + '</b><p>Copie agora e envie por um canal seguro. <u>Esta chave não será mostrada de novo</u> (só o final fica guardado). Se perder, gere outra.</p>' +
+        R.linhas.map(function(l){ return '<div class="adm-key-row"><span>' + esc(l.rotulo) + '</span><code>' + esc(l.chave) + '</code><button type="button" class="btn-ghost" data-cact="copiar" data-txt="' + esc(l.chave) + '">Copiar</button></div>'; }).join("") +
+        (R.linhas.length > 1 ? '<div class="adm-acoes" style="margin-top:8px"><button type="button" class="btn-ghost" data-cact="copiar" data-txt="' + esc(R.linhas.map(function(l){ return l.rotulo + ": " + l.chave; }).join("\n")) + '">Copiar todas</button></div>' : "") +
+        '<div class="adm-acoes" style="margin-top:8px"><button type="button" class="btn-primary btn-inline" data-cact="fechar">Já copiei, fechar</button></div></div></div>';
+    }
+    // encarregados
+    h += '<div class="adm-sub">Encarregados</div>';
+    h += '<div class="adm-pad adm-novo"><input type="text" id="admNovoEnc" maxlength="80" placeholder="Nome do novo encarregado" value="' + esc(ADM.novoEnc) + '"><button type="button" class="btn-ghost" data-cact="enc-novo">+ Adicionar encarregado</button></div>';
+    if (!C.encarregados.length) h += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda.</div>';
+    else {
+      h += '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Encarregado</th><th>Usinas</th><th>Chave</th><th></th></tr></thead><tbody>';
+      C.encarregados.forEach(function(e){
+        var us = (e.usinas || []).map(function(id){ var u = C.usinas.find(function(x){ return x.usina_id === id; }); return u ? u.usina : "?"; });
+        var sure = ADM.sureKey === "e:" + e.id;
+        h += '<tr data-eid="' + esc(e.id) + '"><td class="cell-strong">' + esc(e.nome) + (e.ativo ? "" : ' <span class="badge danger">desativado</span>') + '</td>' +
+          '<td class="muted" style="white-space:normal;min-width:180px">' + (us.length ? esc(us.join(", ")) : '<span class="faint">nenhuma</span>') + '</td><td style="white-space:normal">' + admChaveInfo(e.chave) + '</td>' +
+          '<td><div class="adm-acoes"><button class="btn-ghost" data-cact="enc-usinas">Usinas</button>' +
+          (e.ativo ? '<button class="btn-ghost" data-cact="enc-chave">' + (e.chave ? (sure ? "Confirmar: gerar nova" : "Gerar nova chave") : "Gerar chave") + '</button>' : "") +
+          (e.chave ? '<button class="btn-ghost" data-cact="chave-off" data-cid="' + esc(e.chave.id) + '">Desativar chave</button>' : "") +
+          '<button class="btn-ghost" data-cact="enc-ativo">' + (e.ativo ? "Desativar encarregado" : "Ativar encarregado") + '</button></div></td></tr>';
+        if (ADM.editEnc === e.id){
+          h += '<tr class="adm-edit"><td colspan="4"><div class="adm-pad"><b>Usinas de ' + esc(e.nome) + '</b> <span class="faint">(cada usina tem um único encarregado — marcar aqui tira a usina do anterior)</span><div class="adm-grid-us">' +
+            C.usinas.map(function(u){
+              var marcada = ADM.editSel.indexOf(u.usina_id) >= 0, outro = u.encarregado_id && u.encarregado_id !== e.id;
+              return '<label class="adm-us"><input type="checkbox" data-uid2="' + esc(u.usina_id) + '"' + (marcada ? " checked" : "") + '> ' + esc(u.usina) + (outro ? ' <span class="faint">(' + esc(u.encarregado) + ')</span>' : "") + '</label>';
+            }).join("") + '</div><div class="adm-acoes" style="margin-top:10px"><button class="btn-primary btn-inline" data-cact="enc-usinas-salvar">Salvar usinas</button><button class="btn-ghost" data-cact="enc-usinas-cancelar">Cancelar</button></div></div></td></tr>';
+        }
+      });
+      h += '</tbody></table></div>';
+    }
+    // usinas
+    var semChave = C.usinas.filter(function(u){ return !u.chave; }).length;
+    h += '<div class="adm-sub">Usinas <span class="faint">(' + C.usinas.length + ')</span></div>';
+    h += '<div class="adm-pad"><button class="btn-ghost" data-cact="lote"' + (semChave ? "" : " disabled") + '>Gerar chaves das ' + semChave + ' usina(s) sem chave</button></div>';
+    h += '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Usina</th><th>Encarregado</th><th>Chave</th><th></th></tr></thead><tbody>';
+    C.usinas.forEach(function(u){
+      var sure = ADM.sureKey === "u:" + u.usina_id;
+      h += '<tr data-usid="' + esc(u.usina_id) + '"><td class="cell-strong">' + esc(u.usina) + '</td><td class="muted">' + (u.encarregado ? esc(u.encarregado) : '<span class="faint">sem encarregado</span>') + '</td><td style="white-space:normal">' + admChaveInfo(u.chave) + '</td>' +
+        '<td><div class="adm-acoes"><button class="btn-ghost" data-cact="us-chave">' + (u.chave ? (sure ? "Confirmar: gerar nova" : "Gerar nova chave") : "Gerar chave") + '</button>' +
+        (u.chave ? '<button class="btn-ghost" data-cact="chave-off" data-cid="' + esc(u.chave.id) + '">Desativar chave</button>' : "") + '</div></td></tr>';
+    });
+    h += '</tbody></table></div></div>';
+    return h;
+  }
+  async function admChavesRecarregar(){
+    var r = await sb.rpc("admin_chaves_listar");
+    if (r.error){ ADM.msg = dbErr(r.error); ADM.ruim = true; ADM.ch = null; }
+    else ADM.ch = { usinas: (r.data && r.data.usinas) || [], encarregados: (r.data && r.data.encarregados) || [] };
+  }
+  async function admCopiar(txt, b){
+    var ok = false;
+    try { await navigator.clipboard.writeText(txt); ok = true; } catch (e) {
+      try { var t = document.createElement("textarea"); t.value = txt; t.style.position = "fixed"; t.style.opacity = "0"; document.body.appendChild(t); t.select(); ok = document.execCommand("copy"); t.remove(); } catch (e2) { }
+    }
+    if (b){ var o = b.dataset.rot || b.textContent; b.dataset.rot = o; b.textContent = ok ? "Copiado ✔" : "Selecione e copie"; setTimeout(function(){ b.textContent = o; }, 1800); }
+  }
+  el("view-adm").addEventListener("input", function(ev){ if (ev.target.id === "admNovoEnc") ADM.novoEnc = ev.target.value; });
+  el("view-adm").addEventListener("change", function(ev){
+    var t = ev.target; if (!t.dataset || t.dataset.uid2 === undefined) return;
+    var i = ADM.editSel.indexOf(t.dataset.uid2);
+    if (t.checked && i < 0) ADM.editSel.push(t.dataset.uid2); else if (!t.checked && i >= 0) ADM.editSel.splice(i, 1);
+  });
+  el("view-adm").addEventListener("click", async function(ev){
+    var b = ev.target.closest && ev.target.closest("[data-cact]"); if (!b || b.disabled) return;
+    ADM.where = "ch";
+    var a = b.dataset.cact, tr = b.closest("tr"), eid = tr && tr.dataset.eid, usid = tr && tr.dataset.usid, C = ADM.ch;
+    var falha = function(e){ ADM.msg = dbErr(e); ADM.ruim = true; ADM.sureKey = null; admRender(); };
+    if (a === "copiar"){ admCopiar(b.dataset.txt || "", b); return; }
+    if (a === "fechar"){ ADM.revela = null; admRender(); return; }
+    b.disabled = true;
+    if (a === "enc-novo"){
+      var nome = (ADM.novoEnc || "").trim(); if (nome.length < 2){ ADM.msg = "Informe o nome do encarregado."; ADM.ruim = true; admRender(); return; }
+      var r = await sb.rpc("admin_encarregado_salvar", { p_id: null, p_nome: nome, p_ativo: true });
+      if (r.error) return falha(r.error);
+      ADM.novoEnc = ""; ADM.msg = "Encarregado “" + nome + "” criado. Agora marque as usinas dele e gere a chave."; ADM.ruim = false; await admChavesRecarregar(); admRender();
+    } else if (a === "enc-ativo"){
+      var e = C.encarregados.find(function(x){ return x.id === eid; }); if (!e) return;
+      var r2 = await sb.rpc("admin_encarregado_salvar", { p_id: eid, p_nome: e.nome, p_ativo: !e.ativo });
+      if (r2.error) return falha(r2.error);
+      ADM.msg = e.ativo ? "Encarregado desativado (a chave dele deixou de valer)." : "Encarregado ativado. Gere uma chave nova para ele."; ADM.ruim = false; await admChavesRecarregar(); admRender();
+    } else if (a === "enc-usinas"){
+      var e2 = C.encarregados.find(function(x){ return x.id === eid; }); ADM.editEnc = ADM.editEnc === eid ? null : eid; ADM.editSel = e2 ? (e2.usinas || []).slice() : []; admRender();
+    } else if (a === "enc-usinas-cancelar"){ ADM.editEnc = null; admRender(); }
+    else if (a === "enc-usinas-salvar"){
+      var r3 = await sb.rpc("admin_encarregado_usinas", { p_encarregado: ADM.editEnc, p_usinas: ADM.editSel });
+      if (r3.error) return falha(r3.error);
+      ADM.editEnc = null; ADM.msg = "Usinas do encarregado atualizadas."; ADM.ruim = false; await admChavesRecarregar(); admRender();
+    } else if (a === "enc-chave" || a === "us-chave"){
+      var tipo = a === "enc-chave" ? "encarregado" : "usina", alvo = a === "enc-chave" ? eid : usid, chaveKey = (a === "enc-chave" ? "e:" : "u:") + alvo;
+      var tem = a === "enc-chave" ? (C.encarregados.find(function(x){ return x.id === eid; }) || {}).chave : (C.usinas.find(function(x){ return x.usina_id === usid; }) || {}).chave;
+      if (tem && ADM.sureKey !== chaveKey){ ADM.sureKey = chaveKey; admRender(); return; }
+      ADM.sureKey = null;
+      var r4 = await sb.rpc("admin_chave_gerar", { p_tipo: tipo, p_alvo: alvo });
+      if (r4.error) return falha(r4.error);
+      var rot = a === "enc-chave" ? "Encarregado " + (C.encarregados.find(function(x){ return x.id === eid; }) || {}).nome : "Usina " + (C.usinas.find(function(x){ return x.usina_id === usid; }) || {}).usina;
+      ADM.revela = { titulo: "Chave gerada — " + rot, linhas: [{ rotulo: rot, chave: String(r4.data) }] }; ADM.msg = ""; await admChavesRecarregar(); admRender();
+      var bx = document.querySelector(".adm-key-box"); if (bx) bx.scrollIntoView({ block: "center" });
+    } else if (a === "lote"){
+      var r5 = await sb.rpc("admin_chave_gerar_lote");
+      if (r5.error) return falha(r5.error);
+      var ls = (r5.data || []).map(function(x){ return { rotulo: "Usina " + x.usina, chave: x.chave }; });
+      ADM.revela = { titulo: ls.length + " chave(s) de usina geradas", linhas: ls }; ADM.msg = ""; await admChavesRecarregar(); admRender();
+      var bx2 = document.querySelector(".adm-key-box"); if (bx2) bx2.scrollIntoView({ block: "start" });
+    } else if (a === "chave-off"){
+      if (ADM.sureKey !== "off:" + b.dataset.cid){ ADM.sureKey = "off:" + b.dataset.cid; b.disabled = false; b.textContent = "Confirmar desativar"; return; }
+      ADM.sureKey = null;
+      var r6 = await sb.rpc("admin_chave_desativar", { p_chave_id: b.dataset.cid });
+      if (r6.error) return falha(r6.error);
+      ADM.msg = "Chave desativada: quem a tinha não entra mais."; ADM.ruim = false; await admChavesRecarregar(); admRender();
     }
   });
 
@@ -5546,6 +5710,9 @@
         if (p.iso === iso && String(p.key || "").toUpperCase() === String(key).toUpperCase()){ var s2 = document.createElement("span"); s2.className = "prog-tag agora"; s2.textContent = "● " + nomeCurto(p.nome) + " editando"; td.appendChild(s2); tr.classList.add("prog-peer"); }
       });
       if (!td.querySelector(".prog-tag.agora")) tr.classList.remove("prog-peer");
+      var sl = SOL_PROG[iso + "|" + solNorm(key)];
+      if (sl && sl.length){ var s3 = document.createElement("span"); s3.className = "prog-tag sol"; s3.textContent = "📥 " + sl.map(function(x){ return x.material + " ×" + x.carretas; }).join(", ");
+        s3.title = "Solicitado pela usina para este dia" + (sl.some(function(x){ return x.fora; }) ? " (inclui pedido fora do prazo — autorizado)" : "") + ". É só informação: a programação continua sendo preenchida por você."; td.appendChild(s3); }
     });
   }
   async function progRefresh(){
@@ -5559,6 +5726,7 @@
         progPintarSeguro();
         setTimeout(progDecorar, 9100);
       } else progDecorar();
+      solProgCarregar().then(progDecorar);
       presPintar();
     } catch (e) { /* sem rede: tenta no próximo aviso */ }
   }
@@ -5591,6 +5759,7 @@
     c.title = !on ? "Sem conexão em tempo real: a tela se atualiza sozinha a cada 45 s e no botão Atualizar." :
       (PRES.peers.length ? PRES.peers.map(function(p){ return p.nome + " — " + (p.key ? "editando " + p.key + " (" + (p.iso.split("-").reverse().slice(0, 2).join("/")) + ")" : "em " + (p.ver || "…")); }).join("\n") : "Você está sozinho(a) agora. Alterações de outras pessoas aparecem aqui na hora.");
   }
+  window.__onView = function(id){ presTrack(); if (id === "solicitacoes"){ SOL.filtro = "todas"; solCarregar(false); } };
   function presIniciar(){
     if (!ME || PRES.ch) return;
     var ch = sb.channel("prog-" + ME.empresa_id, { config: { private: true, presence: { key: ME.id } } });
@@ -5605,7 +5774,6 @@
     clearInterval(PRES.poll);
     PRES.poll = setInterval(function(){ if (document.visibilityState === "visible") progAgenda(); }, 45000);
     window.addEventListener("focus", progAgenda);
-    window.__onView = function(){ presTrack(); };
     var meu = function(on){
       return function(ev){
         var t = ev.target; if (!t || !t.closest || !t.closest("#progBlocks")) return;
@@ -5616,6 +5784,158 @@
       };
     };
     if (ME.papel !== "leitura"){ document.addEventListener("focusin", meu(true)); document.addEventListener("focusout", meu(false)); }
+  }
+
+  /* ======================================================================
+     SOLICITAÇÃO DE CIMENTO — painel da Logística.
+     As usinas respondem pelo link próprio (/solicitar/) com uma chave; tudo cai
+     no mesmo banco. Aqui a Logística acompanha e decide autorizações.
+     A tela só lê/decide via funções do banco (solic_painel, solic_decidir).
+     ====================================================================== */
+  var SOL = { d: null, dia: null, carregando: false, msg: "", ruim: false, filtro: "todas", abertos: {}, confirmaNegar: null, ocupado: false, tmr: null };
+  var SOL_TZ = "America/Sao_Paulo";
+  function solLink(){ try { return new URL("solicitar/", location.href).href; } catch (e) { return "solicitar/"; } }
+  function solQuando(x){ var d = new Date(x); return isNaN(d) ? "" : d.toLocaleDateString("pt-BR", { timeZone: SOL_TZ, day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { timeZone: SOL_TZ, hour: "2-digit", minute: "2-digit" }); }
+  function solHoraC(x){ var d = new Date(x); return isNaN(d) ? "" : d.toLocaleTimeString("pt-BR", { timeZone: SOL_TZ, hour: "2-digit", minute: "2-digit" }); }
+  function solDiaBR(iso){ var p = String(iso || "").slice(0, 10).split("-"); return p.length < 3 ? "" : p[2] + "/" + p[1] + "/" + p[0]; }
+  function solDiaCurto(iso){ var p = String(iso || "").slice(0, 10).split("-"); return p.length < 3 ? "" : p[2] + "/" + p[1]; }
+  function solLinhasTxt(ls){ return (ls || []).map(function(l){ return esc(l.material) + " ×" + esc(l.carretas) + " → " + esc(solDiaCurto(l.data_desejada)); }).join("<br>"); }
+  function solSelo(env){ return env && env.fora_do_prazo ? '<span class="badge warning">⏱ Fora do prazo — autorizado</span>' : ""; }
+  function solMais(dia, n){ var p = String(dia).split("-"); var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2] + n)); return d.toISOString().slice(0, 10); }
+  function solPodeDecidir(){ return !!ME && (ME.papel === "admin" || ME.papel === "operador"); }
+  function solBadge(){
+    var b = el("solBadge"); if (!b) return;
+    var n = SOL.d ? (SOL.d.autorizacoes || []).filter(function(a){ return a.status === "pendente"; }).length : 0;
+    if (SOL.dia && SOL.d && SOL.d.hoje && SOL.dia !== SOL.d.hoje) return;
+    b.hidden = !n; b.textContent = n; b.title = n + " pedido(s) de autorização aguardando";
+  }
+  function solInit(){
+    var nav = document.querySelector('#navCimento .nav-item[data-view="solicitacoes"]');
+    if (nav && !el("solBadge")){ var s = document.createElement("span"); s.id = "solBadge"; s.className = "nav-badge"; s.hidden = true; nav.appendChild(s); }
+    solCarregar(true);
+    clearInterval(SOL.tmr);
+    SOL.tmr = setInterval(function(){ if (document.visibilityState === "visible" && !SOL.ocupado) solCarregar(true); }, 45000);
+  }
+  async function solCarregar(silencio){
+    if (!ME || !sb || SOL.ocupado) return;
+    SOL.ocupado = true;
+    if (!silencio){ SOL.carregando = true; if (viewAtiva() === "solicitacoes") paintSol(); }
+    var r;
+    try { r = await sb.rpc("solic_painel", { p_dia: SOL.dia || null }); } catch (e) { r = { error: e }; }
+    SOL.ocupado = false; SOL.carregando = false;
+    if (r.error){ if (!silencio){ SOL.msg = dbErr(r.error); SOL.ruim = true; } }
+    else if (!r.data || typeof r.data !== "object" || !Array.isArray(r.data.usinas)){ if (!silencio){ SOL.msg = "Resposta inesperada do banco. Tente atualizar."; SOL.ruim = true; } }
+    else { SOL.d = r.data; if (!SOL.dia) SOL.dia = r.data.dia; if (!silencio){ SOL.msg = ""; } }
+    solBadge();
+    if (viewAtiva() === "solicitacoes") paintSol();
+  }
+  function solContagem(us){
+    var c = { pedido: 0, sem: 0, nao: 0, fora: 0, aguard: 0 };
+    us.forEach(function(u){
+      if (u.situacao === "pedido") c.pedido++; else if (u.situacao === "sem_necessidade") c.sem++; else c.nao++;
+      if (u.envio && u.envio.fora_do_prazo) c.fora++;
+      if (u.autorizacao && u.autorizacao.status === "pendente") c.aguard++;
+    });
+    return c;
+  }
+  function paintSol(){
+    var v = el("view-solicitacoes"); if (!v) return;
+    var d = SOL.d, h = "";
+    h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>📥 Solicitações de Cimento</h2><p>O que cada usina precisa. Como a Logística vai atender continua na Programação de Cimento.</p></div>' +
+      '<div class="sol-barra"><button class="btn-ghost" data-sol="ant" title="Dia anterior">◀</button><input type="date" id="solDia" value="' + esc(SOL.dia || "") + '" aria-label="Dia da solicitação"><button class="btn-ghost" data-sol="prox" title="Próximo dia">▶</button>' +
+      '<button class="btn-ghost" data-sol="hoje">Hoje</button><button class="btn-ghost" data-sol="atualizar" title="Buscar dados novos">↻ Atualizar</button></div></div>';
+    if (SOL.msg) h += '<div class="adm-msg ' + (SOL.ruim ? "bad" : "ok") + '" role="status">' + esc(SOL.msg) + '</div>';
+    if (SOL.carregando && !d) h += '<div class="adm-pad faint">Carregando…</div>';
+    else if (!d) h += '<div class="adm-pad faint">Sem dados ainda. Use Atualizar.</div>';
+    else {
+      var us = d.usinas || [], c = solContagem(us), semChave = us.filter(function(u){ return !u.tem_chave; }).length;
+      var ehHoje = SOL.dia === d.hoje;
+      h += '<div class="adm-pad sol-nota">' + (ehHoje ? (d.prazo_aberto ? '🟢 <b>Prazo das usinas aberto</b> (02:00 às 16:00). Fecha às 16:00.' : '🔴 <b>Prazo das usinas encerrado</b> (16:00 às 02:00). Alterações das usinas só com autorização do encarregado.') : 'Visualizando o dia <b>' + esc(solDiaBR(SOL.dia)) + '</b> (o “dia” das solicitações vira às 02:00).') +
+        (semChave ? ' · <span class="badge warning">' + semChave + ' usina(s) sem chave</span>' : "") + '</div>';
+      var tile = function(k, n, rot, cor){ return '<button class="sol-tile' + (SOL.filtro === k ? " sel" : "") + '" style="--st:' + cor + '" data-sol="filtro" data-k="' + k + '"><b>' + n + '</b><span>' + rot + '</span></button>'; };
+      h += '<div class="sol-tiles">' + tile("pedido", c.pedido, "Responderam com pedido", "var(--success)") + tile("sem", c.sem, "Sem necessidade", "var(--info)") + tile("nao", c.nao, "Não responderam", "var(--danger)") +
+        tile("fora", c.fora, "Fora do prazo", "var(--warning)") + tile("aguard", c.aguard, "Aguardando autorização", "var(--accent)") + '</div>';
+    }
+    h += '</div>';
+    if (d){
+      var pend = (d.autorizacoes || []).filter(function(a){ return a.status === "pendente"; });
+      if (pend.length){
+        h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>⏳ Autorizações aguardando</h2><p>Aprovando, a usina fica liberada por 60 minutos para criar ou alterar. O encarregado também pode decidir pelo link dele.</p></div></div>';
+        pend.forEach(function(a){
+          var neg = SOL.confirmaNegar === a.id;
+          h += '<div class="sol-aut"><div><b>' + esc(a.usina) + '</b><span>pediu às ' + esc(solQuando(a.solicitada_em)) + (a.motivo ? ' · “' + esc(a.motivo) + '”' : "") + '</span></div>' +
+            (solPodeDecidir() ? '<div class="adm-acoes"><button class="btn-primary btn-inline" data-sol="aprovar" data-id="' + esc(a.id) + '">Aprovar</button><button class="btn-ghost" data-sol="negar" data-id="' + esc(a.id) + '">' + (neg ? "Confirmar negar" : "Negar") + '</button></div>' : '<span class="faint">somente leitura</span>') + '</div>';
+        });
+        h += '</div>';
+      }
+      var lista = (d.usinas || []).filter(function(u){
+        if (SOL.filtro === "pedido") return u.situacao === "pedido";
+        if (SOL.filtro === "sem") return u.situacao === "sem_necessidade";
+        if (SOL.filtro === "nao") return u.situacao === "nao_respondeu";
+        if (SOL.filtro === "fora") return u.envio && u.envio.fora_do_prazo;
+        if (SOL.filtro === "aguard") return u.autorizacao && u.autorizacao.status === "pendente";
+        return true;
+      });
+      h += '<div class="card"><div class="card-head"><div><h2>Usinas</h2><p>' + lista.length + ' de ' + (d.usinas || []).length + (SOL.filtro !== "todas" ? ' · filtro ativo <button class="btn-ghost" data-sol="filtro" data-k="todas">limpar filtro</button>' : "") + '</p></div></div>';
+      if (!lista.length) h += '<div class="adm-pad faint">Nenhuma usina neste filtro.</div>';
+      else {
+        h += '<div class="table-wrap"><table class="adm-tbl sol-tbl"><thead><tr><th>Usina</th><th>Encarregado</th><th>Situação</th><th>Pedido</th><th>Última versão</th><th></th></tr></thead><tbody>';
+        lista.forEach(function(u){
+          var sit = u.situacao === "pedido" ? '<span class="badge success">✔ Pedido</span>' : (u.situacao === "sem_necessidade" ? '<span class="badge info">Sem necessidade</span>' : '<span class="badge danger">Não respondeu</span>');
+          var ex = (u.envio && u.envio.fora_do_prazo ? " " + solSelo(u.envio) : "") + (u.autorizacao && u.autorizacao.status === "pendente" ? ' <span class="badge warning">Aguardando autorização</span>' : "") +
+            (u.autorizacao && u.autorizacao.status === "negada" ? ' <span class="badge neutral">Autorização negada</span>' : "") + (!u.tem_chave ? ' <span class="badge neutral">sem chave</span>' : "");
+          var env = u.envio, ab = !!SOL.abertos[u.usina_id], nv = (u.historico || []).length;
+          h += '<tr><td class="cell-strong">' + esc(u.usina) + '</td><td class="muted">' + esc(u.encarregado || "—") + '</td><td>' + sit + ex + '</td>' +
+            '<td class="sol-pedido">' + (env && !env.sem_necessidade ? solLinhasTxt(env.linhas) : "—") + '</td>' +
+            '<td class="muted">' + (env ? esc(solQuando(env.enviado_em)) + '<br><span class="faint">' + esc(env.por || env.origem || "") + (u.versoes > 1 ? " · v" + env.versao : "") + '</span>' : "—") + '</td>' +
+            '<td>' + (nv > 1 ? '<button class="btn-ghost" data-sol="hist" data-u="' + esc(u.usina_id) + '">' + (ab ? "Ocultar" : "Histórico (" + nv + ")") + '</button>' : "") + '</td></tr>';
+          if (ab) h += '<tr class="sol-hist"><td colspan="6">' + (u.historico || []).map(function(x){
+            return '<div class="sol-v"><b>' + esc(solQuando(x.enviado_em)) + '</b> · versão ' + esc(x.versao) + (x.ativa ? ' <span class="badge success">em vigor</span>' : ' <span class="badge neutral">substituída</span>') + ' ' + solSelo(x) + (x.por ? ' <span class="faint">' + esc(x.por) + '</span>' : "") +
+              '<div class="muted">' + (x.sem_necessidade ? "Sem necessidade de cimento." : solLinhasTxt(x.linhas)) + '</div></div>'; }).join("") + '</td></tr>';
+        });
+        h += '</tbody></table></div>';
+      }
+      h += '</div>';
+    }
+    v.innerHTML = h;
+  }
+  async function solDecidir(id, aprovar){
+    SOL.ocupado = true;
+    var r = await sb.rpc("solic_decidir", { p_id: id, p_aprovar: aprovar, p_obs: null });
+    SOL.ocupado = false; SOL.confirmaNegar = null;
+    SOL.msg = r.error ? dbErr(r.error) : (aprovar ? "Liberado por 60 minutos." : "Pedido negado."); SOL.ruim = !!r.error;
+    await solCarregar(false);
+  }
+  (function(){
+    var v = el("view-solicitacoes"); if (!v) return;
+    v.addEventListener("change", function(ev){ if (ev.target.id === "solDia" && ev.target.value){ SOL.dia = ev.target.value; SOL.filtro = "todas"; solCarregar(false); } });
+    v.addEventListener("click", function(ev){
+      var b = ev.target.closest && ev.target.closest("[data-sol]"); if (!b || b.disabled) return;
+      var a = b.dataset.sol;
+      if (a === "ant" || a === "prox"){ if (SOL.dia){ SOL.dia = solMais(SOL.dia, a === "ant" ? -1 : 1); solCarregar(false); } }
+      else if (a === "hoje"){ SOL.dia = null; solCarregar(false); }
+      else if (a === "atualizar"){ solCarregar(false); }
+      else if (a === "filtro"){ SOL.filtro = (SOL.filtro === b.dataset.k || b.dataset.k === "todas") ? "todas" : b.dataset.k; paintSol(); }
+      else if (a === "hist"){ SOL.abertos[b.dataset.u] = !SOL.abertos[b.dataset.u]; paintSol(); }
+      else if (a === "aprovar"){ solDecidir(b.dataset.id, true); }
+      else if (a === "negar"){ if (SOL.confirmaNegar !== b.dataset.id){ SOL.confirmaNegar = b.dataset.id; paintSol(); } else solDecidir(b.dataset.id, false); }
+    });
+  })();
+
+  // Programação ← Solicitação: mostra, na linha da usina, o que ela pediu para aquele dia (só informação; nada é preenchido sozinho)
+  var SOL_PROG = {};
+  function solNorm(s){ return String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/\s+/g, " ").trim(); }
+  async function solProgCarregar(){
+    if (!ME || !sb) return;
+    var hoje = new Date(); var de = new Date(hoje.getTime() - 10 * 86400000).toISOString().slice(0, 10), ate = new Date(hoje.getTime() + 70 * 86400000).toISOString().slice(0, 10);
+    var r; try { r = await sb.rpc("solic_para_programacao", { p_de: de, p_ate: ate }); } catch (e) { return; }
+    if (r.error || !Array.isArray(r.data)) return;
+    var m = {};
+    r.data.forEach(function(x){
+      var k = String(x.data_desejada).slice(0, 10) + "|" + solNorm(x.usina);
+      (m[k] = m[k] || []).push({ material: x.material, carretas: x.carretas, fora: !!x.fora_do_prazo });
+    });
+    SOL_PROG = m;
   }
 
   window.__app = { syncNow: syncNow, takeSnap: takeSnap, progRefresh: progRefresh, presPeers: function(){ return PRES.peers; }, presStatus: function(){ return PRES.status; } };

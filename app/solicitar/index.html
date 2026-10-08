@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self' https://xargvcvyqzcevbgcjbnx.supabase.co; object-src 'none'; base-uri 'self'; form-action 'none'">
+<script>if (window.top !== window.self) { try { window.top.location = window.self.location; } catch (e) { document.documentElement.style.display = "none"; } }</script>
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#070a10">
+<title>Solicitação de Cimento — Concrelagos</title>
+<link rel="icon" href="../favicon-32.png" sizes="32x32">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<style>
+  :root{
+    --bg:#070a10; --surface:#0f141c; --surface-2:#151b24; --surface-3:#1b222c;
+    --border:#232c38; --border-strong:#374353;
+    --text:#e8ecf2; --text-muted:#98a5b6; --text-faint:#7a8696;
+    --accent:#ff3d6e; --accent-strong:#ff7a99; --accent-soft:#2a0f1a; --accent-btn:#e11d48;
+    --success:#38c793; --success-soft:#0f2620;
+    --warning:#e7ac55; --warning-soft:#2c2211;
+    --danger:#ff8a5c; --danger-soft:#2d1810;
+    --info:#b794f6; --info-soft:#201733;
+    --neutral:#9aa6b6; --neutral-soft:#1a212b;
+    --shadow:0 4px 14px rgba(0,0,0,.28), 0 1px 3px rgba(0,0,0,.35);
+    --radius:10px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{margin:0; background:var(--bg); color:var(--text); font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; font-size:14px; line-height:1.5; letter-spacing:.1px;}
+  h1,h2,h3{margin:0; text-wrap:balance;}
+  button{font-family:inherit; cursor:pointer;}
+  [hidden]{display:none !important;}
+
+  /* ---------- Entrada por chave ---------- */
+  #login{min-height:100vh; min-height:100dvh; display:flex; align-items:center; justify-content:center; padding:24px;
+    background:#060a12 url("../login-bg.webp") center center / cover no-repeat;}
+  .login-card{width:100%; max-width:380px; background:rgba(12,17,25,.82); backdrop-filter:blur(7px); -webkit-backdrop-filter:blur(7px); border:1px solid rgba(255,255,255,.07); border-radius:var(--radius);
+    box-shadow:0 18px 50px rgba(0,0,0,.55), 0 0 0 1px rgba(255,61,110,.05); padding:28px 24px;}
+  .login-brand{display:flex; flex-direction:column; align-items:center; text-align:center; margin-bottom:22px;}
+  .mark{width:44px; height:44px; border-radius:10px; background:linear-gradient(155deg,#ff3d6e,#c0153f); box-shadow:0 4px 16px rgba(255,61,110,.35); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:16px; margin-bottom:10px;}
+  .login-brand h1{font-size:17px; font-weight:700;}
+  .login-brand p{margin:2px 0 0; font-size:13px; color:var(--text-muted);}
+  .field label{display:block; font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:.03em;}
+  .field-input{display:flex; align-items:center; gap:8px; border:1px solid var(--border-strong); border-radius:6px; padding:9px 11px; background:var(--surface);}
+  .field-input:focus-within{border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,61,110,.16);}
+  .field-input input{border:none; outline:none; background:transparent; font-size:14px; width:100%; color:var(--text); font-family:inherit; letter-spacing:.06em;}
+  .eye{flex:none; background:none; border:none; padding:2px 4px; margin:0 -4px 0 0; color:var(--text-muted); display:flex; align-items:center; border-radius:6px;}
+  .eye:hover{color:var(--accent-strong);} .eye:focus-visible{outline:2px solid var(--accent);}
+  .btn{border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text); border-radius:6px; padding:8px 14px; font-size:12.5px; font-weight:600; transition:border-color .12s, background .12s, color .12s;}
+  .btn:hover:not(:disabled){border-color:var(--accent); color:var(--accent-strong); background:var(--accent-soft);}
+  .btn:disabled{opacity:.45; cursor:not-allowed;}
+  .btn-primary{width:100%; background:var(--accent-btn); color:#fff; border:none; border-radius:6px; padding:10px; font-size:13px; font-weight:600; margin-top:14px; box-shadow:0 1px 2px rgba(0,0,0,.2);}
+  .btn-primary:hover:not(:disabled){filter:brightness(1.12); background:var(--accent-btn); color:#fff;}
+  .btn-primary:disabled{opacity:.5; cursor:not-allowed;}
+  .btn-primary.inline{width:auto; padding:10px 22px; margin-top:0;}
+  .btn.ok{border-color:var(--success); color:var(--success); background:var(--success-soft);}
+  .btn.ruim{color:var(--danger);}
+  .login-note{margin:12px 0 0; text-align:center; font-size:12px; color:var(--text-faint); min-height:1.4em;}
+  .login-note.bad{color:var(--danger);}
+
+  /* ---------- Estrutura ---------- */
+  .top{position:sticky; top:0; z-index:10; display:flex; align-items:center; gap:12px; padding:10px 16px; padding-top:calc(10px + env(safe-area-inset-top, 0px)); background:var(--surface); border-bottom:1px solid var(--border); box-shadow:0 1px 0 var(--border), 0 4px 14px rgba(0,0,0,.10);}
+  .top .mark{width:34px; height:34px; font-size:13px; margin:0; flex:none;}
+  .top-t{flex:1; min-width:0;}
+  .top-t strong{display:block; font-size:14px; letter-spacing:.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .top-t span{display:block; font-size:11.5px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .relogio{flex:none; font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:99px; white-space:nowrap; font-variant-numeric:tabular-nums;}
+  .relogio.aberto{color:var(--success); background:var(--success-soft);}
+  .relogio.fechado{color:var(--danger); background:var(--danger-soft);}
+  main{max-width:960px; margin:0 auto; padding:18px 16px calc(40px + env(safe-area-inset-bottom, 0px));}
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:16px;}
+  .card-head{display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:15px 18px; border-bottom:1px solid var(--border); flex-wrap:wrap;}
+  .card-head h2{font-size:14px; font-weight:700; letter-spacing:.01em;}
+  .card-head p{margin:3px 0 0; font-size:12px; color:var(--text-muted);}
+  .pad{padding:16px 18px;}
+  .muted{color:var(--text-muted);} .faint{color:var(--text-faint);}
+  .badge{display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:99px; font-size:11px; font-weight:700; white-space:nowrap; letter-spacing:.01em;}
+  .badge.success{background:var(--success-soft); color:var(--success);}
+  .badge.warning{background:var(--warning-soft); color:var(--warning);}
+  .badge.danger{background:var(--danger-soft); color:var(--danger);}
+  .badge.info{background:var(--info-soft); color:var(--info);}
+  .badge.neutral{background:var(--neutral-soft); color:var(--neutral);}
+
+  .aviso{padding:12px 16px; border-radius:8px; font-size:13px; font-weight:600; margin-bottom:14px; border:1px solid transparent; line-height:1.5;}
+  .aviso.ok{background:var(--success-soft); color:var(--success); border-color:rgba(56,199,147,.3);}
+  .aviso.bad{background:var(--danger-soft); color:var(--danger); border-color:rgba(255,138,92,.3);}
+  .aviso.warn{background:var(--warning-soft); color:var(--warning); border-color:rgba(231,172,85,.3);}
+  .aviso.info{background:var(--info-soft); color:var(--info); border-color:rgba(183,148,246,.3);}
+  .aviso .acoes{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center;}
+  .aviso input[type=text]{flex:1; min-width:180px; background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit;}
+
+  /* ---------- Editor de linhas ---------- */
+  .linhas-cab, .linha{display:grid; grid-template-columns:minmax(130px,1.2fr) minmax(90px,.6fr) minmax(150px,1fr) 40px; gap:10px; align-items:center;}
+  .linhas-cab{padding:0 0 6px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-faint);}
+  .linha{margin-bottom:10px;}
+  .linha select, .linha input{width:100%; height:40px; background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:0 10px; font-size:14px; font-family:inherit;}
+  .linha select:focus, .linha input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(255,61,110,.16);}
+  .linha input[type=date]{color-scheme:dark;}
+  .linha .rm{height:40px; width:40px; border:1px solid var(--border-strong); background:var(--surface-2); color:var(--text-muted); border-radius:6px; font-size:16px; line-height:1;}
+  .linha .rm:hover:not(:disabled){border-color:var(--danger); color:var(--danger); background:var(--danger-soft);}
+  .linha.erro select, .linha.erro input{border-color:var(--danger);}
+  .linhas-box.off{opacity:.4; pointer-events:none;}
+  .acoes-editor{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:6px;}
+  .acoes-editor .grow{flex:1;}
+  .sem-btn[aria-pressed=true]{border-color:var(--info); color:var(--info); background:var(--info-soft);}
+  .msg-erro{margin:6px 0 0; font-size:12.5px; color:var(--danger); min-height:1.2em;}
+  .status-env{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:14px;}
+
+  /* ---------- Histórico e lista ---------- */
+  details.hist summary{cursor:pointer; padding:14px 18px; font-size:13px; font-weight:700; list-style:none; display:flex; align-items:center; gap:8px;}
+  details.hist summary::-webkit-details-marker{display:none;}
+  details.hist summary::before{content:"▸"; color:var(--text-faint); transition:transform .12s;}
+  details.hist[open] summary::before{transform:rotate(90deg);}
+  .v{padding:12px 18px; border-top:1px solid var(--border);}
+  .v-top{display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:4px; font-size:12.5px;}
+  .v-linhas{font-size:12.5px; color:var(--text-muted);}
+  .tabela{width:100%; border-collapse:collapse;}
+  .tabela th{padding:9px 14px; text-align:left; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-faint); border-bottom:1px solid var(--border); white-space:nowrap;}
+  .tabela td{padding:10px 14px; border-bottom:1px solid var(--border); font-size:13px; vertical-align:middle;}
+  .tabela tr:last-child td{border-bottom:none;}
+  .scroll-x{overflow-x:auto;}
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(138px,1fr)); gap:10px; margin-bottom:16px;}
+  .stat{text-align:left; background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--st, var(--border-strong)); border-radius:8px; padding:10px 14px; color:var(--text);}
+  .stat b{display:block; font-size:22px; line-height:1.15; font-variant-numeric:tabular-nums;}
+  .stat span{font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted);}
+  button.stat:hover, .stat.sel{border-color:var(--accent); background:var(--accent-soft);}
+  .aut-item{display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; padding:12px 18px; border-top:1px solid var(--border);}
+  .aut-item:first-of-type{border-top:none;}
+  .aut-item .info{min-width:0; flex:1 1 220px;}
+  .aut-item .info b{display:block; font-size:13.5px;}
+  .aut-item .info span{font-size:12px; color:var(--text-muted);}
+  .voltar{margin-bottom:14px;}
+  .centro{padding:30px 18px; text-align:center; color:var(--text-muted);}
+
+  #carregando{position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; background:rgba(7,10,16,.7); color:var(--text-muted); font-size:13px;}
+
+  @media (max-width:600px){
+    .linhas-cab{display:none;}
+    .linha{grid-template-columns:1fr 1fr; padding:12px; border:1px solid var(--border); border-radius:8px; background:var(--surface);}
+    .linha .m{grid-column:1 / -1;}
+    .linha .rm{grid-column:2; justify-self:end; width:100%;}
+    .linha .c{grid-column:1;} .linha .d{grid-column:1 / -1;}
+    .tabela .oculta-mobile{display:none;}
+    .top{flex-wrap:wrap; gap:8px 10px;}
+    .relogio{order:9; flex:1 1 100%; text-align:center; white-space:normal;}
+    .tabela th, .tabela td{padding-left:10px; padding-right:10px;}
+    .btn-primary.inline{width:100%;}
+    .acoes-editor .grow{display:none;}
+    .acoes-editor .btn, .acoes-editor .btn-primary{flex:1 1 100%;}
+  }
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <div class="login-brand">
+      <div class="mark">CL</div>
+      <h1>CONCRELAGOS</h1>
+      <p>Solicitação de Cimento</p>
+    </div>
+    <form id="loginForm" autocomplete="off">
+      <div class="field">
+        <label for="chave">Chave de acesso</label>
+        <div class="field-input">
+          <span aria-hidden="true">🔑</span>
+          <input type="password" id="chave" name="chave" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" required>
+          <button type="button" class="eye" id="olho" aria-label="Mostrar chave" aria-pressed="false" title="Mostrar/ocultar a chave"><svg id="olhoIc" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+      </div>
+      <button class="btn-primary" type="submit" id="entrar">Entrar</button>
+      <p class="login-note" id="loginMsg" role="alert"></p>
+      <p class="login-note" style="margin-top:4px">A chave foi entregue pela Logística. Cada usina tem a sua.</p>
+    </form>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <header class="top">
+    <div class="mark">CL</div>
+    <div class="top-t"><strong id="quem"></strong><span id="quemSub"></span></div>
+    <span class="relogio" id="relogio" title=""></span>
+    <button class="btn" id="atualizar" title="Buscar dados novos">↻</button>
+    <button class="btn" id="sair">Sair</button>
+  </header>
+  <main id="conteudo"></main>
+</div>
+<div id="carregando">Carregando…</div>
+
+<script src="../vendor/supabase.js"></script>
+<script src="../config.js"></script>
+<script>
+(function(){
+  "use strict";
+  var CFG = window.CONFIG;
+  var sb = window.supabase.createClient(CFG.url, CFG.key, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } });
+  var MATERIAIS = ["CP2", "CP3", "CP5", "POZOLANA"];
+  var SP = "America/Sao_Paulo";
+  var S = { chave: "", tipo: "", nome: "", d: null, estado: null, usinaSel: null, linhas: [], sem: false, sujo: false, msg: "", msgTipo: "", enviando: false, offset: 0, filtro: "todas", motivo: "", confirmaNegar: null, abertoHist: false };
+  var $ = function(id){ return document.getElementById(id); };
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+
+  /* ---------- Armazenamento (só durante a aba aberta) ---------- */
+  function guardar(c){ try { if (c) sessionStorage.setItem("sol_chave", c); else sessionStorage.removeItem("sol_chave"); } catch (e) { } }
+  function lembrada(){ try { return sessionStorage.getItem("sol_chave") || ""; } catch (e) { return ""; } }
+
+  /* ---------- Relógio de Brasília (do servidor) ---------- */
+  function agoraMs(){ return Date.now() + S.offset; }
+  function partesSP(ms){
+    var f = new Intl.DateTimeFormat("en-CA", { timeZone: SP, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false });
+    var o = {}; f.formatToParts(new Date(ms)).forEach(function(p){ o[p.type] = p.value; });
+    var h = parseInt(o.hour, 10); if (h === 24) h = 0;
+    return { dia: o.year + "-" + o.month + "-" + o.day, h: h, m: parseInt(o.minute, 10) };
+  }
+  function hojeCivil(){ return partesSP(agoraMs()).dia; }
+  function amanha(){ var p = hojeCivil().split("-"); var d = new Date(Date.UTC(+p[0], +p[1] - 1, +p[2] + 1)); return d.toISOString().slice(0, 10); }
+  function prazoAbertoLocal(){ var p = partesSP(agoraMs()), min = p.h * 60 + p.m; return min >= 120 && min < 960; }
+  function fmtHora(ms){ return new Intl.DateTimeFormat("pt-BR", { timeZone: SP, hour: "2-digit", minute: "2-digit" }).format(new Date(ms)); }
+  function fmtDiaHora(iso){ var d = new Date(iso); if (isNaN(d)) return ""; var o = { timeZone: SP }; return new Intl.DateTimeFormat("pt-BR", { timeZone: SP, day: "2-digit", month: "2-digit" }).format(d) + " " + fmtHora(d.getTime()); }
+  var SEM = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+  function fmtData(iso){ var p = String(iso).split("-"); if (p.length < 3) return iso; var d = new Date(+p[0], +p[1] - 1, +p[2]); return p[2] + "/" + p[1] + " (" + SEM[d.getDay()] + ")"; }
+  function faltam(minutos){ var h = Math.floor(minutos / 60), m = minutos % 60; return (h ? h + " h " : "") + m + " min"; }
+  function textoRelogio(){
+    var p = partesSP(agoraMs()), min = p.h * 60 + p.m, aberto = min >= 120 && min < 960;
+    var hh = ("0" + p.h).slice(-2) + ":" + ("0" + p.m).slice(-2);
+    var t = aberto ? "Aberto · fecha às 16:00 (faltam " + faltam(960 - min) + ")" : "Prazo encerrado · reabre às 02:00";
+    return { aberto: aberto, txt: t, hh: hh };
+  }
+
+  /* ---------- Chamadas ---------- */
+  var ERROS = { chave_invalida: "Chave inválida ou desativada. Confira com a Logística.", bloqueado: "Muitas tentativas erradas. Aguarde 10 minutos e tente de novo." };
+  function erroTxt(e){
+    var m = (e && e.message) || "";
+    if (/failed to fetch|networkerror|load failed/i.test(m)) return "Sem conexão com a internet ou com o sistema. Tente de novo.";
+    return m || "Erro desconhecido.";
+  }
+  async function chamar(fn, args){
+    var r = await sb.rpc(fn, args);
+    if (r.error) throw r.error;
+    return r.data || {};
+  }
+  function carregando(on){ $("carregando").style.display = on ? "flex" : "none"; }
+
+  /* ---------- Entrada ---------- */
+  function msgLogin(t, bad){ var m = $("loginMsg"); m.textContent = t || ""; m.className = "login-note" + (bad ? " bad" : ""); }
+  $("olho").addEventListener("click", function(){
+    var i = $("chave"), ver = i.type === "password"; i.type = ver ? "text" : "password";
+    this.setAttribute("aria-pressed", ver ? "true" : "false"); this.setAttribute("aria-label", ver ? "Ocultar chave" : "Mostrar chave"); i.focus();
+  });
+  $("loginForm").addEventListener("submit", async function(ev){
+    ev.preventDefault();
+    var c = $("chave").value; if (!c.trim()) return;
+    $("entrar").disabled = true; msgLogin("Entrando…");
+    try {
+      var ok = await entrar(c);
+      if (ok){ $("chave").value = ""; $("chave").type = "password"; msgLogin(""); }
+    } catch (e) { msgLogin(erroTxt(e), true); }
+    $("entrar").disabled = false;
+  });
+  async function entrar(chave){
+    var d = await chamar("solic_k_estado", { p_chave: chave });
+    if (d.erro){ msgLogin(ERROS[d.erro] || "Não foi possível entrar.", true); guardar(""); return false; }
+    S.chave = chave; S.tipo = d.tipo; guardar(chave);
+    S.offset = 0; S.usinaSel = null; S.msg = ""; S.sujo = false; S.filtro = "todas";
+    aplicar(d, true);
+    $("login").hidden = true; $("app").hidden = false;
+    window.scrollTo(0, 0);
+    iniciarRelogio();
+    return true;
+  }
+  function sair(){
+    guardar(""); S.chave = ""; S.d = null; S.estado = null; clearInterval(S.rel); clearInterval(S.poll);
+    $("app").hidden = true; $("login").hidden = false; $("conteudo").innerHTML = ""; msgLogin("");
+  }
+  $("sair").addEventListener("click", sair);
+  $("atualizar").addEventListener("click", function(){ recarregar(true); });
+
+  /* ---------- Estado ---------- */
+  function aplicar(d, inicial){
+    S.d = d;
+    var est = d.tipo === "usina" ? d.estado : d.estado;
+    var agora = (est && est.agora_ms) || (d.painel && d.painel.agora_ms);
+    if (agora) S.offset = agora - Date.now();
+    if (d.tipo === "encarregado") S.nome = d.nome;
+    S.estado = est || null;
+    if (est && (inicial || !S.sujo)) puxarLinhas(est);
+    desenhar();
+  }
+  function puxarLinhas(est){
+    var env = est.envio;
+    if (env && !env.sem_necessidade && env.linhas.length) S.linhas = env.linhas.map(function(l){ return { material: l.material, carretas: String(l.carretas), data: String(l.data_desejada).slice(0, 10) }; });
+    else S.linhas = [novaLinha()];
+    S.sem = !!(env && env.sem_necessidade);
+    S.sujo = false;
+  }
+  function novaLinha(){ return { material: "", carretas: "", data: amanha() }; }
+  async function recarregar(manual){
+    if (!S.chave) return;
+    try {
+      var d = await chamar("solic_k_estado", { p_chave: S.chave, p_usina: S.tipo === "encarregado" ? S.usinaSel : null });
+      if (d.erro){ sair(); msgLogin(ERROS[d.erro] || "Sessão encerrada.", true); return; }
+      if (manual){ S.msg = ""; S.sujo = false; }
+      aplicar(d, !!manual);
+    } catch (e) { if (manual){ S.msg = erroTxt(e); S.msgTipo = "bad"; desenhar(); } }
+  }
+  function iniciarRelogio(){
+    clearInterval(S.rel); clearInterval(S.poll);
+    var antes = prazoAbertoLocal();
+    S.rel = setInterval(function(){
+      pintarRelogio();
+      var agora = prazoAbertoLocal();
+      var est = S.estado, venceu = est && est.autorizacao && est.autorizacao.vigente && new Date(est.autorizacao.valida_ate).getTime() < agoraMs();
+      if (agora !== antes || venceu){ antes = agora; recarregar(false); }
+    }, 15000);
+    S.poll = setInterval(function(){ if (document.visibilityState === "visible" && !S.enviando && !focoEmCampo()) recarregar(false); }, 30000);
+    pintarRelogio();
+  }
+  function focoEmCampo(){ var a = document.activeElement; return !!(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)); }
+  window.addEventListener("focus", function(){ if (S.chave && !S.enviando) recarregar(false); });
+  function pintarRelogio(){
+    var r = textoRelogio(), el = $("relogio");
+    el.textContent = r.hh + " · " + r.txt; el.className = "relogio " + (r.aberto ? "aberto" : "fechado");
+    el.title = "Horário de Brasília. A usina solicita das 02:00 às 16:00; depois disso, só com autorização do encarregado.";
+  }
+
+  /* ---------- Desenho ---------- */
+  function desenhar(){
+    var d = S.d; if (!d) return;
+    var topo = d.tipo === "usina" ? ["Usina " + d.estado.usina.nome, d.estado.usina.encarregado ? "Encarregado: " + d.estado.usina.encarregado : "Solicitação de cimento"] : ["Encarregado " + d.nome, "Solicitações das suas usinas"];
+    $("quem").textContent = topo[0]; $("quemSub").textContent = topo[1];
+    pintarRelogio();
+    var foco = guardarFoco();
+    var h = "";
+    if (d.tipo === "usina") h += htmlEditor(d.estado, { quem: "usina" });
+    else if (S.usinaSel && d.estado) h += '<button class="btn voltar" data-act="voltar">← Voltar às usinas</button>' + htmlEditor(d.estado, { quem: "encarregado" });
+    else h += htmlEncarregado(d.painel);
+    $("conteudo").innerHTML = h;
+    restaurarFoco(foco);
+  }
+  function guardarFoco(){
+    var a = document.activeElement; if (!a || !a.dataset || a.dataset.i === undefined) return null;
+    var o = { i: a.dataset.i, f: a.dataset.f }; try { o.s = a.selectionStart; } catch (e) { } return o;
+  }
+  function restaurarFoco(o){
+    if (!o) return; var el = document.querySelector('[data-i="' + o.i + '"][data-f="' + o.f + '"]'); if (!el) return;
+    el.focus({ preventScroll: true }); try { if (o.s != null) el.setSelectionRange(o.s, o.s); } catch (e) { }
+  }
+  function resumoLinhas(ls){
+    if (!ls || !ls.length) return "—";
+    return ls.map(function(l){ return l.carretas + "× " + l.material + " → " + fmtData(String(l.data_desejada).slice(0, 10)); }).join("<br>");
+  }
+  function seloFora(env){ return env && env.fora_do_prazo ? '<span class="badge warning">⏱ Fora do prazo — autorizado</span>' : ""; }
+  function rotuloVersao(v, ativa){
+    return '<div class="v"><div class="v-top"><b>' + esc(fmtDiaHora(v.enviado_em)) + '</b><span class="badge neutral">versão ' + v.versao + '</span>' +
+      (v.ativa ? '<span class="badge success">em vigor</span>' : '<span class="badge neutral">substituída</span>') + seloFora(v) +
+      (v.sem_necessidade ? '<span class="badge info">Sem necessidade</span>' : "") +
+      (v.por ? '<span class="faint">' + esc(v.por) + '</span>' : "") + '</div>' +
+      '<div class="v-linhas">' + (v.sem_necessidade ? "Sem necessidade de cimento." : resumoLinhas(v.linhas)) + '</div></div>';
+  }
+
+  function htmlEditor(est, o){
+    var env = est.envio, aut = est.autorizacao, ehEnc = o.quem === "encarregado";
+    var aberto = est.prazo_aberto;
+    var vigente = !!(aut && aut.vigente && new Date(aut.valida_ate).getTime() > agoraMs());
+    var pode = aberto || vigente || ehEnc;
+    var h = "";
+    if (S.msg) h += '<div class="aviso ' + (S.msgTipo || "ok") + '" role="status">' + esc(S.msg) + '</div>';
+
+    // estado do prazo
+    if (aberto){
+      h += '<div class="aviso info">Prazo aberto até as 16:00. Você pode criar e alterar a solicitação à vontade até lá.</div>';
+    } else if (ehEnc){
+      h += '<div class="aviso warn">Prazo das usinas encerrado (16:00 às 02:00). Como encarregado, você pode lançar agora: o pedido ficará marcado como <b>Fora do prazo — autorizado</b>.</div>';
+    } else if (vigente){
+      h += '<div class="aviso ok">✔ Liberado pelo encarregado até as ' + esc(fmtHora(new Date(aut.valida_ate).getTime())) + '. O que você enviar agora fica marcado como <b>Fora do prazo — autorizado</b>.</div>';
+    } else if (aut && aut.status === "pendente"){
+      h += '<div class="aviso warn">Prazo encerrado. Seu pedido de autorização foi enviado às ' + esc(fmtHora(new Date(aut.solicitada_em).getTime())) + ' e <b>aguarda o encarregado</b>. Esta tela atualiza sozinha.</div>';
+    } else {
+      h += '<div class="aviso bad">Prazo encerrado. Solicitações ou alterações agora precisam de autorização do encarregado.' +
+        (aut && aut.status === "negada" ? '<br><span style="font-weight:500">O último pedido foi negado' + (aut.obs ? ': ' + esc(aut.obs) : "") + '.</span>' : "") +
+        (aut && aut.status === "aprovada" && !aut.vigente ? '<br><span style="font-weight:500">A liberação anterior já expirou.</span>' : "") +
+        '<div class="acoes"><input type="text" id="motivo" maxlength="300" placeholder="Motivo (opcional)" value="' + esc(S.motivo) + '"><button class="btn" data-act="pedir">Solicitar autorização</button></div></div>';
+    }
+
+    // situação atual
+    var cab = ehEnc ? "Solicitação de " + esc(est.usina.nome) : "Solicitação de Cimento";
+    h += '<div class="card"><div class="card-head"><div><h2>' + cab + '</h2><p>' + (ehEnc ? "Você está lançando como encarregado. " : "Usina: <b>" + esc(est.usina.nome) + "</b>. ") + 'Cada linha pode ter uma data diferente.</p></div></div><div class="pad">';
+    h += '<div class="status-env">';
+    if (!env) h += '<span class="badge neutral">Ainda não respondeu hoje</span>';
+    else {
+      h += env.sem_necessidade ? '<span class="badge info">Respondido: Sem necessidade de cimento</span>' : '<span class="badge success">✔ Respondido</span>';
+      h += '<span class="faint">enviado às ' + esc(fmtHora(new Date(env.enviado_em).getTime())) + ' · versão ' + env.versao + (env.por ? ' · ' + esc(env.por) : "") + '</span>' + seloFora(env);
+    }
+    h += '</div>';
+
+    h += '<div class="linhas-box' + (S.sem ? " off" : "") + '" id="linhasBox"><div class="linhas-cab"><span>Material</span><span>Carretas</span><span>Data desejada</span><span></span></div>';
+    S.linhas.forEach(function(l, i){
+      h += '<div class="linha" data-row="' + i + '"><div class="m"><select data-i="' + i + '" data-f="material" aria-label="Material" ' + (pode ? "" : "disabled") + '><option value="">Material…</option>' +
+        MATERIAIS.map(function(m){ return '<option value="' + m + '"' + (l.material === m ? " selected" : "") + '>' + m + '</option>'; }).join("") + '</select></div>' +
+        '<div class="c"><input type="number" inputmode="numeric" min="1" max="99" step="1" placeholder="Carretas" data-i="' + i + '" data-f="carretas" aria-label="Quantidade de carretas" value="' + esc(l.carretas) + '" ' + (pode ? "" : "disabled") + '></div>' +
+        '<div class="d"><input type="date" min="' + esc(hojeCivil()) + '" data-i="' + i + '" data-f="data" aria-label="Data desejada" value="' + esc(l.data) + '" ' + (pode ? "" : "disabled") + '></div>' +
+        '<button type="button" class="rm" data-act="rm" data-i="' + i + '" aria-label="Remover linha" title="Remover linha" ' + (pode && S.linhas.length > 1 ? "" : "disabled") + '>✕</button></div>';
+    });
+    h += '<div class="acoes-editor" style="margin-bottom:8px"><button type="button" class="btn" data-act="add" ' + (pode && S.linhas.length < 30 ? "" : "disabled") + '>+ Adicionar nova linha</button></div></div>';
+
+    h += '<div class="acoes-editor"><button type="button" class="btn sem-btn" data-act="sem" aria-pressed="' + (S.sem ? "true" : "false") + '" ' + (pode ? "" : "disabled") + '>' + (S.sem ? "✔ " : "") + 'Sem necessidade de cimento</button><span class="grow"></span>' +
+      '<button type="button" class="btn-primary inline" data-act="enviar" ' + (pode && !S.enviando ? "" : "disabled") + '>' + (S.enviando ? "Enviando…" : (env ? "Atualizar solicitação" : "Enviar solicitação")) + '</button></div>';
+    h += '<p class="msg-erro" id="erroEditor" role="alert"></p></div></div>';
+
+    // histórico
+    var hist = est.historico || [];
+    if (hist.length){
+      h += '<div class="card"><details class="hist"' + (S.abertoHist ? " open" : "") + '><summary>Histórico de alterações <span class="badge neutral">' + hist.length + '</span></summary>' + hist.map(function(v){ return rotuloVersao(v); }).join("") + '</details></div>';
+    }
+    return h;
+  }
+
+  function htmlEncarregado(p){
+    var us = p.usinas || [], aut = p.autorizacoes || [];
+    var c = { pedido: 0, sem: 0, nao: 0, fora: 0, aguard: 0 };
+    us.forEach(function(u){
+      if (u.situacao === "pedido") c.pedido++; else if (u.situacao === "sem_necessidade") c.sem++; else c.nao++;
+      if (u.envio && u.envio.fora_do_prazo) c.fora++;
+      if (u.autorizacao && u.autorizacao.status === "pendente") c.aguard++;
+    });
+    var pend = aut.filter(function(a){ return a.status === "pendente"; });
+    var h = "";
+    if (S.msg) h += '<div class="aviso ' + (S.msgTipo || "ok") + '" role="status">' + esc(S.msg) + '</div>';
+    var tile = function(k, n, rot, cor){ return '<button class="stat' + (S.filtro === k ? " sel" : "") + '" style="--st:' + cor + '" data-act="filtro" data-k="' + k + '"><b>' + n + '</b><span>' + rot + '</span></button>'; };
+    h += '<div class="stats">' + tile("pedido", c.pedido, "Responderam com pedido", "var(--success)") + tile("sem", c.sem, "Sem necessidade", "var(--info)") + tile("nao", c.nao, "Ainda não responderam", "var(--danger)") +
+      tile("fora", c.fora, "Fora do prazo", "var(--warning)") + tile("aguard", c.aguard, "Aguardando autorização", "var(--accent)") + '</div>';
+
+    if (pend.length){
+      h += '<div class="card"><div class="card-head"><div><h2>Autorizações aguardando você</h2><p>Aprovando, a usina fica liberada por 60 minutos para criar ou alterar a solicitação.</p></div></div>';
+      pend.forEach(function(a){
+        var neg = S.confirmaNegar === a.id;
+        h += '<div class="aut-item"><div class="info"><b>' + esc(a.usina) + '</b><span>pediu às ' + esc(fmtDiaHora(a.solicitada_em)) + (a.motivo ? ' · “' + esc(a.motivo) + '”' : "") + '</span></div>' +
+          '<div style="display:flex;gap:8px"><button class="btn ok" data-act="aprovar" data-id="' + esc(a.id) + '" data-u="' + esc(a.usina_id) + '">Aprovar</button>' +
+          '<button class="btn ruim" data-act="negar" data-id="' + esc(a.id) + '" data-u="' + esc(a.usina_id) + '">' + (neg ? "Confirmar negar" : "Negar") + '</button></div></div>';
+      });
+      h += '</div>';
+    }
+
+    var lista = us.filter(function(u){
+      if (S.filtro === "pedido") return u.situacao === "pedido";
+      if (S.filtro === "sem") return u.situacao === "sem_necessidade";
+      if (S.filtro === "nao") return u.situacao === "nao_respondeu";
+      if (S.filtro === "fora") return u.envio && u.envio.fora_do_prazo;
+      if (S.filtro === "aguard") return u.autorizacao && u.autorizacao.status === "pendente";
+      return true;
+    });
+    h += '<div class="card"><div class="card-head"><div><h2>Suas usinas</h2><p>' + us.length + ' usina(s)' + (S.filtro !== "todas" ? ' · filtro ativo <button class="btn" style="padding:2px 8px;margin-left:6px" data-act="filtro" data-k="todas">limpar</button>' : "") + '</p></div></div>';
+    if (!us.length) h += '<div class="centro">Nenhuma usina foi vinculada a você ainda. Fale com a Logística.</div>';
+    else if (!lista.length) h += '<div class="centro">Nenhuma usina neste filtro.</div>';
+    else {
+      h += '<div class="scroll-x"><table class="tabela"><thead><tr><th>Usina</th><th>Situação</th><th class="oculta-mobile">Pedido</th><th></th></tr></thead><tbody>';
+      lista.forEach(function(u){
+        var sit = u.situacao === "pedido" ? '<span class="badge success">✔ Pedido</span>' : (u.situacao === "sem_necessidade" ? '<span class="badge info">Sem necessidade</span>' : '<span class="badge danger">Não respondeu</span>');
+        var extra = (u.envio && u.envio.fora_do_prazo ? " " + seloFora(u.envio) : "") + (u.autorizacao && u.autorizacao.status === "pendente" ? ' <span class="badge warning">Aguardando autorização</span>' : "") + (u.versoes > 1 ? ' <span class="badge neutral">' + u.versoes + ' versões</span>' : "");
+        h += '<tr><td><b>' + esc(u.usina) + '</b></td><td>' + sit + extra + '</td><td class="oculta-mobile muted">' + (u.envio && !u.envio.sem_necessidade ? resumoLinhas(u.envio.linhas) : "—") +
+          (u.envio ? '<br><span class="faint" style="font-size:11.5px">' + esc(fmtHora(new Date(u.envio.enviado_em).getTime())) + (u.envio.por ? ' · ' + esc(u.envio.por) : "") + '</span>' : "") + '</td>' +
+          '<td style="text-align:right"><button class="btn" data-act="abrir" data-u="' + esc(u.usina_id) + '">Abrir</button></td></tr>';
+      });
+      h += '</tbody></table></div>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  /* ---------- Ações ---------- */
+  function validar(){
+    var vistos = {}, hoje = hojeCivil();
+    for (var i = 0; i < S.linhas.length; i++){
+      var l = S.linhas[i], n = i + 1;
+      if (MATERIAIS.indexOf(l.material) < 0) return { i: i, t: "Escolha o material na linha " + n + "." };
+      var q = Number(l.carretas); if (!l.carretas || !isFinite(q) || q < 1 || q > 99 || Math.floor(q) !== q) return { i: i, t: "Informe a quantidade de carretas (1 a 99) na linha " + n + "." };
+      if (!l.data) return { i: i, t: "Informe a data desejada na linha " + n + "." };
+      if (l.data < hoje) return { i: i, t: "A data da linha " + n + " já passou." };
+      var k = l.material + "|" + l.data; if (vistos[k]) return { i: i, t: "Material e data repetidos na linha " + n + ". Some as carretas numa linha só." }; vistos[k] = 1;
+    }
+    return null;
+  }
+  function marcarErro(v){
+    document.querySelectorAll(".linha").forEach(function(r){ r.classList.remove("erro"); });
+    var e = $("erroEditor"); if (e) e.textContent = v ? v.t : "";
+    if (v && v.i != null){ var r = document.querySelector('.linha[data-row="' + v.i + '"]'); if (r) r.classList.add("erro"); }
+  }
+  async function enviar(){
+    if (S.enviando) return;
+    if (!S.sem){ var v = validar(); if (v){ marcarErro(v); return; } }
+    marcarErro(null);
+    S.enviando = true; S.msg = ""; desenhar();
+    try {
+      var args = { p_chave: S.chave, p_sem_necessidade: S.sem, p_linhas: S.sem ? [] : S.linhas.map(function(l){ return { material: l.material, carretas: Number(l.carretas), data_desejada: l.data }; }) };
+      if (S.tipo === "encarregado") args.p_usina = S.usinaSel;
+      var d = await chamar("solic_k_enviar", args);
+      if (d.erro){ S.enviando = false; sair(); msgLogin(ERROS[d.erro] || "Sessão encerrada.", true); return; }
+      S.enviando = false; S.sujo = false;
+      var env = d.estado && d.estado.envio;
+      S.msg = S.sem ? "Resposta registrada: sem necessidade de cimento." : "Solicitação enviada" + (env ? " (versão " + env.versao + ")" : "") + ".";
+      S.msgTipo = "ok"; aplicar(d, true);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      S.enviando = false; S.msg = erroTxt(e); S.msgTipo = "bad"; desenhar(); window.scrollTo({ top: 0, behavior: "smooth" });
+      recarregar(false);
+    }
+  }
+  async function pedirAutorizacao(){
+    try {
+      var d = await chamar("solic_k_pedir_autorizacao", { p_chave: S.chave, p_motivo: ($("motivo") && $("motivo").value) || "" });
+      if (d.erro){ sair(); msgLogin(ERROS[d.erro], true); return; }
+      S.motivo = ""; S.msg = "Pedido enviado ao encarregado. Esta tela atualiza sozinha quando ele responder."; S.msgTipo = "ok"; aplicar(d, false);
+    } catch (e) { S.msg = erroTxt(e); S.msgTipo = "bad"; desenhar(); }
+  }
+  async function decidir(id, aprovar){
+    try {
+      var d = await chamar("solic_k_decidir", { p_chave: S.chave, p_id: id, p_aprovar: aprovar, p_usina: S.usinaSel });
+      if (d.erro){ sair(); msgLogin(ERROS[d.erro], true); return; }
+      S.confirmaNegar = null; S.msg = aprovar ? "Liberado por 60 minutos." : "Pedido negado."; S.msgTipo = "ok";
+      await recarregar(false);
+    } catch (e) { S.msg = erroTxt(e); S.msgTipo = "bad"; desenhar(); }
+  }
+  async function abrirUsina(id){
+    S.usinaSel = id; S.msg = ""; S.sujo = false; carregando(true);
+    try { var d = await chamar("solic_k_estado", { p_chave: S.chave, p_usina: id }); aplicar(d, true); window.scrollTo(0, 0); }
+    catch (e) { S.usinaSel = null; S.msg = erroTxt(e); S.msgTipo = "bad"; desenhar(); }
+    carregando(false);
+  }
+
+  $("conteudo").addEventListener("input", function(ev){
+    var t = ev.target; if (t.id === "motivo"){ S.motivo = t.value; return; }
+    if (t.dataset.i === undefined) return;
+    S.linhas[+t.dataset.i][t.dataset.f] = t.value; S.sujo = true; marcarErro(null);
+  });
+  $("conteudo").addEventListener("change", function(ev){
+    var t = ev.target; if (t.dataset.i === undefined) return;
+    S.linhas[+t.dataset.i][t.dataset.f] = t.value; S.sujo = true;
+  });
+  $("conteudo").addEventListener("toggle", function(ev){ if (ev.target.classList && ev.target.classList.contains("hist")) S.abertoHist = ev.target.open; }, true);
+  $("conteudo").addEventListener("click", function(ev){
+    var b = ev.target.closest && ev.target.closest("[data-act]"); if (!b || b.disabled) return;
+    var a = b.dataset.act;
+    if (a === "add"){ if (S.linhas.length < 30){ S.linhas.push(novaLinha()); S.sujo = true; desenhar(); var ss = document.querySelectorAll('select[data-f="material"]'); if (ss.length) ss[ss.length - 1].focus(); } }
+    else if (a === "rm"){ if (S.linhas.length > 1){ S.linhas.splice(+b.dataset.i, 1); S.sujo = true; desenhar(); } }
+    else if (a === "sem"){ S.sem = !S.sem; S.sujo = true; desenhar(); }
+    else if (a === "enviar") enviar();
+    else if (a === "pedir") pedirAutorizacao();
+    else if (a === "filtro"){ S.filtro = S.filtro === b.dataset.k ? "todas" : b.dataset.k; desenhar(); }
+    else if (a === "abrir") abrirUsina(b.dataset.u);
+    else if (a === "voltar"){ S.usinaSel = null; S.msg = ""; S.sujo = false; recarregar(true); }
+    else if (a === "aprovar") { S.usinaSel = S.usinaSel; decidir(b.dataset.id, true); }
+    else if (a === "negar"){ if (S.confirmaNegar !== b.dataset.id){ S.confirmaNegar = b.dataset.id; desenhar(); } else decidir(b.dataset.id, false); }
+  });
+
+  /* ---------- Início ---------- */
+  (async function iniciar(){
+    var c = lembrada(); if (!c) { $("chave").focus(); return; }
+    carregando(true);
+    try { await entrar(c); } catch (e) { guardar(""); }
+    carregando(false);
+  })();
+  window.__sol = { estado: function(){ return S; } };
+})();
+</script>
+</body>
+</html>

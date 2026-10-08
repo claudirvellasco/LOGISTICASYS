@@ -141,7 +141,8 @@
   .sol-aut{display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; padding:12px 18px; border-top:1px solid var(--border);}
   .sol-aut b{display:block; font-size:13.5px;} .sol-aut span{font-size:12px; color:var(--text-muted);}
   .sol-tbl td, #admChavesCard .adm-tbl td{vertical-align:top; white-space:normal;} .sol-tbl td .badge{margin:0 4px 4px 0;} #admChavesCard .adm-acoes{min-width:200px;}
-  .sol-tbl td:nth-child(3){min-width:170px;} .sol-tbl .sol-pedido{white-space:normal; min-width:200px; font-size:12.5px;}
+  .sol-tbl td:nth-child(3){min-width:170px;}
+  .enc-tbl td{vertical-align:top;} .enc-tbl .adm-acoes{min-width:190px;} .sol-tbl .sol-pedido{white-space:normal; min-width:200px; font-size:12.5px;}
   .sol-hist td{background:var(--surface-2); white-space:normal !important;}
   .sol-v{padding:6px 0; font-size:12.5px; border-top:1px solid var(--border);} .sol-v:first-child{border-top:none;}
   .prog-tag.sol{background:var(--success-soft); color:var(--success); border:1px solid var(--success); max-width:340px; overflow:hidden; text-overflow:ellipsis; cursor:help;}
@@ -3006,6 +3007,7 @@
           lead:'Traz a programação da planilha antiga: usina, placa, fábrica e pedido, por dia.',
           como:'<p>Uma linha “PROGRAMAÇÃO PARA O DIA DD/MM/AAAA (...)” seguida das linhas Usina / Placa / Fábrica / Pedido; pode ter vários dias de uma vez. Usina marcada com *** fica em branco. Usinas da Base de Usinas são casadas sozinhas; as outras entram como linha extra.</p>'}) +
       '</div>' +
+      '<div id="encarregadosCard" style="margin-bottom:16px;"></div>' +
       '<div id="historicoCard" style="margin-bottom:16px;"></div>' +
       '<div id="catalogoCimentoCard" style="margin-bottom:16px;"></div>' +
       '<div id="usinasCadastroCard" style="margin-bottom:16px;"></div>' +
@@ -5244,7 +5246,7 @@
      As regras valem no BANCO (funções admin_*): esta tela só chama elas.
      Ninguém além do administrador troca senha — nem a própria.
      ====================================================================== */
-  var ADM = { usuarios: [], hist: [], alvo: null, msg: "", ruim: false, carregando: false, ch: null, revela: null, editEnc: null, editSel: [], novoEnc: "", sureKey: null };
+  var ADM = { usuarios: [], hist: [], alvo: null, msg: "", ruim: false, carregando: false, ch: null, revela: null, sureKey: null };
   var ADM_REGRAS = [
     ["12 caracteres ou mais (máx. 72)", function(s){ return s.length >= 12 && s.length <= 72; }],
     ["uma letra minúscula", function(s){ return /[a-z]/.test(s); }],
@@ -5403,8 +5405,8 @@
     }
     // encarregados
     h += '<div class="adm-sub">Encarregados</div>';
-    h += '<div class="adm-pad adm-novo"><input type="text" id="admNovoEnc" maxlength="80" placeholder="Nome do novo encarregado" value="' + esc(ADM.novoEnc) + '"><button type="button" class="btn-ghost" data-cact="enc-novo">+ Adicionar encarregado</button></div>';
-    if (!C.encarregados.length) h += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda.</div>';
+    h += '<div class="adm-pad faint" style="padding-top:0">O cadastro dos encarregados e das usinas de cada um fica em <b>Dados › Base de Dados</b>. Aqui você só gera e desativa as chaves.</div>';
+    if (!C.encarregados.length) h += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda (cadastre em Base de Dados).</div>';
     else {
       h += '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Encarregado</th><th>Usinas</th><th>Chave</th><th></th></tr></thead><tbody>';
       C.encarregados.forEach(function(e){
@@ -5412,17 +5414,9 @@
         var sure = ADM.sureKey === "e:" + e.id;
         h += '<tr data-eid="' + esc(e.id) + '"><td class="cell-strong">' + esc(e.nome) + (e.ativo ? "" : ' <span class="badge danger">desativado</span>') + '</td>' +
           '<td class="muted" style="white-space:normal;min-width:180px">' + (us.length ? esc(us.join(", ")) : '<span class="faint">nenhuma</span>') + '</td><td style="white-space:normal">' + admChaveInfo(e.chave) + '</td>' +
-          '<td><div class="adm-acoes"><button class="btn-ghost" data-cact="enc-usinas">Usinas</button>' +
+          '<td><div class="adm-acoes">' +
           (e.ativo ? '<button class="btn-ghost" data-cact="enc-chave">' + (e.chave ? (sure ? "Confirmar: gerar nova" : "Gerar nova chave") : "Gerar chave") + '</button>' : "") +
-          (e.chave ? '<button class="btn-ghost" data-cact="chave-off" data-cid="' + esc(e.chave.id) + '">Desativar chave</button>' : "") +
-          '<button class="btn-ghost" data-cact="enc-ativo">' + (e.ativo ? "Desativar encarregado" : "Ativar encarregado") + '</button></div></td></tr>';
-        if (ADM.editEnc === e.id){
-          h += '<tr class="adm-edit"><td colspan="4"><div class="adm-pad"><b>Usinas de ' + esc(e.nome) + '</b> <span class="faint">(cada usina tem um único encarregado — marcar aqui tira a usina do anterior)</span><div class="adm-grid-us">' +
-            C.usinas.map(function(u){
-              var marcada = ADM.editSel.indexOf(u.usina_id) >= 0, outro = u.encarregado_id && u.encarregado_id !== e.id;
-              return '<label class="adm-us"><input type="checkbox" data-uid2="' + esc(u.usina_id) + '"' + (marcada ? " checked" : "") + '> ' + esc(u.usina) + (outro ? ' <span class="faint">(' + esc(u.encarregado) + ')</span>' : "") + '</label>';
-            }).join("") + '</div><div class="adm-acoes" style="margin-top:10px"><button class="btn-primary btn-inline" data-cact="enc-usinas-salvar">Salvar usinas</button><button class="btn-ghost" data-cact="enc-usinas-cancelar">Cancelar</button></div></div></td></tr>';
-        }
+          (e.chave ? '<button class="btn-ghost" data-cact="chave-off" data-cid="' + esc(e.chave.id) + '">Desativar chave</button>' : "") + '</div></td></tr>';
       });
       h += '</tbody></table></div>';
     }
@@ -5452,12 +5446,6 @@
     }
     if (b){ var o = b.dataset.rot || b.textContent; b.dataset.rot = o; b.textContent = ok ? "Copiado ✔" : "Selecione e copie"; setTimeout(function(){ b.textContent = o; }, 1800); }
   }
-  el("view-adm").addEventListener("input", function(ev){ if (ev.target.id === "admNovoEnc") ADM.novoEnc = ev.target.value; });
-  el("view-adm").addEventListener("change", function(ev){
-    var t = ev.target; if (!t.dataset || t.dataset.uid2 === undefined) return;
-    var i = ADM.editSel.indexOf(t.dataset.uid2);
-    if (t.checked && i < 0) ADM.editSel.push(t.dataset.uid2); else if (!t.checked && i >= 0) ADM.editSel.splice(i, 1);
-  });
   el("view-adm").addEventListener("click", async function(ev){
     var b = ev.target.closest && ev.target.closest("[data-cact]"); if (!b || b.disabled) return;
     ADM.where = "ch";
@@ -5466,24 +5454,7 @@
     if (a === "copiar"){ admCopiar(b.dataset.txt || "", b); return; }
     if (a === "fechar"){ ADM.revela = null; admRender(); return; }
     b.disabled = true;
-    if (a === "enc-novo"){
-      var nome = (ADM.novoEnc || "").trim(); if (nome.length < 2){ ADM.msg = "Informe o nome do encarregado."; ADM.ruim = true; admRender(); return; }
-      var r = await sb.rpc("admin_encarregado_salvar", { p_id: null, p_nome: nome, p_ativo: true });
-      if (r.error) return falha(r.error);
-      ADM.novoEnc = ""; ADM.msg = "Encarregado “" + nome + "” criado. Agora marque as usinas dele e gere a chave."; ADM.ruim = false; await admChavesRecarregar(); admRender();
-    } else if (a === "enc-ativo"){
-      var e = C.encarregados.find(function(x){ return x.id === eid; }); if (!e) return;
-      var r2 = await sb.rpc("admin_encarregado_salvar", { p_id: eid, p_nome: e.nome, p_ativo: !e.ativo });
-      if (r2.error) return falha(r2.error);
-      ADM.msg = e.ativo ? "Encarregado desativado (a chave dele deixou de valer)." : "Encarregado ativado. Gere uma chave nova para ele."; ADM.ruim = false; await admChavesRecarregar(); admRender();
-    } else if (a === "enc-usinas"){
-      var e2 = C.encarregados.find(function(x){ return x.id === eid; }); ADM.editEnc = ADM.editEnc === eid ? null : eid; ADM.editSel = e2 ? (e2.usinas || []).slice() : []; admRender();
-    } else if (a === "enc-usinas-cancelar"){ ADM.editEnc = null; admRender(); }
-    else if (a === "enc-usinas-salvar"){
-      var r3 = await sb.rpc("admin_encarregado_usinas", { p_encarregado: ADM.editEnc, p_usinas: ADM.editSel });
-      if (r3.error) return falha(r3.error);
-      ADM.editEnc = null; ADM.msg = "Usinas do encarregado atualizadas."; ADM.ruim = false; await admChavesRecarregar(); admRender();
-    } else if (a === "enc-chave" || a === "us-chave"){
+    if (a === "enc-chave" || a === "us-chave"){
       var tipo = a === "enc-chave" ? "encarregado" : "usina", alvo = a === "enc-chave" ? eid : usid, chaveKey = (a === "enc-chave" ? "e:" : "u:") + alvo;
       var tem = a === "enc-chave" ? (C.encarregados.find(function(x){ return x.id === eid; }) || {}).chave : (C.usinas.find(function(x){ return x.usina_id === usid; }) || {}).chave;
       if (tem && ADM.sureKey !== chaveKey){ ADM.sureKey = chaveKey; admRender(); return; }
@@ -5759,7 +5730,7 @@
     c.title = !on ? "Sem conexão em tempo real: a tela se atualiza sozinha a cada 45 s e no botão Atualizar." :
       (PRES.peers.length ? PRES.peers.map(function(p){ return p.nome + " — " + (p.key ? "editando " + p.key + " (" + (p.iso.split("-").reverse().slice(0, 2).join("/")) + ")" : "em " + (p.ver || "…")); }).join("\n") : "Você está sozinho(a) agora. Alterações de outras pessoas aparecem aqui na hora.");
   }
-  window.__onView = function(id){ presTrack(); if (id === "solicitacoes"){ SOL.filtro = "todas"; solCarregar(false); } };
+  window.__onView = function(id){ presTrack(); if (id === "solicitacoes"){ SOL.filtro = "todas"; solCarregar(false); } if (id === "base-dados-cimento") encCarregar(); };
   function presIniciar(){
     if (!ME || PRES.ch) return;
     var ch = sb.channel("prog-" + ME.empresa_id, { config: { private: true, presence: { key: ME.id } } });
@@ -5937,6 +5908,89 @@
     });
     SOL_PROG = m;
   }
+
+  /* ======================================================================
+     BASE DE DADOS › ENCARREGADOS E USINAS
+     Cadastro de quem responde por cada usina. Cada usina tem um único
+     encarregado. Essas associações valem para o link de Solicitação e são a
+     base do resto do sistema. Admin e operador editam; leitura só vê.
+     ====================================================================== */
+  var ENC = { d: null, msg: "", ruim: false, novo: "", edit: null, sel: [], carregando: false, sure: null };
+  async function encCarregar(){
+    if (!ME || !sb) return;
+    ENC.carregando = !ENC.d; encPintar();
+    var r; try { r = await sb.rpc("solic_cadastro"); } catch (e) { r = { error: e }; }
+    ENC.carregando = false;
+    if (r.error){ ENC.msg = dbErr(r.error); ENC.ruim = true; }
+    else if (r.data && Array.isArray(r.data.usinas)) ENC.d = { pode: !!r.data.pode, usinas: r.data.usinas, encarregados: r.data.encarregados || [] };
+    encPintar();
+  }
+  function encPintar(){
+    var v = el("encarregadosCard"); if (!v) return;
+    var D = ENC.d, pode = !!D && D.pode && ME && ME.papel !== "leitura";
+    var h = '<div class="card"><div class="card-head"><div><h2>👷 Encarregados e usinas</h2><p>Cada usina tem um único encarregado. Essas associações são a base do link de Solicitação de Cimento e do resto do sistema.' + (D && !pode ? " Somente leitura." : "") + '</p></div></div>';
+    if (ENC.msg) h += '<div class="adm-msg ' + (ENC.ruim ? "bad" : "ok") + '" role="status">' + esc(ENC.msg) + '</div>';
+    if (!D){ h += '<div class="adm-pad faint">' + (ENC.carregando ? "Carregando…" : "Sem dados ainda. Reabra esta tela.") + '</div></div>'; v.innerHTML = h; return; }
+    if (pode) h += '<div class="adm-pad adm-novo"><input type="text" id="encNovo" maxlength="80" placeholder="Nome do novo encarregado" value="' + esc(ENC.novo) + '"><button type="button" class="btn-ghost" data-enc="novo">+ Adicionar encarregado</button></div>';
+    var nome = {}; D.usinas.forEach(function(u){ nome[u.usina_id] = u.usina; });
+    if (!D.encarregados.length) h += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda.</div>';
+    else {
+      h += '<div class="table-wrap"><table class="adm-tbl enc-tbl"><thead><tr><th>Encarregado</th><th>Usinas</th>' + (pode ? '<th></th>' : "") + '</tr></thead><tbody>';
+      D.encarregados.forEach(function(e){
+        var us = (e.usinas || []).map(function(id){ return nome[id] || "?"; }).sort();
+        h += '<tr data-eid="' + esc(e.id) + '"><td class="cell-strong">' + esc(e.nome) + (e.ativo ? "" : ' <span class="badge danger">desativado</span>') + '</td>' +
+          '<td class="muted" style="white-space:normal">' + (us.length ? '<b>' + us.length + '</b> · ' + esc(us.join(", ")) : '<span class="faint">nenhuma usina</span>') + '</td>' +
+          (pode ? '<td><div class="adm-acoes"><button class="btn-ghost" data-enc="usinas">' + (ENC.edit === e.id ? "Fechar" : "Associar usinas") + '</button>' +
+            '<button class="btn-ghost" data-enc="ativo">' + (e.ativo ? (ENC.sure === e.id ? "Confirmar desativar" : "Desativar") : "Ativar") + '</button></div></td>' : "") + '</tr>';
+        if (pode && ENC.edit === e.id){
+          h += '<tr class="adm-edit"><td colspan="3"><div class="adm-pad"><b>Usinas de ' + esc(e.nome) + '</b> <span class="faint">(marcar uma usina de outro encarregado passa ela para este)</span><div class="adm-grid-us">' +
+            D.usinas.map(function(u){
+              var outro = u.encarregado_id && u.encarregado_id !== e.id ? D.encarregados.find(function(x){ return x.id === u.encarregado_id; }) : null;
+              return '<label class="adm-us"><input type="checkbox" data-encu="' + esc(u.usina_id) + '"' + (ENC.sel.indexOf(u.usina_id) >= 0 ? " checked" : "") + '> ' + esc(u.usina) + (outro ? ' <span class="faint">(' + esc(outro.nome) + ')</span>' : "") + '</label>';
+            }).join("") + '</div><div class="adm-acoes" style="margin-top:10px"><button class="btn-primary btn-inline" data-enc="salvar">Salvar usinas</button><button class="btn-ghost" data-enc="cancelar">Cancelar</button></div></div></td></tr>';
+        }
+      });
+      h += '</tbody></table></div>';
+    }
+    var sem = D.usinas.filter(function(u){ return !u.encarregado_id; });
+    h += '<div class="adm-pad" style="font-size:12.5px;color:var(--text-muted)">' + (sem.length ? '<span class="badge warning">' + sem.length + ' usina(s) sem encarregado</span> ' + esc(sem.map(function(u){ return u.usina; }).join(", ")) : '✔ Todas as usinas têm encarregado.') + '</div>';
+    h += '</div>';
+    v.innerHTML = h;
+  }
+  (function(){
+    var v = el("view-base-dados-cimento"); if (!v) return;
+    v.addEventListener("input", function(ev){ if (ev.target.id === "encNovo") ENC.novo = ev.target.value; });
+    v.addEventListener("change", function(ev){
+      var t = ev.target; if (!t.dataset || t.dataset.encu === undefined) return;
+      var i = ENC.sel.indexOf(t.dataset.encu);
+      if (t.checked && i < 0) ENC.sel.push(t.dataset.encu); else if (!t.checked && i >= 0) ENC.sel.splice(i, 1);
+    });
+    v.addEventListener("click", async function(ev){
+      var b = ev.target.closest && ev.target.closest("[data-enc]"); if (!b || b.disabled || !ENC.d) return;
+      var a = b.dataset.enc, tr = b.closest("tr"), eid = tr && tr.dataset.eid;
+      var falha = function(e){ ENC.msg = dbErr(e); ENC.ruim = true; ENC.sure = null; encPintar(); };
+      if (a === "usinas"){ var e0 = ENC.d.encarregados.find(function(x){ return x.id === eid; }); ENC.edit = ENC.edit === eid ? null : eid; ENC.sel = e0 ? (e0.usinas || []).slice() : []; ENC.msg = ""; encPintar(); return; }
+      if (a === "cancelar"){ ENC.edit = null; encPintar(); return; }
+      b.disabled = true;
+      if (a === "novo"){
+        var nm = (ENC.novo || "").trim(); if (nm.length < 2){ ENC.msg = "Informe o nome do encarregado."; ENC.ruim = true; encPintar(); return; }
+        var r = await sb.rpc("admin_encarregado_salvar", { p_id: null, p_nome: nm, p_ativo: true });
+        if (r.error) return falha(r.error);
+        ENC.novo = ""; ENC.msg = "Encarregado “" + nm + "” cadastrado. Agora associe as usinas dele."; ENC.ruim = false; await encCarregar();
+      } else if (a === "salvar"){
+        var r2 = await sb.rpc("admin_encarregado_usinas", { p_encarregado: ENC.edit, p_usinas: ENC.sel });
+        if (r2.error) return falha(r2.error);
+        ENC.edit = null; ENC.msg = "Usinas do encarregado atualizadas."; ENC.ruim = false; await encCarregar();
+      } else if (a === "ativo"){
+        var e = ENC.d.encarregados.find(function(x){ return x.id === eid; }); if (!e) return;
+        if (e.ativo && ENC.sure !== eid){ ENC.sure = eid; encPintar(); return; }
+        ENC.sure = null;
+        var r3 = await sb.rpc("admin_encarregado_salvar", { p_id: eid, p_nome: e.nome, p_ativo: !e.ativo });
+        if (r3.error) return falha(r3.error);
+        ENC.msg = e.ativo ? "Encarregado desativado (a chave dele deixou de valer)." : "Encarregado ativado. Gere uma chave nova para ele em Adm."; ENC.ruim = false; await encCarregar();
+      }
+    });
+  })();
 
   window.__app = { syncNow: syncNow, takeSnap: takeSnap, progRefresh: progRefresh, presPeers: function(){ return PRES.peers; }, presStatus: function(){ return PRES.status; } };
 

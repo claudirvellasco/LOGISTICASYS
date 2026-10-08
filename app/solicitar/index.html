@@ -128,6 +128,8 @@
   button.stat:hover, .stat.sel{border-color:var(--accent); background:var(--accent-soft);}
   .aut-item{display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; padding:12px 18px; border-top:1px solid var(--border);}
   .aut-item:first-of-type{border-top:none;}
+  .aut-btns{display:flex; gap:8px; flex-wrap:wrap;}
+  .aut-btns .btn-primary{margin-top:0;}
   .aut-item .info{min-width:0; flex:1 1 220px;}
   .aut-item .info b{display:block; font-size:13.5px;}
   .aut-item .info span{font-size:12px; color:var(--text-muted);}
@@ -433,11 +435,11 @@
       tile("fora", c.fora, "Fora do prazo", "var(--warning)") + tile("aguard", c.aguard, "Aguardando autorização", "var(--accent)") + '</div>';
 
     if (pend.length){
-      h += '<div class="card"><div class="card-head"><div><h2>Autorizações aguardando você</h2><p>Aprovando, a usina fica liberada por 60 minutos para criar ou alterar a solicitação.</p></div></div>';
+      h += '<div class="card"><div class="card-head"><div><h2>Autorizações aguardando você</h2><p>Você pode <b>autorizar e já preencher o pedido pela usina</b> (mais rápido), ou só autorizar para a usina lançar em até 60 minutos.</p></div></div>';
       pend.forEach(function(a){
         var neg = S.confirmaNegar === a.id;
         h += '<div class="aut-item"><div class="info"><b>' + esc(a.usina) + '</b><span>pediu às ' + esc(fmtDiaHora(a.solicitada_em)) + (a.motivo ? ' · “' + esc(a.motivo) + '”' : "") + '</span></div>' +
-          '<div style="display:flex;gap:8px"><button class="btn ok" data-act="aprovar" data-id="' + esc(a.id) + '" data-u="' + esc(a.usina_id) + '">Aprovar</button>' +
+          '<div class="aut-btns"><button class="btn-primary inline" data-act="aprovar-abrir" data-id="' + esc(a.id) + '" data-u="' + esc(a.usina_id) + '">Autorizar e preencher</button><button class="btn ok" data-act="aprovar" data-id="' + esc(a.id) + '" data-u="' + esc(a.usina_id) + '">Só autorizar</button>' +
           '<button class="btn ruim" data-act="negar" data-id="' + esc(a.id) + '" data-u="' + esc(a.usina_id) + '">' + (neg ? "Confirmar negar" : "Negar") + '</button></div></div>';
       });
       h += '</div>';
@@ -514,12 +516,13 @@
       S.motivo = ""; S.msg = "Pedido enviado ao encarregado. Esta tela atualiza sozinha quando ele responder."; S.msgTipo = "ok"; aplicar(d, false);
     } catch (e) { S.msg = erroTxt(e); S.msgTipo = "bad"; desenhar(); }
   }
-  async function decidir(id, aprovar){
+  async function decidir(id, aprovar, abrir){
     try {
       var d = await chamar("solic_k_decidir", { p_chave: S.chave, p_id: id, p_aprovar: aprovar, p_usina: S.usinaSel });
       if (d.erro){ sair(); msgLogin(ERROS[d.erro], true); return; }
-      S.confirmaNegar = null; S.msg = aprovar ? "Liberado por 60 minutos." : "Pedido negado."; S.msgTipo = "ok";
-      await recarregar(false);
+      S.confirmaNegar = null; S.msg = aprovar ? (abrir ? "Autorizado. Preencha o pedido desta usina abaixo." : "Liberado por 60 minutos.") : "Pedido negado."; S.msgTipo = "ok";
+      if (abrir){ var msg = S.msg; await abrirUsina(abrir); S.msg = msg; S.msgTipo = "ok"; desenhar(); }
+      else await recarregar(false);
     } catch (e) { S.msg = erroTxt(e); S.msgTipo = "bad"; desenhar(); }
   }
   async function abrirUsina(id){
@@ -550,7 +553,8 @@
     else if (a === "filtro"){ S.filtro = S.filtro === b.dataset.k ? "todas" : b.dataset.k; desenhar(); }
     else if (a === "abrir") abrirUsina(b.dataset.u);
     else if (a === "voltar"){ S.usinaSel = null; S.msg = ""; S.sujo = false; recarregar(true); }
-    else if (a === "aprovar") { S.usinaSel = S.usinaSel; decidir(b.dataset.id, true); }
+    else if (a === "aprovar") decidir(b.dataset.id, true);
+    else if (a === "aprovar-abrir") decidir(b.dataset.id, true, b.dataset.u);
     else if (a === "negar"){ if (S.confirmaNegar !== b.dataset.id){ S.confirmaNegar = b.dataset.id; desenhar(); } else decidir(b.dataset.id, false); }
   });
 

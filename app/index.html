@@ -5406,6 +5406,8 @@
     // encarregados
     h += '<div class="adm-sub">Encarregados</div>';
     h += '<div class="adm-pad faint" style="padding-top:0">O cadastro dos encarregados e das usinas de cada um fica em <b>Dados › Base de Dados</b>. Aqui você só gera e desativa as chaves.</div>';
+    var semChaveEnc = C.encarregados.filter(function(e){ return e.ativo && !e.chave; }).length;
+    h += '<div class="adm-pad"><button class="btn-ghost" data-cact="lote-enc"' + (semChaveEnc ? "" : " disabled") + '>Gerar chaves dos ' + semChaveEnc + ' encarregado(s) sem chave</button></div>';
     if (!C.encarregados.length) h += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda (cadastre em Base de Dados).</div>';
     else {
       h += '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Encarregado</th><th>Usinas</th><th>Chave</th><th></th></tr></thead><tbody>';
@@ -5470,6 +5472,12 @@
       var ls = (r5.data || []).map(function(x){ return { rotulo: "Usina " + x.usina, chave: x.chave }; });
       ADM.revela = { titulo: ls.length + " chave(s) de usina geradas", linhas: ls }; ADM.msg = ""; await admChavesRecarregar(); admRender();
       var bx2 = document.querySelector(".adm-key-box"); if (bx2) bx2.scrollIntoView({ block: "start" });
+    } else if (a === "lote-enc"){
+      var r7 = await sb.rpc("admin_chave_gerar_lote_encarregados");
+      if (r7.error) return falha(r7.error);
+      var le = (r7.data || []).map(function(x){ return { rotulo: "Encarregado " + x.encarregado, chave: x.chave }; });
+      ADM.revela = { titulo: le.length + " chave(s) de encarregado geradas", linhas: le }; ADM.msg = ""; await admChavesRecarregar(); admRender();
+      var bx3 = document.querySelector(".adm-key-box"); if (bx3) bx3.scrollIntoView({ block: "start" });
     } else if (a === "chave-off"){
       if (ADM.sureKey !== "off:" + b.dataset.cid){ ADM.sureKey = "off:" + b.dataset.cid; b.disabled = false; b.textContent = "Confirmar desativar"; return; }
       ADM.sureKey = null;

@@ -134,6 +134,9 @@
   .aut-item .info b{display:block; font-size:13.5px;}
   .aut-item .info span{font-size:12px; color:var(--text-muted);}
   .voltar{margin-bottom:14px;}
+  .pick{display:flex; flex-wrap:wrap; gap:10px; padding:14px 18px; align-items:center;}
+  .pick select{flex:1 1 260px; min-width:0; height:40px; background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:0 10px; font-size:14px; font-family:inherit;}
+  .pick .btn-primary{flex:0 0 auto;}
   .centro{padding:30px 18px; text-align:center; color:var(--text-muted);}
 
   #carregando{position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; background:rgba(7,10,16,.7); color:var(--text-muted); font-size:13px;}
@@ -265,7 +268,7 @@
     var d = await chamar("solic_k_estado", { p_chave: chave });
     if (d.erro){ msgLogin(ERROS[d.erro] || "Não foi possível entrar.", true); guardar(""); return false; }
     S.chave = chave; S.tipo = d.tipo; guardar(chave);
-    S.offset = 0; S.usinaSel = null; S.msg = ""; S.sujo = false; S.filtro = "todas";
+    S.offset = 0; S.usinaSel = null; S.selUsina = ""; S.msg = ""; S.sujo = false; S.filtro = "todas";
     aplicar(d, true);
     $("login").hidden = true; $("app").hidden = false;
     window.scrollTo(0, 0);
@@ -453,6 +456,16 @@
       if (S.filtro === "aguard") return u.autorizacao && u.autorizacao.status === "pendente";
       return true;
     });
+    if (us.length){
+      var semR = us.filter(function(u){ return u.situacao === "nao_respondeu"; }), jaR = us.filter(function(u){ return u.situacao !== "nao_respondeu"; });
+      var opt = function(u){ return '<option value="' + esc(u.usina_id) + '"' + (S.selUsina === u.usina_id ? " selected" : "") + '>' + esc(u.usina) + '</option>'; };
+      h += '<div class="card"><div class="card-head"><div><h2>Fazer o pedido por uma usina</h2><p>A usina não pediu a tempo? Escolha a usina e preencha o pedido por ela — <b>não precisa de autorização</b>.' +
+        (p.prazo_aberto === false ? ' Como o prazo já encerrou, o pedido fica marcado como “fora do prazo”.' : "") + '</p></div></div>' +
+        '<div class="pick"><select id="selUsina" aria-label="Escolha a usina"><option value="">Escolha a usina…</option>' +
+        (semR.length ? '<optgroup label="Ainda não pediram (' + semR.length + ')">' + semR.map(opt).join("") + '</optgroup>' : "") +
+        (jaR.length ? '<optgroup label="Já responderam (alterar o pedido)">' + jaR.map(opt).join("") + '</optgroup>' : "") +
+        '</select><button type="button" class="btn-primary inline" data-act="abrir-sel" ' + (S.selUsina ? "" : "disabled") + '>Preencher pedido</button></div></div>';
+    }
     h += '<div class="card"><div class="card-head"><div><h2>Suas usinas</h2><p>' + us.length + ' usina(s)' + (S.filtro !== "todas" ? ' · filtro ativo <button class="btn" style="padding:2px 8px;margin-left:6px" data-act="filtro" data-k="todas">limpar</button>' : "") + '</p></div></div>';
     if (!us.length) h += '<div class="centro">Nenhuma usina foi vinculada a você ainda. Fale com a Logística.</div>';
     else if (!lista.length) h += '<div class="centro">Nenhuma usina neste filtro.</div>';
@@ -538,7 +551,9 @@
     S.linhas[+t.dataset.i][t.dataset.f] = t.value; S.sujo = true; marcarErro(null);
   });
   $("conteudo").addEventListener("change", function(ev){
-    var t = ev.target; if (t.dataset.i === undefined) return;
+    var t = ev.target;
+    if (t.id === "selUsina"){ S.selUsina = t.value; var bt = document.querySelector('[data-act="abrir-sel"]'); if (bt) bt.disabled = !t.value; return; }
+    if (t.dataset.i === undefined) return;
     S.linhas[+t.dataset.i][t.dataset.f] = t.value; S.sujo = true;
   });
   $("conteudo").addEventListener("toggle", function(ev){ if (ev.target.classList && ev.target.classList.contains("hist")) S.abertoHist = ev.target.open; }, true);
@@ -552,6 +567,7 @@
     else if (a === "pedir") pedirAutorizacao();
     else if (a === "filtro"){ S.filtro = S.filtro === b.dataset.k ? "todas" : b.dataset.k; desenhar(); }
     else if (a === "abrir") abrirUsina(b.dataset.u);
+    else if (a === "abrir-sel"){ if (S.selUsina) abrirUsina(S.selUsina); }
     else if (a === "voltar"){ S.usinaSel = null; S.msg = ""; S.sujo = false; recarregar(true); }
     else if (a === "aprovar") decidir(b.dataset.id, true);
     else if (a === "aprovar-abrir") decidir(b.dataset.id, true, b.dataset.u);

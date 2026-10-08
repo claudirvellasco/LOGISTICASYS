@@ -155,6 +155,16 @@
   .adm-grid-us{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:6px 14px; margin-top:10px;}
   .adm-us{display:flex; gap:7px; align-items:center; font-size:12.5px; text-transform:none; letter-spacing:0; font-weight:500; color:var(--text);}
   .adm-edit td{background:var(--surface-2); white-space:normal !important;}
+  .adm-kbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding-top:4px;}
+  .adm-kbar input[type=search], .adm-kbar select{background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:8px 11px; font-size:13px; font-family:inherit; min-width:0;}
+  .adm-kbar input[type=search]{flex:1 1 260px; max-width:420px;} .adm-kbar select{flex:0 1 220px;}
+  .adm-kcount{font-size:12px; white-space:nowrap;} .adm-kextra{margin-left:auto;}
+  .adm-kwrap{height:392px; max-height:none !important; overflow:auto;}
+  .adm-ktbl{table-layout:fixed; width:100%; min-width:900px;}
+  .adm-ktbl td{overflow-wrap:anywhere;}
+  #admChavesCard .adm-ktbl .adm-acoes{min-width:0;}
+  .adm-kvazio{padding:22px 18px; text-align:center;}
+  .adm-kcode{display:inline-block; margin-top:6px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px; letter-spacing:.04em; background:var(--surface); border:1px solid var(--border-strong); padding:3px 7px; border-radius:6px; user-select:all;}
   /* ---------- Shell ---------- */
   #app{display:none; min-height:100vh;}
   #app.active{display:flex;}
@@ -5246,7 +5256,7 @@
      As regras valem no BANCO (funções admin_*): esta tela só chama elas.
      Ninguém além do administrador troca senha — nem a própria.
      ====================================================================== */
-  var ADM = { usuarios: [], hist: [], alvo: null, msg: "", ruim: false, carregando: false, ch: null, revela: null, sureKey: null };
+  var ADM = { usuarios: [], hist: [], alvo: null, msg: "", ruim: false, carregando: false, ch: null, revela: null, sureKey: null, f: { enc: { q: "", s: "" }, us: { q: "", s: "" } } };
   var ADM_REGRAS = [
     ["12 caracteres ou mais (máx. 72)", function(s){ return s.length >= 12 && s.length <= 72; }],
     ["uma letra minúscula", function(s){ return /[a-z]/.test(s); }],
@@ -5292,7 +5302,7 @@
     return "—";
   }
   var ADM_ACAO = { RESET_SENHA: "Senha redefinida", ALTERAR_PAPEL: "Papel alterado", ATIVAR: "Conta ativada", DESATIVAR: "Conta desativada",
-    GERAR_CHAVE: "Chave de acesso gerada", GERAR_CHAVES_LOTE: "Chaves geradas em lote", DESATIVAR_CHAVE: "Chave de acesso desativada", ENCARREGADO: "Encarregado salvo", ENCARREGADO_USINAS: "Usinas do encarregado alteradas" };
+    GERAR_CHAVE: "Chave de acesso gerada", GERAR_CHAVES_LOTE: "Chaves geradas em lote", DESATIVAR_CHAVE: "Chave de acesso desativada", VER_CHAVE: "Chave de acesso copiada", ENCARREGADO: "Encarregado salvo", ENCARREGADO_USINAS: "Usinas do encarregado alteradas" };
   var ADM_CHECK = [
     ["Alta", "painel", "Cadastro público desligado", "No painel do Supabase: Authentication → Sign In / Providers → desmarque “Allow new users to sign up”. Hoje uma conta nova não enxerga nenhum dado (o banco exige ser membro), mas desligar fecha a porta de vez."],
     ["Alta", "feito", "Senha só pelo administrador", "O sistema não oferece troca de senha ao usuário: só o administrador redefine (aqui no Adm) e as sessões antigas caem na hora. Observação: o Supabase ainda permitiria, tecnicamente, que alguém logado chamasse a API para trocar a própria senha — isso não abre dados de ninguém e você redefine em seguida."],
@@ -5346,6 +5356,7 @@
         return '<div class="adm-ck"><div class="adm-ck-top"><b>' + esc(c[2]) + '</b><span class="badge ' + st[0] + '">' + st[1] + '</span><span class="adm-imp adm-imp-' + esc(c[0]) + '">Importância ' + esc(c[0]) + '</span></div><p>' + esc(c[3]) + '</p></div>';
       }).join("") + '</div></div>';
     v.innerHTML = h;
+    admKFiltrar("enc"); admKFiltrar("us");
     if (alvo) admRegras();
   }
   function admRegras(){
@@ -5391,49 +5402,76 @@
     if (!c) return '<span class="badge danger">sem chave</span>';
     return '<span class="badge success">ativa</span> <span class="faint">…' + esc(c.final) + ' · criada ' + esc(admFmt(c.criada_em)) + ' · ' + (c.ultimo_uso ? "último uso " + esc(admFmt(c.ultimo_uso)) : "nunca usada") + '</span>';
   }
+  function admNorm(s){ return String(s == null ? "" : s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(); }
+  var ADM_KFILTROS = [["", "Todas as situações"], ["com", "Com chave"], ["sem", "Sem chave"], ["nunca", "Nunca usada"], ["usada", "Já usada"], ["antiga", "Chave antiga (sem cópia)"]];
+  function admKBarra(kind, ph, extra){
+    var f = ADM.f[kind];
+    return '<div class="adm-pad adm-kbar"><input type="search" class="adm-kf" data-kf="' + kind + '" placeholder="' + esc(ph) + '" value="' + esc(f.q) + '" aria-label="Buscar" autocomplete="off">' +
+      '<select class="adm-kf" data-ks="' + kind + '" aria-label="Filtrar pela situação da chave">' + ADM_KFILTROS.map(function(o){ return '<option value="' + o[0] + '"' + (o[0] === f.s ? " selected" : "") + ">" + o[1] + "</option>"; }).join("") + '</select>' +
+      '<span class="faint adm-kcount" data-kcount="' + kind + '"></span>' + (extra ? '<span class="adm-kextra">' + extra + '</span>' : "") + '</div>';
+  }
+  function admKTabela(kind, cols, linhas){
+    return '<div class="table-wrap adm-kwrap"><table class="adm-tbl adm-ktbl"><colgroup><col style="width:21%"><col style="width:23%"><col style="width:27%"><col style="width:29%"></colgroup><thead><tr><th>' + cols[0] + '</th><th>' + cols[1] + '</th><th>Chave</th><th>Ações</th></tr></thead><tbody>' + linhas.join("") + '</tbody></table>' +
+      '<div class="adm-kvazio faint" data-kvazio="' + kind + '" style="display:none">Nenhum resultado para esse filtro.</div></div>';
+  }
+  function admKLinha(kind, o){
+    var c = o.chave, st = c ? "com " + (c.ultimo_uso ? "usada" : "nunca") + (c.copiavel === false ? " antiga" : "") : "sem";
+    if (o.off) st += " " + o.off;
+    var q = admNorm(o.nome + " " + o.rel + " " + (c ? c.final : ""));
+    return '<tr data-k="' + kind + '" ' + o.attr + ' data-q="' + esc(q) + '" data-st="' + st + '"><td class="cell-strong">' + o.c1 + '</td><td class="muted">' + o.c2 + '</td>' +
+      '<td>' + admChaveInfo(c) + '<div class="adm-kmanual" style="display:none"></div></td>' +
+      '<td><div class="adm-acoes">' +
+      (c ? '<button class="btn-ghost" data-cact="copiar-chave" data-cid="' + esc(c.id) + '"' + (c.copiavel === false ? ' disabled title="Chave antiga (gerada antes da cópia existir): gere uma nova para poder copiar."' : "") + '>Copiar chave</button>' : "") +
+      (o.gerar ? '<button class="btn-ghost" data-cact="' + o.gerar + '">' + (c ? (o.sure ? "Confirmar: gerar nova" : "Gerar nova chave") : "Gerar chave") + '</button>' : "") +
+      (c ? '<button class="btn-ghost" data-cact="chave-off" data-cid="' + esc(c.id) + '">Desativar chave</button>' : "") + '</div></td></tr>';
+  }
+  function admKFiltrar(kind){
+    var card = el("admChavesCard"); if (!card) return;
+    var f = ADM.f[kind], q = admNorm(f.q).trim(), n = 0;
+    var rows = card.querySelectorAll('tbody tr[data-k="' + kind + '"]');
+    rows.forEach(function(tr){
+      var ok = (!q || tr.dataset.q.indexOf(q) >= 0) && (!f.s || (" " + tr.dataset.st + " ").indexOf(" " + f.s + " ") >= 0);
+      tr.style.display = ok ? "" : "none"; if (ok) n++;
+    });
+    var c = card.querySelector('[data-kcount="' + kind + '"]'); if (c) c.textContent = n === rows.length ? rows.length + " no total" : n + " de " + rows.length;
+    var v = card.querySelector('[data-kvazio="' + kind + '"]'); if (v) v.style.display = rows.length && !n ? "" : "none";
+  }
+  el("view-adm").addEventListener("input", function(ev){ var k = ev.target.dataset && ev.target.dataset.kf; if (k){ ADM.f[k].q = ev.target.value; admKFiltrar(k); } });
+  el("view-adm").addEventListener("change", function(ev){ var k = ev.target.dataset && ev.target.dataset.ks; if (k){ ADM.f[k].s = ev.target.value; admKFiltrar(k); } });
   function admChavesHtml(){
     var C = ADM.ch; if (!C) return "";
-    var h = '<div class="card" style="margin-bottom:16px;" id="admChavesCard"><div class="card-head"><div><h2>🔑 Chaves de acesso — Solicitação de Cimento</h2><p>Um único link para todas as usinas. Cada usina entra só com a chave dela; cada encarregado, com a dele (vê, autoriza e preenche as usinas vinculadas). A chave aparece uma única vez, ao gerar.</p></div></div>';
+    var h = '<div class="card" style="margin-bottom:16px;" id="admChavesCard"><div class="card-head"><div><h2>🔑 Chaves de acesso — Solicitação de Cimento</h2><p>Um único link para todas as usinas. Cada usina entra só com a chave dela; cada encarregado, com a dele (vê, autoriza e preenche as usinas vinculadas). A chave fica guardada cifrada: use <b>Copiar chave</b> na linha sempre que precisar (só o administrador copia, e cada cópia fica registrada no histórico).</p></div></div>';
     if (ADM.msg && ADM.where === "ch") h += '<div class="adm-msg ' + (ADM.ruim ? "bad" : "ok") + '" role="status">' + esc(ADM.msg) + '</div>';
     h += '<div class="adm-pad"><div class="adm-pw"><input type="text" id="admLinkSol" readonly value="' + esc(solLink()) + '" aria-label="Link das usinas"><button type="button" class="btn-ghost" data-cact="copiar" data-txt="' + esc(solLink()) + '">Copiar link</button></div></div>';
     if (ADM.revela){
       var R = ADM.revela;
-      h += '<div class="adm-pad"><div class="adm-key-box" role="alert"><b>' + esc(R.titulo) + '</b><p>Copie agora e envie por um canal seguro. <u>Esta chave não será mostrada de novo</u> (só o final fica guardado). Se perder, gere outra.</p>' +
+      h += '<div class="adm-pad"><div class="adm-key-box" role="alert"><b>' + esc(R.titulo) + '</b><p>Copie e envie por um canal seguro. Depois, você ainda pode copiar de novo pelo botão <b>Copiar chave</b> da linha.</p>' +
         R.linhas.map(function(l){ return '<div class="adm-key-row"><span>' + esc(l.rotulo) + '</span><code>' + esc(l.chave) + '</code><button type="button" class="btn-ghost" data-cact="copiar" data-txt="' + esc(l.chave) + '">Copiar</button></div>'; }).join("") +
         (R.linhas.length > 1 ? '<div class="adm-acoes" style="margin-top:8px"><button type="button" class="btn-ghost" data-cact="copiar" data-txt="' + esc(R.linhas.map(function(l){ return l.rotulo + ": " + l.chave; }).join("\n")) + '">Copiar todas</button></div>' : "") +
         '<div class="adm-acoes" style="margin-top:8px"><button type="button" class="btn-primary btn-inline" data-cact="fechar">Já copiei, fechar</button></div></div></div>';
     }
-    // encarregados
-    h += '<div class="adm-sub">Encarregados</div>';
-    h += '<div class="adm-pad faint" style="padding-top:0">O cadastro dos encarregados e das usinas de cada um fica em <b>Dados › Base de Dados</b>. Aqui você só gera e desativa as chaves.</div>';
+    // filtros + tabelas (encarregados e usinas usam o mesmo molde, com o mesmo tamanho)
     var semChaveEnc = C.encarregados.filter(function(e){ return e.ativo && !e.chave; }).length;
-    h += '<div class="adm-pad"><button class="btn-ghost" data-cact="lote-enc"' + (semChaveEnc ? "" : " disabled") + '>Gerar chaves dos ' + semChaveEnc + ' encarregado(s) sem chave</button></div>';
-    if (!C.encarregados.length) h += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda (cadastre em Base de Dados).</div>';
-    else {
-      h += '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Encarregado</th><th>Usinas</th><th>Chave</th><th></th></tr></thead><tbody>';
-      C.encarregados.forEach(function(e){
-        var us = (e.usinas || []).map(function(id){ var u = C.usinas.find(function(x){ return x.usina_id === id; }); return u ? u.usina : "?"; });
-        var sure = ADM.sureKey === "e:" + e.id;
-        h += '<tr data-eid="' + esc(e.id) + '"><td class="cell-strong">' + esc(e.nome) + (e.ativo ? "" : ' <span class="badge danger">desativado</span>') + '</td>' +
-          '<td class="muted" style="white-space:normal;min-width:180px">' + (us.length ? esc(us.join(", ")) : '<span class="faint">nenhuma</span>') + '</td><td style="white-space:normal">' + admChaveInfo(e.chave) + '</td>' +
-          '<td><div class="adm-acoes">' +
-          (e.ativo ? '<button class="btn-ghost" data-cact="enc-chave">' + (e.chave ? (sure ? "Confirmar: gerar nova" : "Gerar nova chave") : "Gerar chave") + '</button>' : "") +
-          (e.chave ? '<button class="btn-ghost" data-cact="chave-off" data-cid="' + esc(e.chave.id) + '">Desativar chave</button>' : "") + '</div></td></tr>';
-      });
-      h += '</tbody></table></div>';
-    }
-    // usinas
     var semChave = C.usinas.filter(function(u){ return !u.chave; }).length;
+    h += '<div class="adm-sub">Encarregados <span class="faint">(' + C.encarregados.length + ')</span></div>';
+    h += '<div class="adm-pad faint" style="padding-top:0">O cadastro dos encarregados e das usinas de cada um fica em <b>Dados › Base de Dados</b>. Aqui você gera, copia e desativa as chaves.</div>';
+    h += admKBarra("enc", "Buscar encarregado, usina ou final da chave…", '<button class="btn-ghost" data-cact="lote-enc"' + (semChaveEnc ? "" : " disabled") + '>Gerar chaves dos ' + semChaveEnc + ' encarregado(s) sem chave</button>');
+    if (!C.encarregados.length) h += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda (cadastre em Base de Dados).</div>';
+    else h += admKTabela("enc", ["Encarregado", "Usinas"], C.encarregados.map(function(e){
+      var us = (e.usinas || []).map(function(id){ var u = C.usinas.find(function(x){ return x.usina_id === id; }); return u ? u.usina : "?"; });
+      return admKLinha("enc", { attr: 'data-eid="' + esc(e.id) + '"', nome: e.nome, rel: us.join(", "), chave: e.chave,
+        c1: esc(e.nome) + (e.ativo ? "" : ' <span class="badge danger">desativado</span>'),
+        c2: us.length ? esc(us.join(", ")) : '<span class="faint">nenhuma</span>',
+        gerar: e.ativo ? "enc-chave" : "", sure: ADM.sureKey === "e:" + e.id, off: !e.ativo ? "off" : "" });
+    }));
     h += '<div class="adm-sub">Usinas <span class="faint">(' + C.usinas.length + ')</span></div>';
-    h += '<div class="adm-pad"><button class="btn-ghost" data-cact="lote"' + (semChave ? "" : " disabled") + '>Gerar chaves das ' + semChave + ' usina(s) sem chave</button></div>';
-    h += '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Usina</th><th>Encarregado</th><th>Chave</th><th></th></tr></thead><tbody>';
-    C.usinas.forEach(function(u){
-      var sure = ADM.sureKey === "u:" + u.usina_id;
-      h += '<tr data-usid="' + esc(u.usina_id) + '"><td class="cell-strong">' + esc(u.usina) + '</td><td class="muted">' + (u.encarregado ? esc(u.encarregado) : '<span class="faint">sem encarregado</span>') + '</td><td style="white-space:normal">' + admChaveInfo(u.chave) + '</td>' +
-        '<td><div class="adm-acoes"><button class="btn-ghost" data-cact="us-chave">' + (u.chave ? (sure ? "Confirmar: gerar nova" : "Gerar nova chave") : "Gerar chave") + '</button>' +
-        (u.chave ? '<button class="btn-ghost" data-cact="chave-off" data-cid="' + esc(u.chave.id) + '">Desativar chave</button>' : "") + '</div></td></tr>';
-    });
-    h += '</tbody></table></div></div>';
+    h += admKBarra("us", "Buscar usina, encarregado ou final da chave…", '<button class="btn-ghost" data-cact="lote"' + (semChave ? "" : " disabled") + '>Gerar chaves das ' + semChave + ' usina(s) sem chave</button>');
+    h += admKTabela("us", ["Usina", "Encarregado"], C.usinas.map(function(u){
+      return admKLinha("us", { attr: 'data-usid="' + esc(u.usina_id) + '"', nome: u.usina + " " + (u.sigla || ""), rel: u.encarregado || "", chave: u.chave,
+        c1: esc(u.usina), c2: u.encarregado ? esc(u.encarregado) : '<span class="faint">sem encarregado</span>',
+        gerar: "us-chave", sure: ADM.sureKey === "u:" + u.usina_id, off: "" });
+    }));
+    h += '</div>';
     return h;
   }
   async function admChavesRecarregar(){
@@ -5447,6 +5485,7 @@
       try { var t = document.createElement("textarea"); t.value = txt; t.style.position = "fixed"; t.style.opacity = "0"; document.body.appendChild(t); t.select(); ok = document.execCommand("copy"); t.remove(); } catch (e2) { }
     }
     if (b){ var o = b.dataset.rot || b.textContent; b.dataset.rot = o; b.textContent = ok ? "Copiado ✔" : "Selecione e copie"; setTimeout(function(){ b.textContent = o; }, 1800); }
+    return ok;
   }
   el("view-adm").addEventListener("click", async function(ev){
     var b = ev.target.closest && ev.target.closest("[data-cact]"); if (!b || b.disabled) return;
@@ -5455,6 +5494,20 @@
     var falha = function(e){ ADM.msg = dbErr(e); ADM.ruim = true; ADM.sureKey = null; admRender(); };
     if (a === "copiar"){ admCopiar(b.dataset.txt || "", b); return; }
     if (a === "fechar"){ ADM.revela = null; admRender(); return; }
+    if (a === "copiar-chave"){
+      var rot0 = b.dataset.rot || b.textContent; b.dataset.rot = rot0; b.disabled = true; b.textContent = "…";
+      var rr = await sb.rpc("admin_chave_revelar", { p_chave_id: b.dataset.cid });
+      b.disabled = false;
+      if (rr.error){ b.textContent = rot0; ADM.msg = dbErr(rr.error); ADM.ruim = true; admRender(); return; }
+      var chv = String(rr.data), copiou = false;
+      try { await navigator.clipboard.writeText(chv); copiou = true; } catch (e) {
+        try { var ta = document.createElement("textarea"); ta.value = chv; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.select(); copiou = document.execCommand("copy"); ta.remove(); } catch (e2) { }
+      }
+      var man = tr && tr.querySelector(".adm-kmanual");
+      if (copiou){ b.textContent = "Copiado ✔"; if (man) man.style.display = "none"; setTimeout(function(){ b.textContent = rot0; }, 1800); }
+      else { b.textContent = rot0; if (man){ man.innerHTML = '<code class="adm-kcode">' + esc(chv) + '</code>'; man.style.display = ""; } }
+      return;
+    }
     b.disabled = true;
     if (a === "enc-chave" || a === "us-chave"){
       var tipo = a === "enc-chave" ? "encarregado" : "usina", alvo = a === "enc-chave" ? eid : usid, chaveKey = (a === "enc-chave" ? "e:" : "u:") + alvo;

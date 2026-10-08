@@ -5935,15 +5935,16 @@
     var nome = {}; D.usinas.forEach(function(u){ nome[u.usina_id] = u.usina; });
     if (!D.encarregados.length) h += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda.</div>';
     else {
-      h += '<div class="table-wrap"><table class="adm-tbl enc-tbl"><thead><tr><th>Encarregado</th><th>Usinas</th>' + (pode ? '<th></th>' : "") + '</tr></thead><tbody>';
+      h += '<div class="table-wrap"><table class="adm-tbl enc-tbl"><thead><tr><th>Encarregado</th><th>Contato</th><th>Usinas</th>' + (pode ? '<th></th>' : "") + '</tr></thead><tbody>';
       D.encarregados.forEach(function(e){
         var us = (e.usinas || []).map(function(id){ return nome[id] || "?"; }).sort();
         h += '<tr data-eid="' + esc(e.id) + '"><td class="cell-strong">' + esc(e.nome) + (e.ativo ? "" : ' <span class="badge danger">desativado</span>') + '</td>' +
+          '<td class="muted" style="white-space:normal;font-size:12px">' + (e.whatsapp ? esc(e.whatsapp) : '<span class="faint">sem WhatsApp</span>') + '<br>' + (e.email ? esc(e.email) : '<span class="faint">sem e-mail</span>') + '</td>' +
           '<td class="muted" style="white-space:normal">' + (us.length ? '<b>' + us.length + '</b> · ' + esc(us.join(", ")) : '<span class="faint">nenhuma usina</span>') + '</td>' +
           (pode ? '<td><div class="adm-acoes"><button class="btn-ghost" data-enc="usinas">' + (ENC.edit === e.id ? "Fechar" : "Associar usinas") + '</button>' +
             '<button class="btn-ghost" data-enc="ativo">' + (e.ativo ? (ENC.sure === e.id ? "Confirmar desativar" : "Desativar") : "Ativar") + '</button></div></td>' : "") + '</tr>';
         if (pode && ENC.edit === e.id){
-          h += '<tr class="adm-edit"><td colspan="3"><div class="adm-pad"><b>Usinas de ' + esc(e.nome) + '</b> <span class="faint">(marcar uma usina de outro encarregado passa ela para este)</span><div class="adm-grid-us">' +
+          h += '<tr class="adm-edit"><td colspan="4"><div class="adm-pad"><b>Usinas de ' + esc(e.nome) + '</b> <span class="faint">(marcar uma usina de outro encarregado passa ela para este)</span><div class="adm-grid-us">' +
             D.usinas.map(function(u){
               var outro = u.encarregado_id && u.encarregado_id !== e.id ? D.encarregados.find(function(x){ return x.id === u.encarregado_id; }) : null;
               return '<label class="adm-us"><input type="checkbox" data-encu="' + esc(u.usina_id) + '"' + (ENC.sel.indexOf(u.usina_id) >= 0 ? " checked" : "") + '> ' + esc(u.usina) + (outro ? ' <span class="faint">(' + esc(outro.nome) + ')</span>' : "") + '</label>';

@@ -140,6 +140,19 @@
   .nav-badge[hidden]{display:none;}
   .sol-barra{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
   #solDrPanel{left:auto; right:0;}
+  .card.sol-grupo{border-left:4px solid var(--sg);}
+  .card.sol-grupo .card-head{background:var(--sgs);}
+  .card.sol-grupo .card-head h2{color:var(--sg);}
+  .sol-grupo.prog{--sg:var(--success); --sgs:var(--success-soft);}
+  .sol-grupo.nprog{--sg:var(--warning); --sgs:var(--warning-soft);}
+  .sol-grupo .table-wrap{max-height:520px; overflow:auto;}
+  .sol-cargas{font-size:11.5px; color:var(--text-muted); line-height:1.5; white-space:normal;}
+  .sol-cargas b{font-family:ui-monospace,Menlo,Consolas,monospace; color:var(--text); letter-spacing:.03em;}
+  .sol-alt{display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:space-between; padding:12px 18px; border-top:1px solid var(--border);}
+  .sol-alt .info{flex:1 1 320px; min-width:0; font-size:12.5px; color:var(--text-muted); line-height:1.5;}
+  .sol-alt .info b{color:var(--text); font-size:13.5px;}
+  .prog-tag.alt{background:var(--danger-soft); color:var(--danger); border:1px solid var(--danger); cursor:help;}
+  .prog-tag.altp{background:var(--warning-soft); color:var(--warning); border:1px solid var(--warning); cursor:help;}
   .sol-barra input[type=date]{background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:6px 9px; font-size:12.5px; font-family:inherit; color-scheme:dark;}
   .sol-nota{font-size:12.5px; color:var(--text-muted); padding-top:12px; padding-bottom:4px;}
   .sol-tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; padding:10px 18px 18px;}
@@ -4368,7 +4381,7 @@
       '<div class="daterange"><button class="daterange-btn" id="dashDrBtn">📅 <span id="dashDrLabel"></span> <span style="opacity:.6;">▾</span></button>' +
       '<div class="daterange-panel" id="dashDrPanel"></div></div></div>' +
       '<div class="filter-count" id="dashInfo"></div></div></div>' +
-      '<div id="dashTop"></div><div id="dashKpis"></div><div id="dashCharts"></div><div id="dashTip" class="dash-tip" role="tooltip"></div>';
+      '<div id="dashTop"></div><div id="dashKpis"></div><div id="dashCharts"></div><div id="dashAlt"></div><div id="dashTip" class="dash-tip" role="tooltip"></div>';
     dashPicker = makeRangePicker({btn:"dashDrBtn", panel:"dashDrPanel", label:"dashDrLabel"}, paintDashboard);
     dashPicker.state.rangeStart = new Date(TODAY.getFullYear(), TODAY.getMonth(), 1);
     dashPicker.state.rangeEnd = new Date(TODAY);
@@ -4385,6 +4398,41 @@
     });
     root.addEventListener("mouseleave", function(){ tip.style.display = "none"; });
     paintDashboard();
+  }
+  // Registro de alterações em pedidos já programados (pedidas no período do Dashboard)
+  var DASH_ALT = { seq: 0 };
+  async function dashAltCarregar(){
+    var box = el("dashAlt"); if (!box || !dashPicker || !sb || !ME) return;
+    var st = dashPicker.state, lo = st.rangeStart < st.rangeEnd ? st.rangeStart : st.rangeEnd, hi = st.rangeStart < st.rangeEnd ? st.rangeEnd : st.rangeStart;
+    var de = toISO(lo), ate = toISO(hi), meu = ++DASH_ALT.seq;
+    var r; try { r = await sb.rpc("solic_alteracoes_listar", { p_de: de, p_ate: ate }); } catch (e) { r = { error: e }; }
+    if (meu !== DASH_ALT.seq || !el("dashAlt")) return;
+    if (r.error || !Array.isArray(r.data)){ el("dashAlt").innerHTML = ""; return; }
+    var dia = function(x){ var d = new Date(x); return d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }); };
+    var lista = r.data.filter(function(a){ var d0 = dia(a.pedida_em); return d0 >= de && d0 <= ate; });
+    var porU = {};
+    lista.forEach(function(a){
+      var u = porU[a.usina] = porU[a.usina] || { usina: a.usina, tot: 0, aprovada: 0, negada: 0, pendente: 0, sem_efeito: 0, cancelar: 0, alterar: 0, substituir: 0 };
+      u.tot++; u[a.status] = (u[a.status] || 0) + 1; u[a.tipo] = (u[a.tipo] || 0) + 1;
+    });
+    var us = Object.keys(porU).map(function(k){ return porU[k]; }).sort(function(a, b){ return b.tot - a.tot || (a.usina < b.usina ? -1 : 1); });
+    var c = { tot: lista.length, ap: 0, ng: 0, pd: 0 };
+    lista.forEach(function(a){ if (a.status === "aprovada") c.ap++; else if (a.status === "negada") c.ng++; else if (a.status === "pendente") c.pd++; });
+    var kpi = function(t, v, sub, cor){ return '<div class="dkpi" style="--k:var(--' + cor + ');"><div class="dkpi-t">' + esc(t) + '</div><div class="dkpi-v">' + v + '</div><div class="dkpi-s">' + sub + '</div></div>'; };
+    var h = '<div class="card" style="margin-top:16px;"><div class="card-head"><div><h2>🔁 Alterações em pedidos já programados</h2><p>Pedidos de cancelamento, alteração ou troca de material feitos pelas usinas <b>depois</b> que a carga já estava programada — pedidos no período escolhido acima. Cada um é risco de carreta errada ou parada.</p></div></div>';
+    h += '<div class="adm-pad"><div class="dkpi-grid">' + kpi("Pedidas", c.tot, "no período", "info") + kpi("Aprovadas", c.ap, "o pedido da usina mudou", "danger") + kpi("Negadas", c.ng, "ficou como estava", "success") + kpi("Aguardando", c.pd, "decidir em Solicitações", "warning") + '</div></div>';
+    if (!us.length) h += '<div class="adm-pad faint">Nenhuma alteração pedida no período. 👍</div>';
+    else {
+      h += '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Usina</th><th>Pedidas</th><th>Aprovadas</th><th>Negadas</th><th>Aguardando</th><th>Cancelamentos</th><th>Alterações</th><th>Trocas de material</th></tr></thead><tbody>' +
+        us.map(function(u){ return '<tr><td class="cell-strong">' + esc(u.usina) + '</td><td><b>' + u.tot + '</b></td><td>' + (u.aprovada || 0) + '</td><td>' + (u.negada || 0) + '</td><td>' + (u.pendente || 0) + '</td><td>' + (u.cancelar || 0) + '</td><td>' + (u.alterar || 0) + '</td><td>' + (u.substituir || 0) + '</td></tr>'; }).join("") +
+        '</tbody></table></div>';
+      h += '<details style="padding:0 18px 14px"><summary style="cursor:pointer;padding:10px 0;font-weight:600;font-size:13px">Ver todas (' + lista.length + ')</summary><div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Pedida em</th><th>Usina</th><th>Entrega</th><th>O quê</th><th>Motivo</th><th>Situação</th></tr></thead><tbody>' +
+        lista.map(function(a){
+          var stx = { pendente: '<span class="badge warning">Aguardando</span>', aprovada: '<span class="badge danger">Aprovada</span>', negada: '<span class="badge success">Negada</span>', sem_efeito: '<span class="badge neutral">Sem efeito</span>' }[a.status] || esc(a.status);
+          return '<tr><td class="muted" style="white-space:nowrap">' + esc(solQuando(a.pedida_em)) + '</td><td class="cell-strong">' + esc(a.usina) + '</td><td>' + esc(solDiaBR(a.data_desejada)) + '</td><td>' + solTxtAlt(a) + '</td><td class="muted" style="white-space:normal;min-width:200px">' + esc(a.motivo) + '</td><td>' + stx + (a.decidida_por ? '<br><span class="faint">' + esc(a.decidida_por) + '</span>' : "") + '</td></tr>';
+        }).join("") + '</tbody></table></div></details>';
+    }
+    el("dashAlt").innerHTML = h + '</div>';
   }
   function dashNiceMax(m){
     if (m <= 4) return 4;
@@ -4424,6 +4472,7 @@
     if (!P){
       el("dashTop").innerHTML = "";
       el("dashCharts").innerHTML = '<div class="notice"><h3>Nenhuma carga programada no período</h3><p>Escolha outro período. Só entram cargas com fábrica/material definidos na Programação.</p></div>';
+      dashAltCarregar();
       return;
     }
 
@@ -4559,6 +4608,7 @@
         '<div class="card dash-card"><div class="card-head"><div><h2>Volume por fornecedor</h2><p>Cargas programadas por fábrica (até 10)</p></div>'+legenda+'</div><div class="dbars">'+porFornecedor+'</div></div>' +
         '<div class="card dash-card"><div class="card-head"><div><h2>Onde estão as pendências</h2><p>Usinas com carga ainda não descarregada (até 10)</p></div>'+legenda+'</div><div class="dbars">'+porUsina+'</div></div>' +
       '</div>';
+    dashAltCarregar();
   }
 
   /* ---------------- Operações ---------------- */
@@ -6009,6 +6059,14 @@
       var sl = SOL_PROG[iso + "|" + solNorm(key)];
       if (sl && sl.length){ var s3 = document.createElement("span"); s3.className = "prog-tag sol"; s3.textContent = "📥 " + sl.map(function(x){ return x.material + " ×" + x.carretas; }).join(", ");
         s3.title = "Solicitado pela usina para este dia" + (sl.some(function(x){ return x.fora; }) ? " (inclui pedido fora do prazo — autorizado)" : "") + ". É só informação: a programação continua sendo preenchida por você."; td.appendChild(s3); }
+      (SOL_ALT_PROG[iso + "|" + solNorm(key)] || []).forEach(function(a){
+        var s4 = document.createElement("span"), ok = a.status === "aprovada";
+        s4.className = "prog-tag " + (ok ? "alt" : "altp");
+        var txt = solTxtAlt(a).replace(/<[^>]+>/g, "").replace(/&amp;/g, "&");
+        s4.textContent = (ok ? "⚠ Alterado após programar: " : "⏳ Alteração pedida: ") + txt;
+        s4.title = (ok ? "A Logística aprovou esta alteração pedida pela usina. Confira se a programação foi ajustada." : "A usina pediu esta alteração; decida em Cimento › Solicitações.") + " Motivo: " + (a.motivo || "");
+        td.appendChild(s4);
+      });
     });
   }
   async function progRefresh(){
@@ -6102,7 +6160,8 @@
   function solBadge(){
     var b = el("solBadge"); if (!b) return;
     var n = SOL.d ? (SOL.d.autorizacoes || []).filter(function(a){ return a.status === "pendente"; }).length : 0;
-    b.hidden = !n; b.textContent = n; b.title = n + " pedido(s) de autorização aguardando";
+    n += (SOL.alts || []).filter(function(a){ return a.status === "pendente"; }).length;
+    b.hidden = !n; b.textContent = n; b.title = n + " pedido(s) de autorização ou de alteração aguardando";
   }
   function solInit(){
     var nav = document.querySelector('#navCimento .nav-item[data-view="solicitacoes"]');
@@ -6128,6 +6187,8 @@
       });
       SOL.d = { hoje: r.data.hoje, prazo_aberto: r.data.prazo_aberto, de: r.data.de, ate: r.data.ate, multi: r.data.dias.length > 1, usinas: rows, autorizacoes: auts };
       if (!SOL.de){ SOL.de = r.data.de; SOL.ate = r.data.ate; }
+      var ra; try { ra = await sb.rpc("solic_alteracoes_listar", { p_de: r.data.de, p_ate: r.data.ate }); } catch (e) { ra = { error: e }; }
+      SOL.alts = (!ra.error && Array.isArray(ra.data)) ? ra.data : (SOL.alts || []);
       if (!silencio){ SOL.msg = ""; }
     }
     solBadge();
@@ -6187,6 +6248,7 @@
         });
         h += '</div>';
       }
+      h += solAltsHtml() + solGruposHtml(d);
       var lista = (d.usinas || []).filter(function(u){
         if (SOL.filtro === "pedido") return u.situacao === "pedido";
         if (SOL.filtro === "sem") return u.situacao === "sem_necessidade";
@@ -6195,7 +6257,7 @@
         if (SOL.filtro === "aguard") return u.autorizacao && u.autorizacao.status === "pendente";
         return true;
       });
-      h += '<div class="card"><div class="card-head"><div><h2>Usinas</h2><p>' + lista.length + ' de ' + (d.usinas || []).length + (d.multi ? " linhas (usina × dia)" : "") + (SOL.filtro !== "todas" ? ' · filtro ativo <button class="btn-ghost" data-sol="filtro" data-k="todas">limpar filtro</button>' : "") + '</p></div></div>';
+      h += '<div class="card"><div class="card-head"><div><h2>Respostas das usinas</h2><p>' + lista.length + ' de ' + (d.usinas || []).length + (d.multi ? " linhas (usina × dia)" : "") + (SOL.filtro !== "todas" ? ' · filtro ativo <button class="btn-ghost" data-sol="filtro" data-k="todas">limpar filtro</button>' : "") + '</p></div></div>';
       if (!lista.length) h += '<div class="adm-pad faint">Nenhuma usina neste filtro.</div>';
       else {
         h += '<div class="table-wrap"><table class="adm-tbl sol-tbl"><thead><tr>' + (d.multi ? '<th>Dia</th>' : '') + '<th>Usina</th><th>Encarregado</th><th>Situação</th><th>Pedido</th><th>Última versão</th><th></th></tr></thead><tbody>';
@@ -6218,6 +6280,66 @@
       h += '</div>';
     }
     el("solCorpo").innerHTML = h;
+  }
+  var SOL_PER = { CEDO: "cedo", TARDE: "tarde", QUALQUER: "qualquer horário" };
+  function solTxtLinha(m, c, per){ return esc(m) + " ×" + esc(c) + (per ? " (" + esc(SOL_PER[per] || String(per).toLowerCase()) + ")" : ""); }
+  function solTxtAlt(a){
+    var an = a.antes || {}, dp = a.depois || {};
+    if (a.tipo === "cancelar") return "Cancelar " + solTxtLinha(an.material, an.carretas, an.periodo);
+    return solTxtLinha(an.material, an.carretas, an.periodo) + " → " + solTxtLinha(dp.material, dp.carretas, dp.periodo);
+  }
+  var SOL_ALT_TIPO = { cancelar: "Cancelamento", alterar: "Alteração", substituir: "Troca de material" };
+  // Pedidos de alteração de linhas JÁ PROGRAMADAS: só a Logística decide
+  function solAltsHtml(){
+    var pend = (SOL.alts || []).filter(function(a){ return a.status === "pendente"; });
+    if (!pend.length) return "";
+    var h = '<div class="card" style="margin-bottom:16px;border-left:4px solid var(--danger)"><div class="card-head"><div><h2 style="color:var(--danger)">🔒 Alterações pedidas em pedidos já programados (' + pend.length + ')</h2>' +
+      '<p>A usina (ou o encarregado) quer mudar algo que vocês já programaram. Aprovando, o pedido da usina muda e a linha aparece marcada na Programação — <b>ajuste a programação em seguida</b>.</p></div></div>';
+    pend.forEach(function(a){
+      var neg = SOL.confirmaNegarAlt === a.id;
+      h += '<div class="sol-alt"><div class="info"><b>' + esc(a.usina) + '</b> · entrega ' + esc(solDiaBR(a.data_desejada)) + ' · <span class="badge warning">' + esc(SOL_ALT_TIPO[a.tipo] || a.tipo) + '</span><br>' +
+        solTxtAlt(a) + '<br>Motivo: “' + esc(a.motivo) + '” · ' + esc(a.por || "") + ' · ' + esc(solQuando(a.pedida_em)) + '</div>' +
+        (solPodeDecidir() ? '<div class="adm-acoes"><button class="btn-primary btn-inline" data-sol="alt-aprovar" data-id="' + esc(a.id) + '">Aprovar</button><button class="btn-ghost" data-sol="alt-negar" data-id="' + esc(a.id) + '">' + (neg ? "Confirmar negar" : "Negar") + '</button></div>' : '<span class="faint">somente leitura</span>') + '</div>';
+    });
+    return h + '</div>';
+  }
+  // Linhas pedidas, separadas em programadas (verde) e não programadas (âmbar). "Programado" = a Logística já pôs carreta desse material para a usina nessa data.
+  function solGruposHtml(d){
+    var prog = [], nprog = [];
+    (d.usinas || []).forEach(function(u){
+      var env = u.envio; if (!env || env.sem_necessidade) return;
+      (env.linhas || []).forEach(function(l){ var q = (l.prog && l.prog.qtd) || 0; (q > 0 ? prog : nprog).push({ u: u, l: l, q: q, env: env }); });
+    });
+    var ord = function(a, b){ var da = String(a.l.data_desejada), db = String(b.l.data_desejada); if (da !== db) return da < db ? -1 : 1; return a.u.usina < b.u.usina ? -1 : (a.u.usina > b.u.usina ? 1 : 0); };
+    prog.sort(ord); nprog.sort(ord);
+    var tabela = function(lista, programado){
+      if (!lista.length) return '<div class="adm-pad faint">' + (programado ? "Nenhum pedido programado ainda." : "Tudo o que foi pedido já está programado.") + '</div>';
+      var h = '<div class="table-wrap"><table class="adm-tbl"><thead><tr>' + (d.multi ? '<th>Dia do pedido</th>' : "") + '<th>Entrega</th><th>Usina</th><th>Pedido</th>' + (programado ? '<th>Programado</th>' : "") + '<th>Enviado</th></tr></thead><tbody>';
+      lista.forEach(function(x){
+        var l = x.l, marcas = (l.adicional ? ' <span class="badge info">adicional</span>' : "") + (l.alterada ? ' <span class="badge danger">alterado após programar</span>' : "") + (x.env.fora_do_prazo ? ' <span class="badge warning">fora do prazo</span>' : "");
+        var pc = "";
+        if (programado){
+          pc = (x.q >= l.carretas ? '<span class="badge success">' + x.q + ' de ' + l.carretas + '</span>' : '<span class="badge warning">parcial: ' + x.q + ' de ' + l.carretas + '</span>') +
+            '<div class="sol-cargas">' + (l.prog.cargas || []).map(function(c){ return '<b>' + esc(c.placa) + '</b> · ' + esc(c.fabrica || "fábrica a definir") + (c.nf_status === "descarregada" ? " · descarregada" : (c.nf_status === "emitida" ? " · NF " + esc(c.nf || "") : "")); }).join("<br>") + '</div>';
+        }
+        h += '<tr>' + (d.multi ? '<td class="muted">' + esc(solDiaBR(x.u.dia)) + '</td>' : "") + '<td class="cell-strong" style="white-space:nowrap">' + esc(solDiaBR(l.data_desejada)) + '</td><td class="cell-strong">' + esc(x.u.usina) + '</td>' +
+          '<td>' + solTxtLinha(l.material, l.carretas, l.periodo) + marcas + '</td>' + (programado ? '<td>' + pc + '</td>' : "") +
+          '<td class="muted" style="white-space:nowrap">' + esc(solQuando(x.env.enviado_em)) + '<br><span class="faint">' + esc(x.env.por || x.env.origem || "") + '</span></td></tr>';
+      });
+      return h + '</tbody></table></div>';
+    };
+    return '<div class="card sol-grupo prog" style="margin-bottom:16px"><div class="card-head"><div><h2>✅ Pedidos programados (' + prog.length + ')</h2><p>Já têm carreta programada para o material e a data pedidos. Ficam travados para a usina; mudança só por pedido de alteração.</p></div></div>' + tabela(prog, true) + '</div>' +
+      '<div class="card sol-grupo nprog" style="margin-bottom:16px"><div class="card-head"><div><h2>⏳ Pedidos não programados (' + nprog.length + ')</h2><p>Ainda sem carreta na Programação para esse material e data — incluindo material diferente do que já foi programado. Passam sozinhos para a tabela verde quando vocês programarem.</p></div></div>' + tabela(nprog, false) + '</div>';
+  }
+  async function solAltDecidir(id, aprovar){
+    SOL.ocupado = true;
+    var r; try { r = await sb.rpc("solic_alteracao_decidir", { p_id: id, p_aprovar: aprovar, p_obs: null }); } catch (e) { r = { error: e }; }
+    SOL.ocupado = false; SOL.confirmaNegarAlt = null;
+    if (r.error){ SOL.msg = dbErr(r.error); SOL.ruim = true; }
+    else if (r.data && r.data.erro){ SOL.msg = r.data.erro; SOL.ruim = true; }
+    else { SOL.msg = aprovar ? "Alteração aprovada. O pedido da usina mudou — ajuste a Programação (a linha aparece marcada lá)." : "Alteração negada. A usina vê a resposta em Meus pedidos."; SOL.ruim = false; }
+    await solCarregar(true);
+    try { solProgCarregar().then(progDecorar); } catch (e) { }
   }
   function solPickerSync(){
     if (!SOL.picker || !SOL.de) return;
@@ -6256,6 +6378,8 @@
       else if (a === "hist"){ SOL.abertos[b.dataset.u] = !SOL.abertos[b.dataset.u]; paintSol(); }
       else if (a === "aprovar"){ solDecidir(b.dataset.id, true); }
       else if (a === "negar"){ if (SOL.confirmaNegar !== b.dataset.id){ SOL.confirmaNegar = b.dataset.id; paintSol(); } else solDecidir(b.dataset.id, false); }
+      else if (a === "alt-aprovar"){ solAltDecidir(b.dataset.id, true); }
+      else if (a === "alt-negar"){ if (SOL.confirmaNegarAlt !== b.dataset.id){ SOL.confirmaNegarAlt = b.dataset.id; paintSol(); } else solAltDecidir(b.dataset.id, false); }
       else if (a === "apagar"){ if (SOL.confirmaApagar !== b.dataset.u){ SOL.confirmaApagar = b.dataset.u; paintSol(); } else solApagar(b.dataset.u); }
     });
   })();
@@ -6274,7 +6398,13 @@
       (m[k] = m[k] || []).push({ material: x.material, carretas: x.carretas, fora: !!x.fora_do_prazo });
     });
     SOL_PROG = m;
+    var ra; try { ra = await sb.rpc("solic_alteracoes_listar", { p_de: de, p_ate: ate }); } catch (e) { return; }
+    if (ra.error || !Array.isArray(ra.data)) return;
+    var ma = {};
+    ra.data.forEach(function(a){ if (a.status !== "aprovada" && a.status !== "pendente") return; var k = String(a.data_desejada).slice(0, 10) + "|" + solNorm(a.usina); (ma[k] = ma[k] || []).push(a); });
+    SOL_ALT_PROG = ma;
   }
+  var SOL_ALT_PROG = {};
 
   /* ======================================================================
      BASE DE DADOS › ENCARREGADOS E USINAS

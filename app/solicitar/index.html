@@ -139,6 +139,26 @@
   .pick .btn-primary{flex:0 0 auto;}
   .centro{padding:30px 18px; text-align:center; color:var(--text-muted);}
 
+  /* ---------- Pedido programado (travado) e Meus pedidos ---------- */
+  .linha.travada{display:block; padding:11px 14px; border:1px solid rgba(56,199,147,.35); background:var(--success-soft); border-radius:8px; font-size:13px; line-height:1.5;}
+  .linha.travada b{color:var(--text);}
+  .mp-dia{border-top:1px solid var(--border);}
+  .mp-dia:first-child{border-top:none;}
+  .mp-dia-cab{display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:12px 18px 6px; font-size:13px; font-weight:700;}
+  .mp-linha{padding:8px 18px 12px; display:flex; flex-direction:column; gap:6px;}
+  .mp-topo{display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:13.5px;}
+  .mp-cargas{display:flex; flex-direction:column; gap:4px; padding-left:4px;}
+  .mp-carga{display:flex; flex-wrap:wrap; gap:8px; align-items:center; font-size:12.5px; color:var(--text-muted);}
+  .mp-carga .placa{font-family:ui-monospace,Menlo,Consolas,monospace; font-weight:700; color:var(--text); letter-spacing:.03em;}
+  .mp-acoes{display:flex; flex-wrap:wrap; gap:8px;}
+  .mp-acoes .btn{padding:6px 12px; font-size:12.5px;}
+  .mp-form{border:1px solid var(--border-strong); border-radius:8px; padding:12px 14px; background:var(--surface-2); display:flex; flex-direction:column; gap:10px;}
+  .mp-form .campos{display:flex; flex-wrap:wrap; gap:10px;}
+  .mp-form label{display:flex; flex-direction:column; gap:4px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-faint); flex:1 1 140px;}
+  .mp-form select, .mp-form input, .mp-form textarea{width:100%; background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:8px 10px; font-size:14px; font-family:inherit; text-transform:none; letter-spacing:0; font-weight:400;}
+  .mp-form textarea{min-height:64px; resize:vertical;}
+  .mp-alt{padding:10px 18px; border-top:1px solid var(--border); font-size:12.5px; display:flex; flex-direction:column; gap:3px;}
+
   #carregando{position:fixed; inset:0; z-index:50; display:none; align-items:center; justify-content:center; background:rgba(7,10,16,.7); color:var(--text-muted); font-size:13px;}
 
   @media (max-width:600px){
@@ -277,7 +297,7 @@
     return true;
   }
   function sair(){
-    guardar(""); S.chave = ""; S.d = null; S.estado = null; clearInterval(S.rel); clearInterval(S.poll);
+    guardar(""); S.chave = ""; S.d = null; S.estado = null; S.mp = null; S.mpForm = null; clearInterval(S.rel); clearInterval(S.poll);
     $("app").hidden = true; $("login").hidden = false; $("conteudo").innerHTML = ""; msgLogin("");
   }
   $("sair").addEventListener("click", sair);
@@ -293,10 +313,26 @@
     S.estado = est || null;
     if (est && (inicial || !S.sujo)) puxarLinhas(est);
     desenhar();
+    if (est) carregarMeus();
+  }
+  async function carregarMeus(){
+    var alvo = S.tipo === "encarregado" ? S.usinaSel : "usina";
+    if (!S.chave || !alvo) return;
+    try {
+      var d = await chamar("solic_k_meus_pedidos", { p_chave: S.chave, p_usina: S.tipo === "encarregado" ? S.usinaSel : null });
+      if (d.erro) return;
+      if ((S.tipo === "encarregado" ? S.usinaSel : "usina") !== alvo) return;   // trocou de usina enquanto carregava
+      S.mp = d;
+      if (!S.mpForm && !focoEmCampo()) desenhar();
+    } catch (e) { }
   }
   function puxarLinhas(est){
     var env = est.envio;
-    if (env && !env.sem_necessidade && env.linhas.length) S.linhas = env.linhas.map(function(l){ return { material: l.material, carretas: String(l.carretas), data: String(l.data_desejada).slice(0, 10), periodo: l.periodo || "" }; });
+    if (env && !env.sem_necessidade && env.linhas.length) S.linhas = env.linhas.map(function(l){
+      var q = (l.prog && l.prog.qtd) || 0;
+      return { id: l.id, material: l.material, carretas: String(l.carretas), data: String(l.data_desejada).slice(0, 10), periodo: l.periodo || "",
+               travada: q > 0, progQtd: q, adicional: !!l.adicional, alterada: !!l.alterada };
+    });
     else S.linhas = [novaLinha()];
     S.sem = !!(env && env.sem_necessidade);
     S.sujo = false;
@@ -320,7 +356,7 @@
       var est = S.estado, venceu = est && est.autorizacao && est.autorizacao.vigente && new Date(est.autorizacao.valida_ate).getTime() < agoraMs();
       if (agora !== antes || venceu){ antes = agora; recarregar(false); }
     }, 15000);
-    S.poll = setInterval(function(){ if (document.visibilityState === "visible" && !S.enviando && !focoEmCampo()) recarregar(false); }, 30000);
+    S.poll = setInterval(function(){ if (document.visibilityState === "visible" && !S.enviando && !focoEmCampo() && !S.mpForm) recarregar(false); }, 30000);
     pintarRelogio();
   }
   function focoEmCampo(){ var a = document.activeElement; return !!(a && /^(INPUT|SELECT|TEXTAREA)$/.test(a.tagName)); }
@@ -403,17 +439,23 @@
 
     h += '<div class="linhas-box' + (S.sem ? " off" : "") + '" id="linhasBox"><div class="linhas-cab"><span>Material</span><span>Carretas</span><span>Data desejada</span><span>Período</span><span></span></div>';
     S.linhas.forEach(function(l, i){
+      if (l.travada){
+        h += '<div class="linha travada" data-row="' + i + '">🔒 <b>' + esc(l.material) + ' × ' + esc(l.carretas) + '</b> → ' + esc(fmtData(l.data)) + (l.periodo ? " (" + esc(PER_TXT[l.periodo] || l.periodo) + ")" : "") +
+          ' — <b>Programado' + (l.progQtd < Number(l.carretas) ? " (" + l.progQtd + " de " + esc(l.carretas) + ")" : "") + '</b>. Para mudar, use <b>Meus pedidos</b>, abaixo.</div>';
+        return;
+      }
       h += '<div class="linha" data-row="' + i + '"><div class="m"><select data-i="' + i + '" data-f="material" aria-label="Material" ' + (pode ? "" : "disabled") + '><option value="">Material…</option>' +
         MATERIAIS.map(function(m){ return '<option value="' + m + '"' + (l.material === m ? " selected" : "") + '>' + m + '</option>'; }).join("") + '</select></div>' +
         '<div class="c"><input type="number" inputmode="numeric" min="1" max="99" step="1" placeholder="Carretas" data-i="' + i + '" data-f="carretas" aria-label="Quantidade de carretas" value="' + esc(l.carretas) + '" ' + (pode ? "" : "disabled") + '></div>' +
         '<div class="d"><input type="date" min="' + esc(hojeCivil()) + '" data-i="' + i + '" data-f="data" aria-label="Data desejada" value="' + esc(l.data) + '" ' + (pode ? "" : "disabled") + '></div>' +
         '<div class="p"><select data-i="' + i + '" data-f="periodo" aria-label="Período: cedo, tarde ou qualquer horário" ' + (pode ? "" : "disabled") + '><option value="">Período…</option>' +
         [["CEDO", "Cedo"], ["TARDE", "Tarde"], ["QUALQUER", "Qualquer horário"]].map(function(o){ return '<option value="' + o[0] + '"' + (l.periodo === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("") + '</select></div>' +
-        '<button type="button" class="rm" data-act="rm" data-i="' + i + '" aria-label="Remover linha" title="Remover linha" ' + (pode && S.linhas.length > 1 ? "" : "disabled") + '>✕</button></div>';
+        '<button type="button" class="rm" data-act="rm" data-i="' + i + '" aria-label="Remover linha" title="Remover linha" ' + (pode && S.linhas.filter(function(x){ return !x.travada; }).length > (S.linhas.some(function(x){ return x.travada; }) ? 0 : 1) ? "" : "disabled") + '>✕</button></div>';
     });
     h += '<div class="acoes-editor" style="margin-bottom:8px"><button type="button" class="btn" data-act="add" ' + (pode && S.linhas.length < 30 ? "" : "disabled") + '>+ Adicionar nova linha</button></div></div>';
 
-    h += '<div class="acoes-editor"><button type="button" class="btn sem-btn" data-act="sem" aria-pressed="' + (S.sem ? "true" : "false") + '" ' + (pode ? "" : "disabled") + '>' + (S.sem ? "✔ " : "") + 'Sem necessidade de cimento</button><span class="grow"></span>' +
+    var temTravada = S.linhas.some(function(x){ return x.travada; });
+    h += '<div class="acoes-editor"><button type="button" class="btn sem-btn" data-act="sem" aria-pressed="' + (S.sem ? "true" : "false") + '" ' + (pode && !temTravada ? "" : "disabled") + (temTravada ? ' title="Parte do pedido já foi programada: para cancelar, use Meus pedidos"' : "") + '>' + (S.sem ? "✔ " : "") + 'Sem necessidade de cimento</button><span class="grow"></span>' +
       '<button type="button" class="btn-primary inline" data-act="enviar" ' + (pode && !S.enviando ? "" : "disabled") + '>' + (S.enviando ? "Enviando…" : (env ? "Atualizar solicitação" : "Enviar solicitação")) + '</button></div>';
     h += '<p class="msg-erro" id="erroEditor" role="alert"></p></div></div>';
 
@@ -422,7 +464,120 @@
     if (hist.length){
       h += '<div class="card"><details class="hist"' + (S.abertoHist ? " open" : "") + '><summary>Histórico de alterações <span class="badge neutral">' + hist.length + '</span></summary>' + hist.map(function(v){ return rotuloVersao(v); }).join("") + '</details></div>';
     }
+    h += htmlMeus(est, o);
     return h;
+  }
+
+  /* ---------- Meus pedidos ---------- */
+  var PER_TXT = { CEDO: "cedo", TARDE: "tarde", QUALQUER: "qualquer horário" };
+  var AVISO_ALT = "⚠️ Este pedido já foi programado pela Logística. Alterar agora pode causar problemas sérios: carreta chegando com o cimento errado ou no dia errado, e carreta parada com custo alto. Só peça a alteração se for realmente necessário — a Logística vai analisar.";
+  function txtLinha(m, c, per){ return esc(m) + " × " + esc(c) + (per ? " (" + esc(PER_TXT[per] || per) + ")" : ""); }
+  function txtAlt(a){
+    var an = a.antes || {}, dp = a.depois || {};
+    if (a.tipo === "cancelar") return "Cancelar " + txtLinha(an.material, an.carretas, an.periodo);
+    return txtLinha(an.material, an.carretas, an.periodo) + " → " + txtLinha(dp.material, dp.carretas, dp.periodo);
+  }
+  var ALT_ST = { pendente: ["warning", "⏳ Aguardando a Logística"], aprovada: ["success", "✔ Aprovada"], negada: ["danger", "✖ Negada"], sem_efeito: ["neutral", "Sem efeito"] };
+  function htmlMeus(est, o){
+    var ehEnc = o.quem === "encarregado", mp = S.mp, hoje = hojeCivil();
+    var h = '<div class="card" id="meusPedidos"><div class="card-head"><div><h2>📦 ' + (ehEnc ? "Pedidos de " + esc(est.usina.nome) : "Meus pedidos") + '</h2>' +
+      '<p>Últimos 30 dias, por data de entrega. O que a Logística já programou fica travado 🔒 — para mudar, peça a alteração aqui.</p></div></div>';
+    if (!mp) return h + '<div class="centro">Carregando…</div></div>';
+    var alts = mp.alteracoes || [], pendPorLinha = {};
+    alts.forEach(function(a){ if (a.status === "pendente") pendPorLinha[a.linha_id] = a; });
+    var porData = {};
+    (mp.pedidos || []).forEach(function(p){ (p.linhas || []).forEach(function(l){
+      var d = String(l.data_desejada).slice(0, 10); (porData[d] = porData[d] || []).push({ l: l, p: p });
+    }); });
+    var datas = Object.keys(porData).sort(function(a, b){ var fa = a >= hoje, fb = b >= hoje; if (fa !== fb) return fa ? -1 : 1; return fa ? (a < b ? -1 : 1) : (a < b ? 1 : -1); });
+    if (!datas.length) h += '<div class="centro">Nenhum pedido nos últimos 30 dias.</div>';
+    datas.forEach(function(d){
+      var itens = porData[d], futuro = d >= hoje;
+      h += '<div class="mp-dia"><div class="mp-dia-cab">' + esc(fmtData(d)) + (d === hoje ? ' <span class="badge info">hoje</span>' : "") + (!futuro ? ' <span class="badge neutral">já passou</span>' : "") + '</div>';
+      itens.forEach(function(it){
+        var l = it.l, p = it.p, q = (l.prog && l.prog.qtd) || 0, car = l.carretas, pend = pendPorLinha[l.id];
+        var st = q === 0 ? (futuro ? '<span class="badge neutral">⏳ Aguardando programação</span>' : '<span class="badge danger">Não programado</span>')
+               : (q >= car ? '<span class="badge success">🔒 Programado</span>' : '<span class="badge warning">🔒 Programado parcial (' + q + ' de ' + car + ')</span>');
+        h += '<div class="mp-linha"><div class="mp-topo"><b>' + txtLinha(l.material, car, l.periodo) + '</b>' + st +
+          (l.adicional ? '<span class="badge info">pedido adicional</span>' : "") + (l.alterada ? '<span class="badge warning">alterado após programar</span>' : "") +
+          '<span class="faint" style="font-size:11.5px">pedido de ' + esc(fmtData(String(p.dia).slice(0, 10))) + '</span></div>';
+        if (q){
+          h += '<div class="mp-cargas">' + l.prog.cargas.map(function(c){
+            var nf = c.nf_status === "descarregada" ? '<span class="badge success">✅ Descarregada' + (c.nf ? " · NF " + esc(c.nf) : "") + '</span>'
+                   : c.nf_status === "emitida" ? '<span class="badge info">🧾 Nota emitida' + (c.nf ? " · NF " + esc(c.nf) : "") + '</span>'
+                   : '<span class="badge neutral">Programada</span>';
+            return '<div class="mp-carga">🚚 <span class="placa">' + esc(c.placa) + '</span><span>' + esc(c.fabrica || "fábrica a definir") + '</span>' + nf + '</div>';
+          }).join("") + '</div>';
+        }
+        if (pend) h += '<div class="aviso warn" style="margin:0">⏳ Alteração pedida: ' + txtAlt(pend) + ' — aguardando a Logística.</div>';
+        var hojeDia = est.dia && String(p.dia).slice(0, 10) === String(est.dia).slice(0, 10);
+        var podeAlt = futuro && !pend && (q > 0 || !hojeDia);
+        if (S.mpForm && S.mpForm.linha === l.id) h += htmlMpForm(l, q > 0);
+        else if (podeAlt){
+          h += '<div class="mp-acoes"><button class="btn" data-act="mp-abrir" data-l="' + esc(l.id) + '" data-t="alterar">Alterar</button>' +
+            '<button class="btn" data-act="mp-abrir" data-l="' + esc(l.id) + '" data-t="substituir">Substituir material</button>' +
+            '<button class="btn ruim" data-act="mp-abrir" data-l="' + esc(l.id) + '" data-t="cancelar">Cancelar</button></div>';
+        } else if (futuro && !pend && hojeDia && q === 0){
+          h += '<span class="faint" style="font-size:12px">Ainda não programado: altere direto no pedido acima.</span>';
+        }
+        h += '</div>';
+      });
+      h += '</div>';
+    });
+    var decididas = alts.filter(function(a){ return a.status !== "pendente"; });
+    if (decididas.length){
+      h += '<details class="hist"><summary>Alterações pedidas <span class="badge neutral">' + decididas.length + '</span></summary>' + decididas.map(function(a){
+        var s2 = ALT_ST[a.status] || ["neutral", a.status];
+        return '<div class="mp-alt"><div class="mp-topo"><b>' + esc(fmtData(String(a.data_desejada).slice(0, 10))) + '</b> ' + txtAlt(a) + ' <span class="badge ' + s2[0] + '">' + s2[1] + '</span></div>' +
+          '<span class="muted">Motivo: “' + esc(a.motivo) + '”' + (a.por ? ' · ' + esc(a.por) : "") + ' · ' + esc(fmtDiaHora(a.pedida_em)) + '</span>' +
+          (a.obs ? '<span class="muted">Logística: “' + esc(a.obs) + '”</span>' : "") + '</div>';
+      }).join("") + '</details>';
+    }
+    return h + '</div>';
+  }
+  function htmlMpForm(l, programado){
+    var f = S.mpForm, t = f.tipo;
+    var tit = t === "cancelar" ? "Cancelar este pedido" : (t === "substituir" ? "Substituir o material" : "Alterar quantidade ou período");
+    var h = '<div class="mp-form"><b>' + tit + ' — ' + txtLinha(l.material, l.carretas, l.periodo) + '</b>' +
+      (programado ? '<div class="aviso bad" style="margin:0">' + AVISO_ALT + '</div>' : '<div class="aviso info" style="margin:0">Este pedido ainda não foi programado. A Logística vai analisar a alteração.</div>');
+    if (t !== "cancelar"){
+      h += '<div class="campos">';
+      if (t === "substituir") h += '<label>Novo material<select id="mpMat"><option value="">Material…</option>' + MATERIAIS.filter(function(m){ return m !== l.material; }).map(function(m){ return '<option value="' + m + '"' + (f.material === m ? " selected" : "") + '>' + m + '</option>'; }).join("") + '</select></label>';
+      h += '<label>Carretas' + (t === "alterar" ? " (só para menos)" : "") + '<input type="number" id="mpCar" min="1" max="' + (t === "alterar" ? l.carretas : 99) + '" inputmode="numeric" value="' + esc(f.carretas) + '"></label>' +
+        '<label>Período<select id="mpPer"><option value="">—</option>' + [["CEDO", "Cedo"], ["TARDE", "Tarde"], ["QUALQUER", "Qualquer horário"]].map(function(o){ return '<option value="' + o[0] + '"' + (f.periodo === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("") + '</select></label>';
+      h += '</div>';
+      if (t === "alterar") h += '<span class="faint" style="font-size:12px">Para aumentar, adicione uma nova linha no pedido acima (pedido adicional) — não precisa de aprovação.</span>';
+    }
+    h += '<label>Motivo (obrigatório)<textarea id="mpMot" maxlength="400" placeholder="Explique por que precisa mudar">' + esc(f.motivo) + '</textarea></label>' +
+      (f.erro ? '<p class="msg-erro" style="margin:0">' + esc(f.erro) + '</p>' : "") +
+      '<div class="mp-acoes"><button class="btn-primary inline" data-act="mp-enviar"' + (f.enviando ? " disabled" : "") + '>' + (f.enviando ? "Enviando…" : (t === "cancelar" ? "Pedir cancelamento" : "Enviar pedido de alteração")) + '</button>' +
+      '<button class="btn" data-act="mp-fechar">Voltar</button></div></div>';
+    return h;
+  }
+  function mpLinha(id){
+    var achou = null;
+    ((S.mp && S.mp.pedidos) || []).forEach(function(p){ (p.linhas || []).forEach(function(l){ if (l.id === id) achou = l; }); });
+    return achou;
+  }
+  async function mpEnviar(){
+    var f = S.mpForm; if (!f || f.enviando) return;
+    var l = mpLinha(f.linha); if (!l){ S.mpForm = null; desenhar(); return; }
+    if ((f.motivo || "").trim().length < 5){ f.erro = "Explique o motivo (pelo menos algumas palavras)."; desenhar(); return; }
+    if (f.tipo !== "cancelar"){
+      var q = Number(f.carretas);
+      if (!q || q < 1 || q > 99 || Math.floor(q) !== q){ f.erro = "Informe a quantidade de carretas (1 a 99)."; desenhar(); return; }
+      if (f.tipo === "alterar" && q > l.carretas){ f.erro = "Para aumentar, adicione uma nova linha no pedido acima (pedido adicional)."; desenhar(); return; }
+      if (f.tipo === "alterar" && q === l.carretas && (f.periodo || "") === (l.periodo || "")){ f.erro = "Nada foi mudado."; desenhar(); return; }
+      if (f.tipo === "substituir" && !f.material){ f.erro = "Escolha o novo material."; desenhar(); return; }
+    }
+    f.enviando = true; f.erro = ""; desenhar();
+    try {
+      var d = await chamar("solic_k_pedir_alteracao", { p_chave: S.chave, p_usina: S.tipo === "encarregado" ? S.usinaSel : null, p_linha: f.linha, p_tipo: f.tipo,
+        p_material: f.tipo === "substituir" ? f.material : l.material, p_carretas: f.tipo === "cancelar" ? null : Number(f.carretas), p_periodo: f.periodo || "", p_motivo: f.motivo });
+      if (d.erro){ sair(); msgLogin(ERROS[d.erro] || "Sessão encerrada.", true); return; }
+      S.mp = d; S.mpForm = null; S.msg = "Pedido de alteração enviado. A Logística vai analisar; acompanhe em Meus pedidos."; S.msgTipo = "ok"; desenhar();
+      var c = $("meusPedidos"); if (c) c.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) { f.enviando = false; f.erro = erroTxt(e); desenhar(); }
   }
 
   function htmlEncarregado(p){
@@ -492,6 +647,7 @@
     var vistos = {}, hoje = hojeCivil();
     for (var i = 0; i < S.linhas.length; i++){
       var l = S.linhas[i], n = i + 1;
+      if (l.travada) continue;   // já programada: o servidor confere
       if (MATERIAIS.indexOf(l.material) < 0) return { i: i, t: "Escolha o material na linha " + n + "." };
       var q = Number(l.carretas); if (!l.carretas || !isFinite(q) || q < 1 || q > 99 || Math.floor(q) !== q) return { i: i, t: "Informe a quantidade de carretas (1 a 99) na linha " + n + "." };
       if (!l.data) return { i: i, t: "Informe a data desejada na linha " + n + "." };
@@ -511,7 +667,7 @@
     marcarErro(null);
     S.enviando = true; S.msg = ""; desenhar();
     try {
-      var args = { p_chave: S.chave, p_sem_necessidade: S.sem, p_linhas: S.sem ? [] : S.linhas.map(function(l){ return { material: l.material, carretas: Number(l.carretas), data_desejada: l.data, periodo: l.periodo || "" }; }) };
+      var args = { p_chave: S.chave, p_sem_necessidade: S.sem, p_linhas: S.sem ? [] : S.linhas.map(function(l){ return { id: l.id || null, material: l.material, carretas: Number(l.carretas), data_desejada: l.data, periodo: l.periodo || "" }; }) };
       if (S.tipo === "encarregado") args.p_usina = S.usinaSel;
       var d = await chamar("solic_k_enviar", args);
       if (d.erro){ S.enviando = false; sair(); msgLogin(ERROS[d.erro] || "Sessão encerrada.", true); return; }
@@ -542,7 +698,7 @@
     } catch (e) { S.msg = erroTxt(e); S.msgTipo = "bad"; desenhar(); }
   }
   async function abrirUsina(id){
-    S.usinaSel = id; S.msg = ""; S.sujo = false; carregando(true);
+    S.usinaSel = id; S.msg = ""; S.sujo = false; S.mp = null; S.mpForm = null; carregando(true);
     try { var d = await chamar("solic_k_estado", { p_chave: S.chave, p_usina: id }); aplicar(d, true); window.scrollTo(0, 0); }
     catch (e) { S.usinaSel = null; S.msg = erroTxt(e); S.msgTipo = "bad"; desenhar(); }
     carregando(false);
@@ -550,11 +706,13 @@
 
   $("conteudo").addEventListener("input", function(ev){
     var t = ev.target; if (t.id === "motivo"){ S.motivo = t.value; return; }
+    if (S.mpForm && /^mp(Mat|Car|Per|Mot)$/.test(t.id)){ S.mpForm[{ mpMat: "material", mpCar: "carretas", mpPer: "periodo", mpMot: "motivo" }[t.id]] = t.value; S.mpForm.erro = ""; return; }
     if (t.dataset.i === undefined) return;
     S.linhas[+t.dataset.i][t.dataset.f] = t.value; S.sujo = true; marcarErro(null);
   });
   $("conteudo").addEventListener("change", function(ev){
     var t = ev.target;
+    if (S.mpForm && /^mp(Mat|Car|Per|Mot)$/.test(t.id)){ S.mpForm[{ mpMat: "material", mpCar: "carretas", mpPer: "periodo", mpMot: "motivo" }[t.id]] = t.value; return; }
     if (t.id === "selUsina"){ S.selUsina = t.value; var bt = document.querySelector('[data-act="abrir-sel"]'); if (bt) bt.disabled = !t.value; return; }
     if (t.dataset.i === undefined) return;
     S.linhas[+t.dataset.i][t.dataset.f] = t.value; S.sujo = true;
@@ -571,10 +729,17 @@
     else if (a === "filtro"){ S.filtro = S.filtro === b.dataset.k ? "todas" : b.dataset.k; desenhar(); }
     else if (a === "abrir") abrirUsina(b.dataset.u);
     else if (a === "abrir-sel"){ if (S.selUsina) abrirUsina(S.selUsina); }
-    else if (a === "voltar"){ S.usinaSel = null; S.msg = ""; S.sujo = false; recarregar(true); }
+    else if (a === "voltar"){ S.usinaSel = null; S.msg = ""; S.sujo = false; S.mp = null; S.mpForm = null; recarregar(true); }
     else if (a === "aprovar") decidir(b.dataset.id, true);
     else if (a === "aprovar-abrir") decidir(b.dataset.id, true, b.dataset.u);
     else if (a === "negar"){ if (S.confirmaNegar !== b.dataset.id){ S.confirmaNegar = b.dataset.id; desenhar(); } else decidir(b.dataset.id, false); }
+    else if (a === "mp-abrir"){
+      var l = mpLinha(b.dataset.l); if (!l) return;
+      S.mpForm = { linha: l.id, tipo: b.dataset.t, material: "", carretas: String(l.carretas), periodo: l.periodo || "", motivo: "", erro: "" };
+      desenhar(); var mt = $("mpMot"); if (mt && b.dataset.t === "cancelar") mt.focus();
+    }
+    else if (a === "mp-fechar"){ S.mpForm = null; desenhar(); }
+    else if (a === "mp-enviar") mpEnviar();
   });
 
   /* ---------- Início ---------- */

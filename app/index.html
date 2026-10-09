@@ -165,6 +165,18 @@
   #admChavesCard .adm-ktbl .adm-acoes{min-width:0;}
   .adm-kvazio{padding:22px 18px; text-align:center;}
   .adm-kexp{display:flex; flex-wrap:wrap; gap:10px 14px; align-items:center; font-size:12.5px;} .adm-kexp .faint{flex:1 1 280px; min-width:0;}
+  .pw-modal{position:fixed; inset:0; z-index:10000; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(0,0,0,.6);}
+  .pw-modal[hidden]{display:none;}
+  .pw-box{width:100%; max-width:420px; max-height:100%; overflow:auto; background:var(--surface); border:1px solid var(--border-strong); border-radius:12px; padding:20px; display:flex; flex-direction:column; gap:12px; box-shadow:0 20px 50px rgba(0,0,0,.4);}
+  .pw-box h2{font-size:16px; margin:0;} .pw-sub{margin:0; font-size:12.5px; color:var(--text-muted);}
+  .pw-box label{display:flex; flex-direction:column; gap:5px; font-size:12px; font-weight:600; color:var(--text-muted);}
+  .pw-box input{background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:9px 11px; font-size:14px; font-family:inherit; min-width:0; width:100%;}
+  .pw-msg{min-height:1.2em; font-size:12.5px;} .pw-msg.bad{color:var(--danger);} .pw-msg.ok{color:var(--success);}
+  .pw-acoes{display:flex; gap:10px; justify-content:flex-end; align-items:center;} .pw-acoes .btn-primary{width:auto; margin-top:0; padding:9px 16px;}
+  .adm-det > summary{cursor:pointer; list-style:none; display:flex; align-items:center; gap:8px; padding:12px 18px; border-top:1px solid var(--border); font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text-muted); user-select:none;}
+  .adm-det > summary::-webkit-details-marker{display:none;}
+  .adm-det > summary::before{content:"▸"; font-size:11px; transition:transform .15s;}
+  .adm-det[open] > summary::before{transform:rotate(90deg);} .adm-det > summary:hover{color:var(--text); background:var(--surface-2);}
   .adm-perigo{color:var(--danger); border-color:var(--danger);} .adm-perigo:disabled{opacity:.5;} .adm-aviso{flex:1 1 280px; min-width:0; color:var(--danger); font-weight:600;}
   .adm-kcode{display:inline-block; margin-top:6px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12.5px; letter-spacing:.04em; background:var(--surface); border:1px solid var(--border-strong); padding:3px 7px; border-radius:6px; user-select:all;}
   /* ---------- Shell ---------- */
@@ -649,7 +661,7 @@
         </div>
       </div>
       <button class="btn-primary" type="submit">Entrar</button>
-      <p class="login-note" id="loginMsg" role="alert" style="min-height:1.4em;font-size:12px"></p>
+      <p class="login-note" id="loginMsg" role="alert" style="min-height:1.4em;font-size:12px"></p><p class="login-note" style="font-size:11.5px">Esqueceu a senha? Peça ao administrador: Adm › Usuários e senhas › Redefinir senha.</p>
     </form>
   </div>
 </div>
@@ -688,7 +700,7 @@
         <h1 id="viewTitle">Programação de Cimento</h1>
         <p class="crumb" id="viewCrumb"></p>
       </div>
-      <div class="user-chip"><span id="presChip" class="pres-chip" hidden></span><span id="syncChip" style="font-size:11.5px;font-weight:600;color:var(--success)">● Salvo</span><button type="button" id="btnAtualizar" class="btn-mini" title="Buscar de novo os dados do banco">↻ Atualizar</button><div class="avatar" id="whoAvatar">--</div><div class="who"><b id="whoName">—</b><small id="whoRole">—</small></div><button type="button" id="btnSair" class="btn-mini">Sair</button></div>
+      <div class="user-chip"><span id="presChip" class="pres-chip" hidden></span><span id="syncChip" style="font-size:11.5px;font-weight:600;color:var(--success)">● Salvo</span><button type="button" id="btnAtualizar" class="btn-mini" title="Buscar de novo os dados do banco">↻ Atualizar</button><div class="avatar" id="whoAvatar">--</div><div class="who"><b id="whoName">—</b><small id="whoRole">—</small></div><button type="button" id="btnSenha" class="btn-mini" title="Trocar a minha senha">Trocar senha</button><button type="button" id="btnSair" class="btn-mini">Sair</button></div>
     </div>
     <div class="content">
 
@@ -716,6 +728,7 @@
 
 <div id="loadingOverlay"><span>Carregando…</span></div>
 <div class="overlay" id="overlay"></div>
+<div id="pwModal" class="pw-modal" hidden role="dialog" aria-modal="true" aria-labelledby="pwTitulo"><div class="pw-box"><h2 id="pwTitulo">Trocar minha senha</h2><p class="pw-sub">Só você vai saber a nova senha. Use uma que guarde bem.</p><label>Senha atual<input type="password" id="pwAtual" autocomplete="current-password" spellcheck="false"></label><label>Nova senha<div class="adm-pw"><input type="password" id="pwNova" autocomplete="new-password" spellcheck="false"><button type="button" class="btn-ghost" id="pwVer">Mostrar</button><button type="button" class="btn-ghost" id="pwGerar">Gerar</button></div></label><label>Repita a nova senha<input type="password" id="pwRep" autocomplete="new-password" spellcheck="false"></label><ul class="adm-regras" id="pwRegras"></ul><div class="pw-msg" id="pwMsg" role="alert"></div><div class="pw-acoes"><button type="button" class="btn-ghost" id="pwCancelar">Cancelar</button><button type="button" class="btn-primary" id="pwSalvar" disabled>Trocar senha</button></div></div></div>
 <div class="drawer" id="drawer">
   <div class="drawer-head">
     <div>
@@ -5197,7 +5210,7 @@
       loginMsg(r.error ? dbErr(r.error) : "Este usuário não tem acesso. Fale com o administrador.", true);
       return false;
     }
-    ME = { id: user.id, nome: r.data.nome || user.email, papel: r.data.papel, empresa_id: r.data.empresa_id };
+    ME = { id: user.id, nome: r.data.nome || user.email, papel: r.data.papel, empresa_id: r.data.empresa_id, login: String(user.email || "").split("@")[0] };
     el("whoName").textContent = ME.nome;
     el("whoRole").textContent = { admin: "Administrador", operador: "Operador", leitura: "Somente leitura" }[ME.papel] || ME.papel;
     el("whoAvatar").textContent = ME.nome.slice(0, 2).toUpperCase();
@@ -5258,14 +5271,14 @@
      As regras valem no BANCO (funções admin_*): esta tela só chama elas.
      Ninguém além do administrador troca senha — nem a própria.
      ====================================================================== */
-  var ADM = { usuarios: [], hist: [], alvo: null, msg: "", ruim: false, carregando: false, ch: null, revela: null, sureKey: null, f: { enc: { q: "", s: "" }, us: { q: "", s: "" } } };
+  var ADM = { usuarios: [], hist: [], alvo: null, msg: "", ruim: false, carregando: false, ch: null, revela: null, sureKey: null, f: { enc: { q: "", s: "" }, us: { q: "", s: "" } }, open: {} };
   var ADM_REGRAS = [
     ["12 caracteres ou mais (máx. 72)", function(s){ return s.length >= 12 && s.length <= 72; }],
     ["uma letra minúscula", function(s){ return /[a-z]/.test(s); }],
     ["uma letra maiúscula", function(s){ return /[A-Z]/.test(s); }],
     ["um número", function(s){ return /[0-9]/.test(s); }],
     ["um símbolo (! ? # @ % & * - _ …)", function(s){ return /[^A-Za-z0-9]/.test(s); }],
-    ["sem o nome do usuário, “concrelagos”, “senha” ou sequências (123456, qwerty…)", function(s, u){ return !(u && s.toLowerCase().indexOf(String(u).toLowerCase()) >= 0) && !/(concrelagos|senha|password|123456|qwerty|abcdef)/i.test(s); }]
+    ["sem “concrelagos”, “senha” ou sequências (123456, qwerty…)", function(s){ return !/(concrelagos|senha|password|123456|qwerty|abcdef)/i.test(s); }]
   ];
   function admInit(){
     var ehAdm = !!ME && ME.papel === "admin";
@@ -5308,7 +5321,7 @@
   var ADM_CHECK = [
     ["Alta", "painel", "Cadastro público desligado", "No painel do Supabase: Authentication → Sign In / Providers → desmarque “Allow new users to sign up”. Hoje uma conta nova não enxerga nenhum dado (o banco exige ser membro), mas desligar fecha a porta de vez."],
     ["Alta", "feito", "Senha só pelo administrador", "O sistema não oferece troca de senha ao usuário: só o administrador redefine (aqui no Adm) e as sessões antigas caem na hora. Observação: o Supabase ainda permitiria, tecnicamente, que alguém logado chamasse a API para trocar a própria senha — isso não abre dados de ninguém e você redefine em seguida."],
-    ["Alta", "feito", "Regras de senha forte", "12+ caracteres, maiúscula, minúscula, número e símbolo; sem o nome do usuário nem palavras óbvias. Valida no banco, não só na tela."],
+    ["Alta", "feito", "Regras de senha forte", "12+ caracteres, maiúscula, minúscula, número e símbolo; sem “concrelagos”, “senha” nem sequências óbvias. Valida no banco, não só na tela."],
     ["Alta", "feito", "Funções do banco sem acesso anônimo", "Quem não está logado não consegue chamar nenhuma função do banco. Duas ainda estavam abertas."],
     ["Média", "feito", "Proteção contra código injetado (XSS/CSP)", "Textos vindos de planilhas são escapados e o navegador só conversa com o seu banco — mesmo que algo escapasse, não consegue enviar dados para outro site."],
     ["Média", "feito", "Saída automática por inatividade", "Computador esquecido aberto deixa de ser porta de entrada: após 2 horas sem uso, a sessão é encerrada."],
@@ -5318,6 +5331,8 @@
     ["Média", "painel", "Backup / restauração", "Conferir o plano do Supabase: backup diário só no Pro. Hoje dependemos das exclusões “suaves” e do histórico."],
     ["Baixa", "depois", "Repositório privado", "O código está público no GitHub (sem dados nem segredos). Privado exige GitHub Pro para continuar publicando o site."]
   ];
+  function admDet(k, titulo, corpo){ return '<details class="adm-det" data-dk="' + k + '"' + (ADM.open[k] ? " open" : "") + '><summary>' + titulo + '</summary>' + corpo + '</details>'; }
+  el("view-adm").addEventListener("toggle", function(ev){ var d = ev.target; if (d && d.classList && d.classList.contains("adm-det")) ADM.open[d.dataset.dk] = d.open; }, true);
   function admRender(){
     var v = el("view-adm"), h = "";
     var bd = ADM.msg && ADM.where !== "ch" ? '<div class="adm-msg ' + (ADM.ruim ? "bad" : "ok") + '" role="status">' + esc(ADM.msg) + '</div>' : "";
@@ -5325,16 +5340,17 @@
     h += bd;
     if (ADM.carregando) h += '<div class="adm-pad faint">Carregando…</div>';
     else {
-      h += '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Usuário</th><th>Nome</th><th>Papel</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead><tbody>';
+      var hU = '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Usuário</th><th>Nome</th><th>Papel</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead><tbody>';
       ADM.usuarios.forEach(function(u){
         var eu = u.user_id === ME.id;
-        h += '<tr data-uid="' + esc(u.user_id) + '"><td class="cell-strong">' + esc(u.usuario) + (eu ? ' <span class="faint">(você)</span>' : "") + '</td><td>' + esc(u.nome || "") + '</td>' +
+        hU += '<tr data-uid="' + esc(u.user_id) + '"><td class="cell-strong">' + esc(u.usuario) + (eu ? ' <span class="faint">(você)</span>' : "") + '</td><td>' + esc(u.nome || "") + '</td>' +
           '<td><select class="adm-papel" ' + (eu ? "disabled" : "") + '>' + ["admin", "operador", "leitura"].map(function(p){ return '<option value="' + p + '"' + (p === u.papel ? " selected" : "") + ">" + ({ admin: "Administrador", operador: "Operador", leitura: "Somente leitura" })[p] + "</option>"; }).join("") + '</select></td>' +
           '<td class="muted">' + esc(admFmt(u.ultimo_acesso)) + '</td>' +
           '<td><span class="badge ' + (u.ativo ? "success" : "danger") + '">' + (u.ativo ? "Ativo" : "Desativado") + '</span></td>' +
           '<td><div class="adm-acoes"><button class="btn-ghost" data-act="senha">Redefinir senha</button>' + (eu ? "" : ' <button class="btn-ghost" data-act="ativo">' + (u.ativo ? "Desativar" : "Ativar") + '</button>') + '</div></td></tr>';
       });
-      h += '</tbody></table></div>';
+      hU += '</tbody></table></div>';
+      h += admDet("usr", "Usuários (" + ADM.usuarios.length + ")", hU);
     }
     h += '</div>';
     var alvo = ADM.alvo && ADM.usuarios.find(function(u){ return u.user_id === ADM.alvo; });
@@ -5347,10 +5363,10 @@
     }
     h += admChavesHtml();
     h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>🧾 Últimas ações de administração</h2><p>Quem fez o quê, e quando. A senha nunca é gravada.</p></div></div>';
-    h += ADM.hist.length ? '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Quando</th><th>Ação</th><th>Usuário</th><th>Detalhe</th></tr></thead><tbody>' + ADM.hist.map(function(x){
+    h += ADM.hist.length ? admDet("hist", "Ver as últimas " + ADM.hist.length + " ações", '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Quando</th><th>Ação</th><th>Usuário</th><th>Detalhe</th></tr></thead><tbody>' + ADM.hist.map(function(x){
       var det = x.acao === "ALTERAR_PAPEL" ? esc(((x.antes || {}).papel || "?") + " → " + ((x.depois || {}).papel || "?")) : ((x.acao === "GERAR_CHAVES_LOTE" || x.acao === "EXPORTAR_CHAVES" || x.acao === "APAGAR_CHAVES") ? esc((x.depois || {}).qtd + " chave(s)") : (x.acao === "ENCARREGADO_USINAS" ? esc((x.depois || {}).qtd_usinas + " usina(s)") : ""));
       return '<tr><td class="muted">' + esc(admFmt(x.em)) + '</td><td>' + esc(ADM_ACAO[x.acao] || x.acao) + '</td><td>' + esc(admAlvoHist(x)) + '</td><td class="muted">' + det + '</td></tr>';
-    }).join("") + '</tbody></table></div>' : '<div class="adm-pad faint">Nenhuma ação registrada ainda.</div>';
+    }).join("") + '</tbody></table></div>') : '<div class="adm-pad faint">Nenhuma ação registrada ainda.</div>';
     h += '</div>';
     h += '<div class="card"><div class="card-head"><div><h2>🛡️ Checklist de segurança</h2><p>O que protege os dados da Concrelagos, por que importa e o que ainda depende de você.</p></div></div><div class="adm-check">' +
       ADM_CHECK.map(function(c){
@@ -5398,6 +5414,39 @@
       ADM.msg = "Senha de " + nome + " redefinida. Entregue a nova senha a essa pessoa por um canal seguro."; ADM.ruim = false; ADM.alvo = null; await paintAdm();
     }
   });
+
+  /* ---------- Trocar a própria senha ---------- */
+  function pwFechar(){ var m = el("pwModal"); if (!m) return; m.hidden = true; ["pwAtual", "pwNova", "pwRep"].forEach(function(i){ el(i).value = ""; el(i).type = "password"; }); el("pwVer").textContent = "Mostrar"; el("pwMsg").textContent = ""; }
+  function pwAbrir(){ if (!ME) return; pwFechar(); el("pwModal").hidden = false; pwRegras(); el("pwAtual").focus(); }
+  function pwRegras(){
+    var a = el("pwAtual").value, s = el("pwNova").value, b = el("pwRep").value, todas = true;
+    el("pwRegras").innerHTML = ADM_REGRAS.map(function(r){ var ok = r[1](s, ME && ME.login); if (!ok) todas = false; return '<li class="' + (ok ? "ok" : "") + '">' + (ok ? "✔ " : "○ ") + esc(r[0]) + "</li>"; }).join("") +
+      '<li class="' + (s && s === b ? "ok" : "") + '">' + (s && s === b ? "✔ " : "○ ") + 'as duas senhas novas são iguais</li>' +
+      '<li class="' + (s && s !== a ? "ok" : "") + '">' + (s && s !== a ? "✔ " : "○ ") + 'diferente da senha atual</li>';
+    el("pwSalvar").disabled = !(a && todas && s === b && s !== a);
+  }
+  (function(){
+    var m = el("pwModal"); if (!m) return;
+    el("btnSenha").addEventListener("click", pwAbrir);
+    el("pwCancelar").addEventListener("click", pwFechar);
+    m.addEventListener("click", function(ev){ if (ev.target === m) pwFechar(); });
+    document.addEventListener("keydown", function(ev){ if (ev.key === "Escape" && !m.hidden) pwFechar(); });
+    ["pwAtual", "pwNova", "pwRep"].forEach(function(i){ el(i).addEventListener("input", function(){ el("pwMsg").textContent = ""; pwRegras(); }); });
+    el("pwVer").addEventListener("click", function(){ var t = el("pwNova").type === "password" ? "text" : "password"; el("pwNova").type = t; el("pwRep").type = t; el("pwVer").textContent = t === "text" ? "Ocultar" : "Mostrar"; });
+    el("pwGerar").addEventListener("click", function(){ var g = admSenhaAleatoria(); el("pwNova").value = g; el("pwRep").value = g; el("pwNova").type = "text"; el("pwRep").type = "text"; el("pwVer").textContent = "Ocultar"; pwRegras(); });
+    el("pwSalvar").addEventListener("click", async function(){
+      var b = el("pwSalvar"), msg = el("pwMsg"); b.disabled = true; b.textContent = "Trocando…"; msg.className = "pw-msg"; msg.textContent = "";
+      var r = await sb.rpc("trocar_minha_senha", { p_atual: el("pwAtual").value, p_nova: el("pwNova").value });
+      b.textContent = "Trocar senha";
+      if (r.error){ msg.className = "pw-msg bad"; msg.textContent = dbErr(r.error); pwRegras(); return; }
+      var d = r.data || {};
+      if (d.erro === "senha_atual"){ msg.className = "pw-msg bad"; msg.textContent = "A senha atual não confere."; pwRegras(); el("pwAtual").focus(); return; }
+      if (d.erro === "bloqueado"){ msg.className = "pw-msg bad"; msg.textContent = "Muitas tentativas erradas. Espere 15 minutos ou peça ao administrador para redefinir."; pwRegras(); return; }
+      msg.className = "pw-msg ok"; msg.textContent = "Senha trocada. Use a nova no próximo acesso.";
+      ["pwAtual", "pwNova", "pwRep"].forEach(function(i){ el(i).value = ""; });
+      setTimeout(pwFechar, 1600);
+    });
+  })();
 
   /* ---------- Chaves de acesso (Solicitação de Cimento) ---------- */
   function admChaveInfo(c){
@@ -5460,24 +5509,25 @@
     // filtros + tabelas (encarregados e usinas usam o mesmo molde, com o mesmo tamanho)
     var semChaveEnc = C.encarregados.filter(function(e){ return e.ativo && !e.chave; }).length;
     var semChave = C.usinas.filter(function(u){ return !u.chave; }).length;
-    h += '<div class="adm-sub">Encarregados <span class="faint">(' + C.encarregados.length + ')</span></div>';
-    h += '<div class="adm-pad faint" style="padding-top:0">O cadastro dos encarregados e das usinas de cada um fica em <b>Dados › Base de Dados</b>. Aqui você gera, copia e desativa as chaves.</div>';
-    h += admKBarra("enc", "Buscar encarregado, usina ou final da chave…", '<button class="btn-ghost" data-cact="lote-enc"' + (semChaveEnc ? "" : " disabled") + '>Gerar chaves dos ' + semChaveEnc + ' encarregado(s) sem chave</button>');
-    if (!C.encarregados.length) h += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda (cadastre em Base de Dados).</div>';
-    else h += admKTabela("enc", ["Encarregado", "Usinas"], C.encarregados.map(function(e){
+    var hEnc = "", hUs = "";
+    hEnc += '<div class="adm-pad faint" style="padding-top:0">O cadastro dos encarregados e das usinas de cada um fica em <b>Dados › Base de Dados</b>. Aqui você gera, copia e desativa as chaves.</div>';
+    hEnc += admKBarra("enc", "Buscar encarregado, usina ou final da chave…", '<button class="btn-ghost" data-cact="lote-enc"' + (semChaveEnc ? "" : " disabled") + '>Gerar chaves dos ' + semChaveEnc + ' encarregado(s) sem chave</button>');
+    if (!C.encarregados.length) hEnc += '<div class="adm-pad faint">Nenhum encarregado cadastrado ainda (cadastre em Base de Dados).</div>';
+    else hEnc += admKTabela("enc", ["Encarregado", "Usinas"], C.encarregados.map(function(e){
       var us = (e.usinas || []).map(function(id){ var u = C.usinas.find(function(x){ return x.usina_id === id; }); return u ? u.usina : "?"; });
       return admKLinha("enc", { attr: 'data-eid="' + esc(e.id) + '"', nome: e.nome, rel: us.join(", "), chave: e.chave,
         c1: esc(e.nome) + (e.ativo ? "" : ' <span class="badge danger">desativado</span>'),
         c2: us.length ? esc(us.join(", ")) : '<span class="faint">nenhuma</span>',
         gerar: e.ativo ? "enc-chave" : "", sure: ADM.sureKey === "e:" + e.id, off: !e.ativo ? "off" : "" });
     }));
-    h += '<div class="adm-sub">Usinas <span class="faint">(' + C.usinas.length + ')</span></div>';
-    h += admKBarra("us", "Buscar usina, encarregado ou final da chave…", '<button class="btn-ghost" data-cact="lote"' + (semChave ? "" : " disabled") + '>Gerar chaves das ' + semChave + ' usina(s) sem chave</button>');
-    h += admKTabela("us", ["Usina", "Encarregado"], C.usinas.map(function(u){
+
+    hUs += admKBarra("us", "Buscar usina, encarregado ou final da chave…", '<button class="btn-ghost" data-cact="lote"' + (semChave ? "" : " disabled") + '>Gerar chaves das ' + semChave + ' usina(s) sem chave</button>');
+    hUs += admKTabela("us", ["Usina", "Encarregado"], C.usinas.map(function(u){
       return admKLinha("us", { attr: 'data-usid="' + esc(u.usina_id) + '"', nome: u.usina + " " + (u.sigla || ""), rel: u.encarregado || "", chave: u.chave,
         c1: esc(u.usina), c2: u.encarregado ? esc(u.encarregado) : '<span class="faint">sem encarregado</span>',
         gerar: "us-chave", sure: ADM.sureKey === "u:" + u.usina_id, off: "" });
     }));
+    h += admDet("enc", "Encarregados (" + C.encarregados.length + ")", hEnc) + admDet("us", "Usinas (" + C.usinas.length + ")", hUs);
     h += '</div>';
     return h;
   }

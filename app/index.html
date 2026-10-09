@@ -1788,7 +1788,13 @@
       '<div id="progBlocks"></div>';
 
     var anterior = progPicker && progPicker.state ? { de: progPicker.state.rangeStart, ate: progPicker.state.rangeEnd } : null;
-    progPicker = makeRangePicker({btn:"drBtn", panel:"drPanel", label:"drLabel"}, paintBlocks);
+    progPicker = makeRangePicker({btn:"drBtn", panel:"drPanel", label:"drLabel"}, function(){
+      // período longo: avisa antes de desenhar (o desenho em si trava a tela por alguns instantes)
+      var n = rangeDays(progPicker.state).length;
+      if (n <= 7) return paintBlocks();
+      overlay(true, "Montando " + n + " dias de programação…");
+      setTimeout(function(){ try { paintBlocks(); } finally { overlay(false); } }, 40);
+    });
     var ini = anterior || progPeriodoPadrao();
     progPicker.state.rangeStart = new Date(ini.de); progPicker.state.rangeEnd = new Date(ini.ate);
     progPicker.state.calViewMonth = new Date(ini.de.getFullYear(), ini.de.getMonth(), 1);
@@ -2628,7 +2634,7 @@
   // importada ainda, fica vazio (matchProgramacao então cai pro critério de
   // fábrica+usina, igual sempre fez quando faltava pedido).
   function recomputeEntradasFromPuzl(){
-    __idxVer++;
+    __idxVer++; if (typeof __passo !== "undefined" && __passo) __passo = {};
     cementEntradas = puzlEntradas.map(function(p){
       var usinaCad = usinasCadastro.find(function(u){ return u.puzl && u.puzl === p.centralEntrada; });
       var fabEntry = fabricaEntryForFornecedor(p.fornecedor);
@@ -2721,7 +2727,7 @@
     var cs = cargasDaLinha(progEntry);
     var res = cs.map(function(c){ return {carga: c, nfs: [], status: "none"}; });
     var usinaProg = String(progEntry.usina || "").trim().toUpperCase();
-    cementNFes.forEach(function(nf){
+    nfsCandidatas(progEntry).forEach(function(nf){
       if (nfSoRegistro(nf)) return;
       var np = pedidoEfetivo(nf);
       if (!np && String(nf.usina || "").trim().toUpperCase() !== usinaProg) return;
@@ -2776,7 +2782,7 @@
     // Cadeia pela nota do SEFAZ (ligação firme com ESTA linha da programação)
     var ped = pedidoListFrom(progEntry.pedido).map(normalizePedidoNum);
     var usinaProg = String(progEntry.usina || "").trim().toUpperCase();
-    cementNFes.forEach(function(nf){
+    nfsCandidatas(progEntry).forEach(function(nf){
       if (nfSoRegistro(nf)) return;                                   // cancelada / transferência: não conta
       var np = pedidoEfetivo(nf);
       // pré-filtro exato: só chama a ligação completa se o pedido da nota está nesta linha (ou, sem pedido, a usina é a mesma)
@@ -2816,6 +2822,20 @@
     if (pedidoAlvo){
       var pedidoAlvoNorm = normalizePedidoNum(pedidoAlvo);
       var achou = null, achouIso = null;
+      if (typeof __passo !== "undefined" && __passo){
+        // durante um desenho: índice pedido → 1ª linha que o tem (mesma ordem de busca de antes: dia a dia, linha a linha)
+        var ixp = __passo.progPed;
+        if (!ixp){
+          ixp = __passo.progPed = new Map();
+          Object.keys(cementScheduleByDate).forEach(function(iso){
+            progAtivos(cementScheduleByDate[iso]).forEach(function(e){
+              pedidoListFrom(e.pedido).forEach(function(p){ var k = normalizePedidoNum(p); if (!ixp.has(k)) ixp.set(k, {entry: e, iso: iso}); });
+            });
+          });
+        }
+        var hit = ixp.get(pedidoAlvoNorm);
+        if (hit){ achou = hit.entry; achouIso = hit.iso; }
+      } else
       Object.keys(cementScheduleByDate).some(function(iso){
         var day = cementScheduleByDate[iso];
         var entry = progAtivos(day).find(function(e){
@@ -6339,6 +6359,137 @@
       }
     });
   })();
+
+  /* ======================================================================
+     DESEMPENHO — o mesmo resultado, calculado menos vezes.
+     (1) Textos normalizados e comparações de fábrica ficam guardados (são
+         funções puras de texto).
+     (2) Enquanto UMA tela está sendo desenhada (nada muda nos dados nesse
+         meio-tempo), cada cruzamento — entrada → Programação, nota →
+         Programação, nota → entrada — é calculado uma vez só e reaproveitado
+         pelas outras linhas. A memória é apagada ao fim do desenho; fora do
+         desenho (ex.: importação) tudo é calculado do zero, como antes.
+     ====================================================================== */
+  var __passo = null, __passoNivel = 0;
+  (function(){
+    var memoTxt = function(fn){
+      var m = new Map();
+      return function(s){
+        if (typeof s !== "string") return fn(s);
+        var v = m.get(s); if (v !== undefined) return v;
+        if (m.size > 60000) m.clear();
+        v = fn(s); m.set(s, v); return v;
+      };
+    };
+    stripAccents = memoTxt(stripAccents);
+    normalizeMaterial = memoTxt(normalizeMaterial);
+    var fm = fabricaMatches, mfm = new Map();
+    fabricaMatches = function(a, b){
+      if (typeof a !== "string" || typeof b !== "string") return fm(a, b);
+      var k = a + "\u0001" + b, v = mfm.get(k); if (v !== undefined) return v;
+      if (mfm.size > 60000) mfm.clear();
+      v = fm(a, b); mfm.set(k, v); return v;
+    };
+    var comPasso = function(fn){
+      return function(){
+        if (!__passoNivel++) __passo = {};
+        try { return fn.apply(this, arguments); }
+        finally { if (!--__passoNivel) __passo = null; }
+      };
+    };
+    var memoPasso = function(nome, fn){
+      return function(a){
+        if (!__passo || arguments.length !== 1) return fn.apply(this, arguments);
+        var c = __passo[nome] || (__passo[nome] = new Map());
+        if (c.has(a)) return c.get(a);
+        var v = fn.call(this, a); c.set(a, v); return v;
+      };
+    };
+    matchProgramacao = memoPasso("mp", matchProgramacao);
+    nfProgMatch = memoPasso("npm", nfProgMatch);
+    nfSituacao = memoPasso("ns", nfSituacao);
+    // buscas por número (nota, documento da PUZL, entrada): índice montado uma vez por desenho, mesma regra de antes (a 1ª que bate)
+    var nbnOrig = nfByNumero;
+    nfByNumero = function(numero){
+      if (!__passo) return nbnOrig(numero);
+      var alvo = String(numero || "").trim().toUpperCase(); if (!alvo) return null;
+      var ix = __passo.nfNum;
+      if (!ix){ ix = __passo.nfNum = new Map(); cementNFes.forEach(function(nf){ var k = nfKey(nf); if (k && !ix.has(k)) ix.set(k, nf); }); }
+      return ix.get(alvo) || null;
+    };
+    var pebdOrig = puzlEntradasByDocumento;
+    puzlEntradasByDocumento = function(numero){
+      if (!__passo) return pebdOrig(numero);
+      var alvo = normalizePedidoNum(numero); if (!alvo) return [];
+      var ix = __passo.puzlDoc;
+      if (!ix){ ix = __passo.puzlDoc = new Map(); puzlEntradas.forEach(function(p){ var k = normalizePedidoNum(p.documento); var l = ix.get(k); if (!l) ix.set(k, l = []); l.push(p); }); }
+      return (ix.get(alvo) || []).slice();
+    };
+    var nemOrig = nfEntradaMatch;
+    nfEntradaMatch = memoPasso("nem", function(nf){
+      if (!__passo) return nemOrig(nf);
+      var alvo = nfKey(nf); if (!alvo) return null;
+      var ix = __passo.entDoc;
+      if (!ix){
+        ix = __passo.entDoc = { doc: new Map(), id: new Map() };
+        cementEntradas.forEach(function(en){ var k = String(en.documento || "").trim().toUpperCase(); if (!ix.doc.has(k)) ix.doc.set(k, en); if (!ix.id.has(en.id)) ix.id.set(en.id, en); });
+      }
+      var achou = ix.doc.get(alvo); if (achou) return achou;
+      var ck = soDigitos(nf.chave);
+      if (ck.length === 44){ var pz = indicesPuzl().puzlPorChave.get(ck); if (pz) return ix.id.get(pz.id) || null; }
+      return null;
+    });
+    entradaNFStatus = memoPasso("ens", entradaNFStatus);
+    puzlMatchParaNF = memoPasso("pmn", puzlMatchParaNF);
+    progEntryNFStatus = memoPasso("pes", progEntryNFStatus);
+    nfCanceladasLigadas = memoPasso("ncl", nfCanceladasLigadas);
+    // entradas que conferem com cada linha: um índice para a tela inteira, em vez de varrer todas as entradas por linha
+    var e2pOrig = entradasParaProgEntry;
+    entradasParaProgEntry = function(progEntry){
+      if (!__passo) return e2pOrig(progEntry);
+      var idx = __passo.e2p;
+      if (!idx){
+        idx = __passo.e2p = new Map();
+        cementEntradas.forEach(function(en){
+          var m = matchProgramacao(en);
+          if (m.situacao === "confere" && m.entry){ var l = idx.get(m.entry); if (!l) idx.set(m.entry, l = []); l.push(en); }
+        });
+      }
+      return (idx.get(progEntry) || []).slice();
+    };
+    // Telas: cada desenho é um "passo" com memória própria
+    recomputeEntradasFromPuzl = comPasso(recomputeEntradasFromPuzl);
+    renderProgramacaoCimento = comPasso(renderProgramacaoCimento); paintBlocks = comPasso(paintBlocks); progDayCounts = comPasso(progDayCounts);
+    progLinhaSituacao = comPasso(progLinhaSituacao); progDecorar = comPasso(progDecorar); bootRender = comPasso(bootRender);
+    renderBaseDados = comPasso(renderBaseDados); paintBaseDados = comPasso(paintBaseDados); paintBaseDadosStats = comPasso(paintBaseDadosStats);
+    computeMateriaisNovosPendentes = comPasso(computeMateriaisNovosPendentes); renderMateriaisNovos = comPasso(renderMateriaisNovos);
+    renderNotasSefaz = comPasso(renderNotasSefaz); paintNFes = comPasso(paintNFes); renderLancamentosPuzl = comPasso(renderLancamentosPuzl); paintPuzl = comPasso(paintPuzl);
+    renderControlePedidos = comPasso(renderControlePedidos); paintPedidos = comPasso(paintPedidos); paintPedidosStats = comPasso(paintPedidosStats);
+    paintPedidosProg = comPasso(paintPedidosProg); paintPedidosNotas = comPasso(paintPedidosNotas); paintPedidosSemNF = comPasso(paintPedidosSemNF);
+    renderConsultas = comPasso(renderConsultas); paintConsulta = comPasso(paintConsulta); renderDashboard = comPasso(renderDashboard); paintDashboard = comPasso(paintDashboard);
+  })();
+  // Notas que podem se ligar a uma linha da Programação: pelo pedido (qualquer pedido da linha) ou, sem pedido, pela usina.
+  // É só um pré-filtro (as funções que usam aplicam o filtro completo de antes); mantém a ordem original das notas.
+  function nfsCandidatas(progEntry){
+    if (!__passo) return cementNFes;
+    var ix = __passo.nfIdx;
+    if (!ix){
+      ix = __passo.nfIdx = { porPedido: new Map(), porUsina: new Map(), pos: new Map() };
+      cementNFes.forEach(function(nf, i){
+        ix.pos.set(nf, i);
+        var np = pedidoEfetivo(nf);
+        var k = np ? normalizePedidoNum(np) : String(nf.usina || "").trim().toUpperCase();
+        var mapa = np ? ix.porPedido : ix.porUsina, l = mapa.get(k);
+        if (!l) mapa.set(k, l = []); l.push(nf);
+      });
+    }
+    var vistos = new Set(), out = [];
+    var add = function(l){ (l || []).forEach(function(nf){ if (!vistos.has(nf)){ vistos.add(nf); out.push(nf); } }); };
+    String(progEntry.pedido || "").split("/").forEach(function(p){ p = p.trim(); if (p) add(ix.porPedido.get(normalizePedidoNum(p))); });
+    add(ix.porUsina.get(String(progEntry.usina || "").trim().toUpperCase()));
+    out.sort(function(a, b){ return ix.pos.get(a) - ix.pos.get(b); });
+    return out;
+  }
 
   window.__app = { syncNow: syncNow, takeSnap: takeSnap, progRefresh: progRefresh, presPeers: function(){ return PRES.peers; }, presStatus: function(){ return PRES.status; } };
 

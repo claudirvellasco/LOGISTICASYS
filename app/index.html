@@ -139,6 +139,7 @@
   .nav-badge{margin-left:auto; min-width:18px; height:18px; padding:0 6px; border-radius:99px; background:var(--accent-btn); color:#fff; font-size:10.5px; font-weight:700; display:inline-flex; align-items:center; justify-content:center; font-variant-numeric:tabular-nums;}
   .nav-badge[hidden]{display:none;}
   .sol-barra{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+  #solDrPanel{left:auto; right:0;}
   .sol-barra input[type=date]{background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:6px 9px; font-size:12.5px; font-family:inherit; color-scheme:dark;}
   .sol-nota{font-size:12.5px; color:var(--text-muted); padding-top:12px; padding-bottom:4px;}
   .sol-tiles{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; padding:10px 18px 18px;}
@@ -1752,6 +1753,30 @@
 
   var progPicker;
 
+  /* Feriados que não contam como dia útil na Programação (nacionais + São Jorge/RJ).
+     Domingo nunca é útil; sábado é. */
+  var FERIADOS_FIXOS = { "01-01": "Confraternização Universal", "04-21": "Tiradentes", "04-23": "São Jorge (RJ)", "05-01": "Dia do Trabalho", "09-07": "Independência",
+    "10-12": "Nossa Senhora Aparecida", "11-02": "Finados", "11-15": "Proclamação da República", "11-20": "Consciência Negra", "12-25": "Natal" };
+  function pascoa(y){
+    var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    var h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    var mes = Math.floor((h + l - 7 * m + 114) / 31), dia = ((h + l - 7 * m + 114) % 31) + 1;
+    return new Date(y, mes - 1, dia);
+  }
+  function feriadoNome(d){
+    var k = pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+    if (FERIADOS_FIXOS[k]) return FERIADOS_FIXOS[k];
+    if (sameDay(d, addDays(pascoa(d.getFullYear()), -2))) return "Sexta-feira Santa";
+    return "";
+  }
+  function diaUtilProg(d){ return !isSunday(d) && !feriadoNome(d); }
+  // Padrão ao abrir: o próximo dia útil; na sexta-feira, os dois próximos (sábado conta, domingo e feriado não).
+  function progPeriodoPadrao(base){
+    var hoje = base || TODAY, n = hoje.getDay() === 5 ? 2 : 1, dias = [], d = hoje;
+    while (dias.length < n){ d = addDays(d, 1); if (diaUtilProg(d)) dias.push(d); }
+    return { de: dias[0], ate: dias[dias.length - 1] };
+  }
+
   /* ---------------- Programação de Cimento ---------------- */
   function renderProgramacaoCimento(){
     el("view-programacao-cimento").innerHTML =
@@ -1762,7 +1787,11 @@
       '<div class="filter-count" id="dayInfo"></div></div></div>' +
       '<div id="progBlocks"></div>';
 
+    var anterior = progPicker && progPicker.state ? { de: progPicker.state.rangeStart, ate: progPicker.state.rangeEnd } : null;
     progPicker = makeRangePicker({btn:"drBtn", panel:"drPanel", label:"drLabel"}, paintBlocks);
+    var ini = anterior || progPeriodoPadrao();
+    progPicker.state.rangeStart = new Date(ini.de); progPicker.state.rangeEnd = new Date(ini.ate);
+    progPicker.state.calViewMonth = new Date(ini.de.getFullYear(), ini.de.getMonth(), 1);
     paintBlocks();
   }
 
@@ -1810,6 +1839,9 @@
       var data = cementDayData(iso);
       var sunday = isSunday(day);
       if (sunday && !data.isException) return ""; // domingo sem exceção: não mostra bloco
+      var feriado = feriadoNome(day);
+      // feriado no meio de um período: só aparece se já tiver carga programada (escolhendo só o dia do feriado, ele aparece)
+      if (feriado && !sunday && days.length > 1 && !data.entries.some(function(e){ return String(e.carretas || "").trim(); })) return "";
       shown++;
 
       // Monta as linhas: para dias normais, SEMPRE repete a lista completa de
@@ -1870,7 +1902,7 @@
           statusSelect + '</tr>';
       }).join("");
       return '<div class="prog-block'+(data.isException?" exception":"")+'" data-iso="'+iso+'">' +
-        '<div class="prog-block-head"><div class="ref">'+esc(refText)+'</div><div class="title">PROGRAMAÇÃO PARA O DIA '+esc(fmtBR(day).toUpperCase())+' ('+esc(weekdayLong(day).toUpperCase())+')'+(data.isException?' · EXCEÇÃO':'')+'</div></div>' +
+        '<div class="prog-block-head"><div class="ref">'+esc(refText)+'</div><div class="title">PROGRAMAÇÃO PARA O DIA '+esc(fmtBR(day).toUpperCase())+' ('+esc(weekdayLong(day).toUpperCase())+')'+(data.isException?' · EXCEÇÃO':'')+(feriado?' · FERIADO ('+esc(feriado.toUpperCase())+')':'')+'</div></div>' +
         '<div class="prog-day-stats">' + progDayStatsHtml(progDayCounts(iso)) + '</div>' +
         (entries.length
           ? '<div class="table-wrap"><table><thead><tr><th>Usina</th><th>Carretas</th><th>Fábrica</th><th>Número do Pedido</th><th>Observação</th><th>NF (SEFAZ)</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
@@ -1880,7 +1912,7 @@
     }).join("");
 
     el("dayInfo").textContent = shown + " dia(s) exibido(s) de " + days.length + " selecionado(s)" + (days.length > shown ? " · domingo(s) sem carga ocultado(s) automaticamente" : "");
-    el("progBlocks").innerHTML = html || '<div class="notice"><h3>Nenhum dia para exibir</h3><p>O período selecionado só contém domingos sem carga programada.</p></div>';
+    el("progBlocks").innerHTML = html || '<div class="notice"><h3>Nenhum dia para exibir</h3><p>O período selecionado só contém domingos ou feriados sem carga programada.</p></div>';
 
 
 
@@ -6036,7 +6068,7 @@
      no mesmo banco. Aqui a Logística acompanha e decide autorizações.
      A tela só lê/decide via funções do banco (solic_painel, solic_decidir).
      ====================================================================== */
-  var SOL = { d: null, dia: null, carregando: false, msg: "", ruim: false, filtro: "todas", abertos: {}, confirmaNegar: null, ocupado: false, tmr: null };
+  var SOL = { d: null, de: null, ate: null, picker: null, carregando: false, msg: "", ruim: false, filtro: "todas", abertos: {}, confirmaNegar: null, ocupado: false, tmr: null };
   var SOL_TZ = "America/Sao_Paulo";
   function solLink(){ try { return new URL("solicitar/", location.href).href; } catch (e) { return "solicitar/"; } }
   function solQuando(x){ var d = new Date(x); return isNaN(d) ? "" : d.toLocaleDateString("pt-BR", { timeZone: SOL_TZ, day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("pt-BR", { timeZone: SOL_TZ, hour: "2-digit", minute: "2-digit" }); }
@@ -6050,7 +6082,6 @@
   function solBadge(){
     var b = el("solBadge"); if (!b) return;
     var n = SOL.d ? (SOL.d.autorizacoes || []).filter(function(a){ return a.status === "pendente"; }).length : 0;
-    if (SOL.dia && SOL.d && SOL.d.hoje && SOL.dia !== SOL.d.hoje) return;
     b.hidden = !n; b.textContent = n; b.title = n + " pedido(s) de autorização aguardando";
   }
   function solInit(){
@@ -6065,11 +6096,20 @@
     SOL.ocupado = true;
     if (!silencio){ SOL.carregando = true; if (viewAtiva() === "solicitacoes") paintSol(); }
     var r;
-    try { r = await sb.rpc("solic_painel", { p_dia: SOL.dia || null }); } catch (e) { r = { error: e }; }
+    try { r = await sb.rpc("solic_painel_periodo", { p_de: SOL.de || null, p_ate: SOL.ate || SOL.de || null }); } catch (e) { r = { error: e }; }
     SOL.ocupado = false; SOL.carregando = false;
     if (r.error){ if (!silencio){ SOL.msg = dbErr(r.error); SOL.ruim = true; } }
-    else if (!r.data || typeof r.data !== "object" || !Array.isArray(r.data.usinas)){ if (!silencio){ SOL.msg = "Resposta inesperada do banco. Tente atualizar."; SOL.ruim = true; } }
-    else { SOL.d = r.data; if (!SOL.dia) SOL.dia = r.data.dia; if (!silencio){ SOL.msg = ""; } }
+    else if (!r.data || typeof r.data !== "object" || !Array.isArray(r.data.dias)){ if (!silencio){ SOL.msg = "Resposta inesperada do banco. Tente atualizar."; SOL.ruim = true; } }
+    else {
+      var rows = [], vistos = {}, auts = [];
+      r.data.dias.forEach(function(p){
+        (p.usinas || []).forEach(function(u){ u.dia = p.dia; u.k = u.usina_id + "|" + p.dia; rows.push(u); });
+        (p.autorizacoes || []).forEach(function(a){ if (!vistos[a.id]){ vistos[a.id] = 1; auts.push(a); } });
+      });
+      SOL.d = { hoje: r.data.hoje, prazo_aberto: r.data.prazo_aberto, de: r.data.de, ate: r.data.ate, multi: r.data.dias.length > 1, usinas: rows, autorizacoes: auts };
+      if (!SOL.de){ SOL.de = r.data.de; SOL.ate = r.data.ate; }
+      if (!silencio){ SOL.msg = ""; }
+    }
     solBadge();
     if (viewAtiva() === "solicitacoes") paintSol();
   }
@@ -6085,22 +6125,37 @@
   function paintSol(){
     var v = el("view-solicitacoes"); if (!v) return;
     var d = SOL.d, h = "";
-    h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>📥 Solicitações de Cimento</h2><p>O que cada usina precisa. Como a Logística vai atender continua na Programação de Cimento.</p></div>' +
-      '<div class="sol-barra"><button class="btn-ghost" data-sol="ant" title="Dia anterior">◀</button><input type="date" id="solDia" value="' + esc(SOL.dia || "") + '" aria-label="Dia da solicitação"><button class="btn-ghost" data-sol="prox" title="Próximo dia">▶</button>' +
-      '<button class="btn-ghost" data-sol="hoje">Hoje</button><button class="btn-ghost" data-sol="atualizar" title="Buscar dados novos">↻ Atualizar</button></div></div>';
+    if (!el("solShell")){
+      // a barra de datas é montada uma vez só (o seletor de período guarda o próprio estado)
+      v.innerHTML = '<div class="card" style="margin-bottom:16px;" id="solShell"><div class="card-head"><div><h2>📥 Solicitações de Cimento</h2><p>O que cada usina precisa. Como a Logística vai atender continua na Programação de Cimento.</p></div>' +
+        '<div class="sol-barra"><button class="btn-ghost" data-sol="ant" title="Período anterior">◀</button>' +
+        '<div class="daterange"><button class="daterange-btn" id="solDrBtn" title="Escolha um dia ou vários (clique no primeiro e no último)">📅 <span id="solDrLabel"></span> <span style="opacity:.6;">▾</span></button><div class="daterange-panel" id="solDrPanel"></div></div>' +
+        '<button class="btn-ghost" data-sol="prox" title="Próximo período">▶</button>' +
+        '<button class="btn-ghost" data-sol="hoje">Hoje</button><button class="btn-ghost" data-sol="atualizar" title="Buscar dados novos">↻ Atualizar</button></div></div><div id="solCab"></div></div><div id="solCorpo"></div>';
+      SOL.picker = makeRangePicker({ btn: "solDrBtn", panel: "solDrPanel", label: "solDrLabel" }, function(){
+        var st = SOL.picker.state, lo = st.rangeStart < st.rangeEnd ? st.rangeStart : st.rangeEnd, hi = st.rangeStart < st.rangeEnd ? st.rangeEnd : st.rangeStart;
+        var de = toISO(lo), ate = toISO(hi);
+        if (de === SOL.de && ate === SOL.ate){ SOL.picker.updateLabel(); return; }
+        if ((hi - lo) / 86400000 > 61){ SOL.msg = "Escolha no máximo 62 dias de uma vez."; SOL.ruim = true; solPickerSync(); paintSol(); return; }
+        SOL.de = de; SOL.ate = ate; SOL.filtro = "todas"; SOL.abertos = {}; solCarregar(false);
+      });
+    }
+    solPickerSync();
     if (SOL.msg) h += '<div class="adm-msg ' + (SOL.ruim ? "bad" : "ok") + '" role="status">' + esc(SOL.msg) + '</div>';
     if (SOL.carregando && !d) h += '<div class="adm-pad faint">Carregando…</div>';
     else if (!d) h += '<div class="adm-pad faint">Sem dados ainda. Use Atualizar.</div>';
     else {
       var us = d.usinas || [], c = solContagem(us), semChave = us.filter(function(u){ return !u.tem_chave; }).length;
-      var ehHoje = SOL.dia === d.hoje;
-      h += '<div class="adm-pad sol-nota">' + (ehHoje ? (d.prazo_aberto ? '🟢 <b>Prazo das usinas aberto</b> (02:00 às 16:00). Fecha às 16:00.' : '🔴 <b>Prazo das usinas encerrado</b> (16:00 às 02:00). Alterações das usinas só com autorização do encarregado.') : 'Visualizando o dia <b>' + esc(solDiaBR(SOL.dia)) + '</b> (o “dia” das solicitações vira às 02:00).') +
+      var ehHoje = !d.multi && d.de === d.hoje, temHoje = d.de <= d.hoje && d.hoje <= d.ate;
+      var nDias = d.multi ? (new Set(us.map(function(u){ return u.dia; }))).size : 1;
+      h += '<div class="adm-pad sol-nota">' + (ehHoje ? (d.prazo_aberto ? '🟢 <b>Prazo das usinas aberto</b> (02:00 às 16:00). Fecha às 16:00.' : '🔴 <b>Prazo das usinas encerrado</b> (16:00 às 02:00). Alterações das usinas só com autorização do encarregado.') :
+        (d.multi ? 'Visualizando <b>' + nDias + ' dias</b>: de <b>' + esc(solDiaBR(d.de)) + '</b> a <b>' + esc(solDiaBR(d.ate)) + '</b>. Os números somam usina × dia.' + (temHoje ? (d.prazo_aberto ? ' Hoje: 🟢 prazo aberto até 16:00.' : ' Hoje: 🔴 prazo encerrado.') : "") : 'Visualizando o dia <b>' + esc(solDiaBR(d.de)) + '</b>') + ' (o “dia” das solicitações vira às 02:00).') +
         (semChave ? ' · <span class="badge warning">' + semChave + ' usina(s) sem chave</span>' : "") + '</div>';
       var tile = function(k, n, rot, cor){ return '<button class="sol-tile' + (SOL.filtro === k ? " sel" : "") + '" style="--st:' + cor + '" data-sol="filtro" data-k="' + k + '"><b>' + n + '</b><span>' + rot + '</span></button>'; };
       h += '<div class="sol-tiles">' + tile("pedido", c.pedido, "Responderam com pedido", "var(--success)") + tile("sem", c.sem, "Sem necessidade", "var(--info)") + tile("nao", c.nao, "Não responderam", "var(--danger)") +
         tile("fora", c.fora, "Fora do prazo", "var(--warning)") + tile("aguard", c.aguard, "Aguardando autorização", "var(--accent)") + '</div>';
     }
-    h += '</div>';
+    el("solCab").innerHTML = h; h = "";
     if (d){
       var pend = (d.autorizacoes || []).filter(function(a){ return a.status === "pendente"; });
       if (pend.length){
@@ -6120,21 +6175,21 @@
         if (SOL.filtro === "aguard") return u.autorizacao && u.autorizacao.status === "pendente";
         return true;
       });
-      h += '<div class="card"><div class="card-head"><div><h2>Usinas</h2><p>' + lista.length + ' de ' + (d.usinas || []).length + (SOL.filtro !== "todas" ? ' · filtro ativo <button class="btn-ghost" data-sol="filtro" data-k="todas">limpar filtro</button>' : "") + '</p></div></div>';
+      h += '<div class="card"><div class="card-head"><div><h2>Usinas</h2><p>' + lista.length + ' de ' + (d.usinas || []).length + (d.multi ? " linhas (usina × dia)" : "") + (SOL.filtro !== "todas" ? ' · filtro ativo <button class="btn-ghost" data-sol="filtro" data-k="todas">limpar filtro</button>' : "") + '</p></div></div>';
       if (!lista.length) h += '<div class="adm-pad faint">Nenhuma usina neste filtro.</div>';
       else {
-        h += '<div class="table-wrap"><table class="adm-tbl sol-tbl"><thead><tr><th>Usina</th><th>Encarregado</th><th>Situação</th><th>Pedido</th><th>Última versão</th><th></th></tr></thead><tbody>';
+        h += '<div class="table-wrap"><table class="adm-tbl sol-tbl"><thead><tr>' + (d.multi ? '<th>Dia</th>' : '') + '<th>Usina</th><th>Encarregado</th><th>Situação</th><th>Pedido</th><th>Última versão</th><th></th></tr></thead><tbody>';
         lista.forEach(function(u){
           var sit = u.situacao === "pedido" ? '<span class="badge success">✔ Pedido</span>' : (u.situacao === "sem_necessidade" ? '<span class="badge info">Sem necessidade</span>' : '<span class="badge danger">Não respondeu</span>');
           var ex = (u.envio && u.envio.fora_do_prazo ? " " + solSelo(u.envio) : "") + (u.autorizacao && u.autorizacao.status === "pendente" ? ' <span class="badge warning">Aguardando autorização</span>' : "") +
             (u.autorizacao && u.autorizacao.status === "negada" ? ' <span class="badge neutral">Autorização negada</span>' : "") + (!u.tem_chave ? ' <span class="badge neutral">sem chave</span>' : "");
-          var env = u.envio, ab = !!SOL.abertos[u.usina_id], nv = (u.historico || []).length;
-          h += '<tr><td class="cell-strong">' + esc(u.usina) + '</td><td class="muted">' + esc(u.encarregado || "—") + '</td><td>' + sit + ex + '</td>' +
+          var env = u.envio, ab = !!SOL.abertos[u.k], nv = (u.historico || []).length;
+          h += '<tr>' + (d.multi ? '<td class="muted" style="white-space:nowrap">' + esc(solDiaBR(u.dia)) + '</td>' : '') + '<td class="cell-strong">' + esc(u.usina) + '</td><td class="muted">' + esc(u.encarregado || "—") + '</td><td>' + sit + ex + '</td>' +
             '<td class="sol-pedido">' + (env && !env.sem_necessidade ? solLinhasTxt(env.linhas) : "—") + '</td>' +
             '<td class="muted">' + (env ? esc(solQuando(env.enviado_em)) + '<br><span class="faint">' + esc(env.por || env.origem || "") + (u.versoes > 1 ? " · v" + env.versao : "") + '</span>' : "—") + '</td>' +
-            '<td><div class="adm-acoes">' + (nv > 1 ? '<button class="btn-ghost" data-sol="hist" data-u="' + esc(u.usina_id) + '">' + (ab ? "Ocultar" : "Histórico (" + nv + ")") + '</button>' : "") +
-            (env && ME && ME.papel === "admin" ? '<button class="btn-ghost" style="color:var(--danger)" data-sol="apagar" data-u="' + esc(u.usina_id) + '" title="Apagar esta solicitação (todas as versões do dia). Só administrador.">' + (SOL.confirmaApagar === u.usina_id ? "Confirmar apagar" : "🗑 Apagar") + '</button>' : "") + '</div></td></tr>';
-          if (ab) h += '<tr class="sol-hist"><td colspan="6">' + (u.historico || []).map(function(x){
+            '<td><div class="adm-acoes">' + (nv > 1 ? '<button class="btn-ghost" data-sol="hist" data-u="' + esc(u.k) + '">' + (ab ? "Ocultar" : "Histórico (" + nv + ")") + '</button>' : "") +
+            (env && ME && ME.papel === "admin" ? '<button class="btn-ghost" style="color:var(--danger)" data-sol="apagar" data-u="' + esc(u.k) + '" title="Apagar esta solicitação (todas as versões do dia). Só administrador.">' + (SOL.confirmaApagar === u.k ? "Confirmar apagar" : "🗑 Apagar") + '</button>' : "") + '</div></td></tr>';
+          if (ab) h += '<tr class="sol-hist"><td colspan="' + (d.multi ? 7 : 6) + '">' + (u.historico || []).map(function(x){
             return '<div class="sol-v"><b>' + esc(solQuando(x.enviado_em)) + '</b> · versão ' + esc(x.versao) + (x.ativa ? ' <span class="badge success">em vigor</span>' : ' <span class="badge neutral">substituída</span>') + ' ' + solSelo(x) + (x.por ? ' <span class="faint">' + esc(x.por) + '</span>' : "") +
               '<div class="muted">' + (x.sem_necessidade ? "Sem necessidade de cimento." : solLinhasTxt(x.linhas)) + '</div></div>'; }).join("") + '</td></tr>';
         });
@@ -6142,7 +6197,13 @@
       }
       h += '</div>';
     }
-    v.innerHTML = h;
+    el("solCorpo").innerHTML = h;
+  }
+  function solPickerSync(){
+    if (!SOL.picker || !SOL.de) return;
+    var st = SOL.picker.state; st.rangeStart = fromISO(SOL.de); st.rangeEnd = fromISO(SOL.ate || SOL.de);
+    if (!el("solDrPanel").classList.contains("open")) st.calViewMonth = new Date(st.rangeEnd.getFullYear(), st.rangeEnd.getMonth(), 1);
+    SOL.picker.updateLabel();
   }
   async function solDecidir(id, aprovar){
     SOL.ocupado = true;
@@ -6151,24 +6212,25 @@
     SOL.msg = r.error ? dbErr(r.error) : (aprovar ? "Liberado por 60 minutos." : "Pedido negado."); SOL.ruim = !!r.error;
     await solCarregar(true);
   }
-  async function solApagar(usina){
+  async function solApagar(k){
     if (!ME || ME.papel !== "admin" || !SOL.d) return;
-    var u = (SOL.d.usinas || []).find(function(x){ return x.usina_id === usina; });
+    var u = (SOL.d.usinas || []).find(function(x){ return x.k === k; }); if (!u) return;
     SOL.ocupado = true;
-    var r; try { r = await sb.rpc("admin_solic_apagar", { p_usina: usina, p_dia: SOL.d.dia }); } catch (e) { r = { error: e }; }
+    var r; try { r = await sb.rpc("admin_solic_apagar", { p_usina: u.usina_id, p_dia: u.dia }); } catch (e) { r = { error: e }; }
     SOL.ocupado = false; SOL.confirmaApagar = null;
-    SOL.msg = r.error ? dbErr(r.error) : "Solicitação de " + (u ? u.usina : "usina") + " (" + solDiaBR(SOL.d.dia) + ") apagada. Fica registrada no histórico de alterações."; SOL.ruim = !!r.error;
+    SOL.msg = r.error ? dbErr(r.error) : "Solicitação de " + u.usina + " (" + solDiaBR(u.dia) + ") apagada. Fica registrada no histórico de alterações."; SOL.ruim = !!r.error;
     await solCarregar(true);
     if (!r.error){ try { solProgCarregar().then(progDecorar); } catch (e) { } }
   }
   (function(){
     var v = el("view-solicitacoes"); if (!v) return;
-    v.addEventListener("change", function(ev){ if (ev.target.id === "solDia" && ev.target.value){ SOL.dia = ev.target.value; SOL.filtro = "todas"; solCarregar(false); } });
     v.addEventListener("click", function(ev){
       var b = ev.target.closest && ev.target.closest("[data-sol]"); if (!b || b.disabled) return;
       var a = b.dataset.sol;
-      if (a === "ant" || a === "prox"){ if (SOL.dia){ SOL.dia = solMais(SOL.dia, a === "ant" ? -1 : 1); solCarregar(false); } }
-      else if (a === "hoje"){ SOL.dia = null; solCarregar(false); }
+      if (a === "ant" || a === "prox"){
+        if (SOL.de){ var n = Math.round((fromISO(SOL.ate || SOL.de) - fromISO(SOL.de)) / 86400000) + 1, sg = a === "ant" ? -n : n;
+          SOL.de = solMais(SOL.de, sg); SOL.ate = solMais(SOL.ate || SOL.de, sg); SOL.abertos = {}; solCarregar(false); } }
+      else if (a === "hoje"){ SOL.de = null; SOL.ate = null; SOL.filtro = "todas"; SOL.abertos = {}; solCarregar(false); }
       else if (a === "atualizar"){ solCarregar(false); }
       else if (a === "filtro"){ SOL.filtro = (SOL.filtro === b.dataset.k || b.dataset.k === "todas") ? "todas" : b.dataset.k; paintSol(); }
       else if (a === "hist"){ SOL.abertos[b.dataset.u] = !SOL.abertos[b.dataset.u]; paintSol(); }

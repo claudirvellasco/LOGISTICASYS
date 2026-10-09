@@ -355,7 +355,7 @@
   }
   function resumoLinhas(ls){
     if (!ls || !ls.length) return "—";
-    return ls.map(function(l){ return l.carretas + "× " + l.material + " → " + fmtData(String(l.data_desejada).slice(0, 10)) + (l.periodo ? " (" + (l.periodo === "CEDO" ? "cedo" : "tarde") + ")" : ""); }).join("<br>");
+    return ls.map(function(l){ return l.carretas + "× " + l.material + " → " + fmtData(String(l.data_desejada).slice(0, 10)) + (l.periodo ? " (" + ({ CEDO: "cedo", TARDE: "tarde", QUALQUER: "qualquer horário" }[l.periodo] || l.periodo.toLowerCase()) + ")" : ""); }).join("<br>");
   }
   function seloFora(env){ return env && env.fora_do_prazo ? '<span class="badge warning">⏱ Fora do prazo — autorizado</span>' : ""; }
   function rotuloVersao(v, ativa){
@@ -407,8 +407,8 @@
         MATERIAIS.map(function(m){ return '<option value="' + m + '"' + (l.material === m ? " selected" : "") + '>' + m + '</option>'; }).join("") + '</select></div>' +
         '<div class="c"><input type="number" inputmode="numeric" min="1" max="99" step="1" placeholder="Carretas" data-i="' + i + '" data-f="carretas" aria-label="Quantidade de carretas" value="' + esc(l.carretas) + '" ' + (pode ? "" : "disabled") + '></div>' +
         '<div class="d"><input type="date" min="' + esc(hojeCivil()) + '" data-i="' + i + '" data-f="data" aria-label="Data desejada" value="' + esc(l.data) + '" ' + (pode ? "" : "disabled") + '></div>' +
-        '<div class="p"><select data-i="' + i + '" data-f="periodo" aria-label="Período: cedo ou tarde" ' + (pode ? "" : "disabled") + '><option value="">Período…</option>' +
-        [["CEDO", "Cedo"], ["TARDE", "Tarde"]].map(function(o){ return '<option value="' + o[0] + '"' + (l.periodo === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("") + '</select></div>' +
+        '<div class="p"><select data-i="' + i + '" data-f="periodo" aria-label="Período: cedo, tarde ou qualquer horário" ' + (pode ? "" : "disabled") + '><option value="">Período…</option>' +
+        [["CEDO", "Cedo"], ["TARDE", "Tarde"], ["QUALQUER", "Qualquer horário"]].map(function(o){ return '<option value="' + o[0] + '"' + (l.periodo === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("") + '</select></div>' +
         '<button type="button" class="rm" data-act="rm" data-i="' + i + '" aria-label="Remover linha" title="Remover linha" ' + (pode && S.linhas.length > 1 ? "" : "disabled") + '>✕</button></div>';
     });
     h += '<div class="acoes-editor" style="margin-bottom:8px"><button type="button" class="btn" data-act="add" ' + (pode && S.linhas.length < 30 ? "" : "disabled") + '>+ Adicionar nova linha</button></div></div>';

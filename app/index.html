@@ -81,6 +81,14 @@
   }
   .btn-primary:hover{opacity:.92;}
   .login-note{margin-top:12px; text-align:center; font-size:11px; color:var(--text-faint);}
+  .login-link{background:none; border:none; padding:0; color:var(--accent); font-size:12px; font-weight:600; cursor:pointer; text-decoration:underline; text-underline-offset:2px;}
+  .login-link:disabled{opacity:.5; cursor:default;}
+  .rec-h{font-size:15px; font-weight:700; margin:0 0 4px;}
+  .rec-sub{font-size:12px; color:var(--text-muted); margin:0 0 14px; line-height:1.45;}
+  .rec-regras{list-style:none; margin:0 0 10px; padding:0; font-size:11.5px; color:var(--text-faint);}
+  .rec-regras li{margin:2px 0;} .rec-regras li.ok{color:#5fd68a;}
+  .rec-links{display:flex; justify-content:space-between; gap:10px; margin-top:12px;}
+  #recCodigo{letter-spacing:.3em; font-size:16px; font-weight:600;}
 
   /* fundo do login (imagem) — cartão sempre escuro, mesmo no tema claro */
   #login{
@@ -646,10 +654,10 @@
     </div>
     <form id="loginForm">
       <div class="field">
-        <label>Usuário</label>
+        <label for="loginUser">E-mail</label>
         <div class="field-input">
-          <span aria-hidden="true">👤</span>
-          <input type="text" id="loginUser" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required />
+          <span aria-hidden="true">✉️</span>
+          <input type="text" id="loginUser" name="username" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="seu@email.com" required />
         </div>
       </div>
       <div class="field">
@@ -661,8 +669,28 @@
         </div>
       </div>
       <button class="btn-primary" type="submit">Entrar</button>
-      <p class="login-note" id="loginMsg" role="alert" style="min-height:1.4em;font-size:12px"></p><p class="login-note" style="font-size:11.5px">Esqueceu a senha? Peça ao administrador: Adm › Usuários e senhas › Redefinir senha.</p>
+      <p class="login-note" id="loginMsg" role="alert" style="min-height:1.4em;font-size:12px"></p>
+      <p class="login-note"><button type="button" class="login-link" id="btnEsqueci">Esqueci minha senha</button></p>
+      <p class="login-note" style="font-size:10.5px">Ainda sem e-mail cadastrado? Entre com o nome de usuário.</p>
     </form>
+    <div id="recBox" hidden>
+      <h2 class="rec-h">Recuperar senha</h2>
+      <div id="recEtapa1">
+        <p class="rec-sub">Digite o e-mail cadastrado. Vamos enviar um código para você criar uma senha nova.</p>
+        <div class="field"><label for="recEmail">E-mail</label><div class="field-input"><span aria-hidden="true">✉️</span><input type="email" id="recEmail" autocomplete="email" autocapitalize="none" spellcheck="false" placeholder="seu@email.com"></div></div>
+        <button type="button" class="btn-primary" id="recEnviar">Enviar código</button>
+      </div>
+      <div id="recEtapa2" hidden>
+        <p class="rec-sub" id="recSub2"></p>
+        <div class="field" id="recCodigoCampo"><label for="recCodigo">Código recebido</label><div class="field-input"><span aria-hidden="true">🔢</span><input type="text" id="recCodigo" inputmode="numeric" autocomplete="one-time-code" maxlength="10" spellcheck="false" placeholder="000000"></div></div>
+        <div class="field"><label for="recNova">Nova senha</label><div class="field-input"><span aria-hidden="true">🔒</span><input type="password" id="recNova" autocomplete="new-password" spellcheck="false"><button type="button" class="login-link" id="recVer">Mostrar</button></div></div>
+        <div class="field"><label for="recRep">Repita a nova senha</label><div class="field-input"><span aria-hidden="true">🔒</span><input type="password" id="recRep" autocomplete="new-password" spellcheck="false"></div></div>
+        <ul class="rec-regras" id="recRegras"></ul>
+        <button type="button" class="btn-primary" id="recSalvar" disabled>Salvar nova senha e entrar</button>
+      </div>
+      <p class="login-note" id="recMsg" role="alert" style="min-height:1.4em;font-size:12px"></p>
+      <div class="rec-links"><button type="button" class="login-link" id="recVoltar">Voltar ao login</button><button type="button" class="login-link" id="recReenviar" hidden>Reenviar código</button></div>
+    </div>
   </div>
 </div>
 
@@ -5241,15 +5269,89 @@
   el("loginForm").addEventListener("submit", async function(ev){
     ev.preventDefault();
     var u = el("loginUser").value, p = el("loginPass").value, go = ev.target.querySelector("button[type=submit]");
-    if (!u.trim() || !p){ loginMsg("Informe usuário e senha.", true); return; }
+    if (!u.trim() || !p){ loginMsg("Informe e-mail e senha.", true); return; }
     go.disabled = true; loginMsg("Entrando…");
     var r;
     try { r = await sb.auth.signInWithPassword({ email: toEmail(u), password: p }); } catch (e) { r = { error: { message: "Failed to fetch" } }; }
     go.disabled = false;
-    if (r.error){ loginMsg(/invalid login/i.test(r.error.message) ? "Usuário ou senha incorretos." : dbErr(r.error), true); return; }
+    if (r.error){ loginMsg(/invalid login/i.test(r.error.message) ? "E-mail ou senha incorretos." : dbErr(r.error), true); return; }
     el("loginPass").value = ""; loginMsg("");
     await entrar(r.data.user);
   });
+  /* ---------- Esqueci minha senha: código por e-mail ---------- */
+  var REC = { email: "", verificado: false, espera: 0, tmr: null, viaLink: false };
+  function recMsg(t, bad){ var m = el("recMsg"); m.textContent = t || ""; m.style.color = bad ? "var(--danger)" : ""; }
+  function recAbrir(etapa){
+    el("loginForm").hidden = true; el("recBox").hidden = false; loginMsg("");
+    el("recEtapa1").hidden = etapa !== 1; el("recEtapa2").hidden = etapa !== 2;
+    el("recReenviar").hidden = etapa !== 2 || REC.viaLink;
+    el("recCodigoCampo").hidden = REC.verificado;
+    if (etapa === 1){ var u = el("loginUser").value.trim(); if (u.indexOf("@") > 0 && !el("recEmail").value) el("recEmail").value = u; el("recEmail").focus(); }
+    else { el("recSub2").textContent = REC.verificado ? "Crie a sua senha nova." : "Enviamos um código para " + REC.email + " (se ele estiver cadastrado). Confira também a caixa de spam. O código vale por 1 hora."; recRegras(); (REC.verificado ? el("recNova") : el("recCodigo")).focus(); }
+  }
+  function recFechar(){
+    el("recBox").hidden = true; el("loginForm").hidden = false; recMsg("");
+    ["recCodigo", "recNova", "recRep"].forEach(function(i){ el(i).value = ""; el(i).type = i === "recCodigo" ? "text" : "password"; });
+    el("recVer").textContent = "Mostrar";
+    if (REC.verificado){ REC.verificado = false; try { sb.auth.signOut(); } catch (e) { } }
+    REC.viaLink = false;
+    if (REC.email) el("loginUser").value = REC.email;
+    el("loginUser").focus();
+  }
+  function recRegras(){
+    var s = el("recNova").value, b = el("recRep").value, cod = el("recCodigo").value.replace(/\D/g, ""), todas = true;
+    el("recRegras").innerHTML = ADM_REGRAS.map(function(r){ var ok = r[1](s); if (!ok) todas = false; return '<li class="' + (ok ? "ok" : "") + '">' + (ok ? "✔ " : "○ ") + esc(r[0]) + "</li>"; }).join("") +
+      '<li class="' + (s && s === b ? "ok" : "") + '">' + (s && s === b ? "✔ " : "○ ") + 'as duas senhas são iguais</li>';
+    el("recSalvar").disabled = !(todas && s === b && (REC.verificado || cod.length >= 6));
+  }
+  function recEspera(seg){
+    var b = el("recReenviar"); REC.espera = seg; clearInterval(REC.tmr);
+    var tick = function(){ if (REC.espera > 0){ b.disabled = true; b.textContent = "Reenviar código (" + REC.espera + "s)"; REC.espera--; } else { clearInterval(REC.tmr); b.disabled = false; b.textContent = "Reenviar código"; } };
+    tick(); REC.tmr = setInterval(tick, 1000);
+  }
+  async function recEnviarCodigo(){
+    var e = el("recEmail").value.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)){ recMsg("Digite o e-mail cadastrado (não o nome de usuário).", true); return; }
+    var b = el("recEnviar"), rb = el("recReenviar"); b.disabled = true; rb.disabled = true; recMsg("Enviando…");
+    var r; try { r = await sb.auth.resetPasswordForEmail(e, { redirectTo: location.origin + location.pathname }); } catch (x) { r = { error: x }; }
+    b.disabled = false;
+    if (r.error){
+      var m = String(r.error.message || "");
+      recMsg(/rate|seconds|too many|security purposes/i.test(m) ? "Muitos pedidos de código seguidos. Espere alguns minutos e tente de novo." : (/fetch|network/i.test(m) ? "Sem conexão com o servidor. Tente de novo." : "Não foi possível enviar o código: " + dbErr(r.error)), true);
+      rb.disabled = false; return;
+    }
+    REC.email = e; REC.verificado = false; recMsg(""); recAbrir(2); recEspera(60);
+  }
+  async function recSalvar(){
+    var b = el("recSalvar"), nova = el("recNova").value; b.disabled = true; b.textContent = "Salvando…"; recMsg("");
+    if (!REC.verificado){
+      var cod = el("recCodigo").value.replace(/\D/g, "");
+      var v; try { v = await sb.auth.verifyOtp({ email: REC.email, token: cod, type: "recovery" }); } catch (x) { v = { error: x }; }
+      if (v.error){ b.textContent = "Salvar nova senha e entrar"; recRegras(); recMsg(/expired|invalid|otp/i.test(String(v.error.message || "")) ? "Código inválido ou vencido. Confira o último e-mail ou peça um código novo." : dbErr(v.error), true); return; }
+      REC.verificado = true; el("recCodigoCampo").hidden = true;
+    }
+    var r; try { r = await sb.rpc("definir_senha_recuperacao", { p_nova: nova }); } catch (x) { r = { error: x }; }
+    b.textContent = "Salvar nova senha e entrar";
+    if (r.error){ recRegras(); recMsg(dbErr(r.error), true); if (/expirou/i.test(String(r.error.message || ""))){ REC.verificado = false; el("recCodigoCampo").hidden = false; } return; }
+    var u = await sb.auth.getUser();
+    REC.verificado = false; REC.viaLink = false;
+    el("recBox").hidden = true; el("loginForm").hidden = false; recMsg("");
+    ["recCodigo", "recNova", "recRep"].forEach(function(i){ el(i).value = ""; });
+    if (u.data && u.data.user){ loginMsg(""); await entrar(u.data.user); }
+    else loginMsg("Senha trocada. Entre com a senha nova.");
+  }
+  el("btnEsqueci").addEventListener("click", function(){ REC.verificado = false; REC.viaLink = false; recMsg(""); recAbrir(1); });
+  el("recVoltar").addEventListener("click", recFechar);
+  el("recEnviar").addEventListener("click", recEnviarCodigo);
+  el("recEmail").addEventListener("keydown", function(ev){ if (ev.key === "Enter"){ ev.preventDefault(); recEnviarCodigo(); } });
+  el("recReenviar").addEventListener("click", function(){ el("recEmail").value = REC.email; recEnviarCodigo(); });
+  el("recSalvar").addEventListener("click", recSalvar);
+  ["recCodigo", "recNova", "recRep"].forEach(function(i){ el(i).addEventListener("input", function(){ recMsg(""); recRegras(); }); });
+  el("recRep").addEventListener("keydown", function(ev){ if (ev.key === "Enter" && !el("recSalvar").disabled){ ev.preventDefault(); recSalvar(); } });
+  el("recVer").addEventListener("click", function(){ var t = el("recNova").type === "password" ? "text" : "password"; el("recNova").type = t; el("recRep").type = t; el("recVer").textContent = t === "text" ? "Ocultar" : "Mostrar"; });
+  // quem abrir o link do e-mail (em vez de digitar o código) cai aqui já verificado
+  var REC_LINK = /type=recovery/.test(location.hash || "");
+
   el("btnSair").addEventListener("click", async function(){
     if ((syncState === "pendente" || syncState === "salvando" || syncState === "erro" || temMudanca()) && !window.__sairMesmoAssim){
       window.__sairMesmoAssim = true; el("btnSair").textContent = "Há alterações sem salvar — clique de novo para sair"; return;
@@ -5303,6 +5405,10 @@
     var r = await sb.rpc("admin_listar_usuarios");
     if (r.error){ ADM.msg = dbErr(r.error); ADM.ruim = true; ADM.usuarios = []; }
     else ADM.usuarios = r.data || [];
+    if (!r.error){
+      var re = await sb.rpc("admin_usuarios_emails");
+      if (!re.error) (re.data || []).forEach(function(x){ var u = ADM.usuarios.find(function(k){ return k.user_id === x.user_id; }); if (u){ u.email = x.email; u.email_real = x.email_real; } });
+    }
     await admChavesRecarregar();
     var h = await sb.from("historico_alteracoes").select("tabela,acao,registro_id,antes,depois,em").in("tabela", ["usuarios", "chaves"]).order("em", { ascending: false }).limit(15);
     ADM.hist = h.error ? [] : (h.data || []);
@@ -5316,11 +5422,12 @@
     var u = C.usinas.find(function(k){ return k.usina_id === x.registro_id; }); if (u) return "Usina " + u.usina;
     return "—";
   }
-  var ADM_ACAO = { RESET_SENHA: "Senha redefinida", ALTERAR_PAPEL: "Papel alterado", ATIVAR: "Conta ativada", DESATIVAR: "Conta desativada",
+  var ADM_ACAO = { ALTERAR_EMAIL: "E-mail de login alterado", TROCAR_SENHA: "Trocou a própria senha", RECUPERAR_SENHA: "Senha recuperada por e-mail", SENHA_ATUAL_ERRADA: "Errou a senha atual ao trocar", RESET_SENHA: "Senha redefinida", ALTERAR_PAPEL: "Papel alterado", ATIVAR: "Conta ativada", DESATIVAR: "Conta desativada",
     GERAR_CHAVE: "Chave de acesso gerada", GERAR_CHAVES_LOTE: "Chaves geradas em lote", DESATIVAR_CHAVE: "Chave de acesso desativada", VER_CHAVE: "Chave de acesso copiada", EXPORTAR_CHAVES: "Chaves exportadas (Excel)", APAGAR_CHAVES: "Todas as chaves apagadas", ENCARREGADO: "Encarregado salvo", ENCARREGADO_USINAS: "Usinas do encarregado alteradas" };
   var ADM_CHECK = [
     ["Alta", "painel", "Cadastro público desligado", "No painel do Supabase: Authentication → Sign In / Providers → desmarque “Allow new users to sign up”. Hoje uma conta nova não enxerga nenhum dado (o banco exige ser membro), mas desligar fecha a porta de vez."],
-    ["Alta", "feito", "Senha só pelo administrador", "O sistema não oferece troca de senha ao usuário: só o administrador redefine (aqui no Adm) e as sessões antigas caem na hora. Observação: o Supabase ainda permitiria, tecnicamente, que alguém logado chamasse a API para trocar a própria senha — isso não abre dados de ninguém e você redefine em seguida."],
+    ["Alta", "feito", "Troca e recuperação de senha", "Cada usuário troca a própria senha (botão Trocar senha, pede a senha atual) ou recupera pelo “Esqueci minha senha”, com código enviado ao e-mail cadastrado aqui no Adm. O administrador continua podendo redefinir a senha de qualquer um, e as sessões antigas caem na hora."],
+    ["Alta", "painel", "Envio de e-mail para o código de recuperação", "Para o “Esqueci minha senha” funcionar: no painel do Supabase, Authentication → Emails → SMTP Settings, cadastre um remetente (ex.: o Gmail da empresa com uma “senha de app”). Em Email Templates → Reset Password, coloque o código {{ .Token }} na mensagem. Sem isso o código só chega para membros da equipe do Supabase."],
     ["Alta", "feito", "Regras de senha forte", "12+ caracteres, maiúscula, minúscula, número e símbolo; sem “concrelagos”, “senha” nem sequências óbvias. Valida no banco, não só na tela."],
     ["Alta", "feito", "Funções do banco sem acesso anônimo", "Quem não está logado não consegue chamar nenhuma função do banco. Duas ainda estavam abertas."],
     ["Média", "feito", "Proteção contra código injetado (XSS/CSP)", "Textos vindos de planilhas são escapados e o navegador só conversa com o seu banco — mesmo que algo escapasse, não consegue enviar dados para outro site."],
@@ -5336,23 +5443,30 @@
   function admRender(){
     var v = el("view-adm"), h = "";
     var bd = ADM.msg && ADM.where !== "ch" ? '<div class="adm-msg ' + (ADM.ruim ? "bad" : "ok") + '" role="status">' + esc(ADM.msg) + '</div>' : "";
-    h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>🔐 Usuários e senhas</h2><p>Somente o administrador cria, troca senha, muda papel ou desativa contas. Os usuários comuns não alteram a própria senha.</p></div></div>';
+    h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>🔐 Usuários e senhas</h2><p>O administrador cadastra o e-mail de login, muda papel, redefine senha ou desativa contas. Cada usuário pode trocar a própria senha ou recuperá-la por e-mail.</p></div></div>';
     h += bd;
     if (ADM.carregando) h += '<div class="adm-pad faint">Carregando…</div>';
     else {
-      var hU = '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Usuário</th><th>Nome</th><th>Papel</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead><tbody>';
+      var hU = '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>E-mail de login</th><th>Nome</th><th>Papel</th><th>Último acesso</th><th>Situação</th><th></th></tr></thead><tbody>';
       ADM.usuarios.forEach(function(u){
         var eu = u.user_id === ME.id;
-        hU += '<tr data-uid="' + esc(u.user_id) + '"><td class="cell-strong">' + esc(u.usuario) + (eu ? ' <span class="faint">(você)</span>' : "") + '</td><td>' + esc(u.nome || "") + '</td>' +
+        var emailTxt = u.email_real ? esc(u.email) : '<span class="badge warning">sem e-mail</span> <span class="faint">entra como “' + esc(u.usuario) + '”</span>';
+        hU += '<tr data-uid="' + esc(u.user_id) + '"><td class="cell-strong">' + emailTxt + (eu ? ' <span class="faint">(você)</span>' : "") + '</td><td>' + esc(u.nome || "") + '</td>' +
           '<td><select class="adm-papel" ' + (eu ? "disabled" : "") + '>' + ["admin", "operador", "leitura"].map(function(p){ return '<option value="' + p + '"' + (p === u.papel ? " selected" : "") + ">" + ({ admin: "Administrador", operador: "Operador", leitura: "Somente leitura" })[p] + "</option>"; }).join("") + '</select></td>' +
           '<td class="muted">' + esc(admFmt(u.ultimo_acesso)) + '</td>' +
           '<td><span class="badge ' + (u.ativo ? "success" : "danger") + '">' + (u.ativo ? "Ativo" : "Desativado") + '</span></td>' +
-          '<td><div class="adm-acoes"><button class="btn-ghost" data-act="senha">Redefinir senha</button>' + (eu ? "" : ' <button class="btn-ghost" data-act="ativo">' + (u.ativo ? "Desativar" : "Ativar") + '</button>') + '</div></td></tr>';
+          '<td><div class="adm-acoes"><button class="btn-ghost" data-act="email">' + (u.email_real ? "Trocar e-mail" : "Cadastrar e-mail") + '</button><button class="btn-ghost" data-act="senha">Redefinir senha</button>' + (eu ? "" : ' <button class="btn-ghost" data-act="ativo">' + (u.ativo ? "Desativar" : "Ativar") + '</button>') + '</div></td></tr>';
       });
       hU += '</tbody></table></div>';
       h += admDet("usr", "Usuários (" + ADM.usuarios.length + ")", hU);
     }
     h += '</div>';
+    var alvoE = ADM.alvoEmail && ADM.usuarios.find(function(u){ return u.user_id === ADM.alvoEmail; });
+    if (alvoE){
+      h += '<div class="card" id="admEmailCard" style="margin-bottom:16px;"><div class="card-head"><div><h2>E-mail de login de ' + esc(alvoE.nome || alvoE.usuario) + '</h2><p>A pessoa passa a entrar com este e-mail (a senha não muda). É também para onde vai o código do “Esqueci minha senha”. Confira bem: um e-mail errado deixa a pessoa sem conseguir recuperar a senha.</p></div><button class="btn-ghost" data-act="cancelar">Cancelar</button></div>' +
+        '<div class="adm-pad adm-form"><label>E-mail<input type="email" id="admEmail" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="nome@empresa.com" value="' + esc(alvoE.email_real ? alvoE.email : "") + '"></label>' +
+        '<div><button class="btn-primary" id="admEmailSalvar" style="width:auto;padding:10px 18px;">Salvar e-mail</button></div></div></div>';
+    }
     var alvo = ADM.alvo && ADM.usuarios.find(function(u){ return u.user_id === ADM.alvo; });
     if (alvo){
       h += '<div class="card" id="admSenhaCard" style="margin-bottom:16px;"><div class="card-head"><div><h2>Nova senha para ' + esc(alvo.nome || alvo.usuario) + ' <span class="faint">(' + esc(alvo.usuario) + ')</span></h2><p>' + (alvo.user_id === ME.id ? "Ao trocar a sua própria senha, você continua logado neste aparelho." : "Quem estiver logado com a senha antiga é desconectado na hora.") + '</p></div><button class="btn-ghost" data-act="cancelar">Cancelar</button></div>' +
@@ -5364,7 +5478,7 @@
     h += admChavesHtml();
     h += '<div class="card" style="margin-bottom:16px;"><div class="card-head"><div><h2>🧾 Últimas ações de administração</h2><p>Quem fez o quê, e quando. A senha nunca é gravada.</p></div></div>';
     h += ADM.hist.length ? admDet("hist", "Ver as últimas " + ADM.hist.length + " ações", '<div class="table-wrap"><table class="adm-tbl"><thead><tr><th>Quando</th><th>Ação</th><th>Usuário</th><th>Detalhe</th></tr></thead><tbody>' + ADM.hist.map(function(x){
-      var det = x.acao === "ALTERAR_PAPEL" ? esc(((x.antes || {}).papel || "?") + " → " + ((x.depois || {}).papel || "?")) : ((x.acao === "GERAR_CHAVES_LOTE" || x.acao === "EXPORTAR_CHAVES" || x.acao === "APAGAR_CHAVES") ? esc((x.depois || {}).qtd + " chave(s)") : (x.acao === "ENCARREGADO_USINAS" ? esc((x.depois || {}).qtd_usinas + " usina(s)") : ""));
+      var det = x.acao === "ALTERAR_EMAIL" ? esc(((x.antes || {}).email || "?") + " → " + ((x.depois || {}).email || "?")) : x.acao === "ALTERAR_PAPEL" ? esc(((x.antes || {}).papel || "?") + " → " + ((x.depois || {}).papel || "?")) : ((x.acao === "GERAR_CHAVES_LOTE" || x.acao === "EXPORTAR_CHAVES" || x.acao === "APAGAR_CHAVES") ? esc((x.depois || {}).qtd + " chave(s)") : (x.acao === "ENCARREGADO_USINAS" ? esc((x.depois || {}).qtd_usinas + " usina(s)") : ""));
       return '<tr><td class="muted">' + esc(admFmt(x.em)) + '</td><td>' + esc(ADM_ACAO[x.acao] || x.acao) + '</td><td>' + esc(admAlvoHist(x)) + '</td><td class="muted">' + det + '</td></tr>';
     }).join("") + '</tbody></table></div>') : '<div class="adm-pad faint">Nenhuma ação registrada ainda.</div>';
     h += '</div>';
@@ -5396,8 +5510,18 @@
     var b = ev.target.closest && ev.target.closest("button"); if (!b) return;
     var tr = b.closest("tr"), uid = tr && tr.dataset.uid;
     ADM.where = "";
-    if (b.dataset.act === "senha"){ ADM.alvo = uid; ADM.msg = ""; admRender(); var c = el("admSenhaCard"); if (c) c.scrollIntoView({ block: "nearest" }); var p = el("admPw1"); if (p) p.focus(); }
-    else if (b.dataset.act === "cancelar"){ ADM.alvo = null; admRender(); }
+    if (b.dataset.act === "email"){ ADM.alvoEmail = uid; ADM.alvo = null; ADM.msg = ""; admRender(); var ce = el("admEmailCard"); if (ce) ce.scrollIntoView({ block: "nearest" }); var ie = el("admEmail"); if (ie) ie.focus(); }
+    else if (b.id === "admEmailSalvar"){
+      var em = el("admEmail").value.trim().toLowerCase();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){ ADM.msg = "Digite um e-mail válido."; ADM.ruim = true; admRender(); return; }
+      b.disabled = true; b.textContent = "Salvando…";
+      var nm = admNome(ADM.alvoEmail);
+      var re = await sb.rpc("admin_definir_email", { p_user_id: ADM.alvoEmail, p_email: em });
+      if (re.error){ ADM.msg = dbErr(re.error); ADM.ruim = true; admRender(); return; }
+      ADM.msg = "E-mail de " + nm + " salvo: " + em + ". A partir de agora essa pessoa entra com este e-mail." + (ADM.alvoEmail === ME.id ? " (Vale no próximo login.)" : ""); ADM.ruim = false; ADM.alvoEmail = null; await paintAdm();
+    }
+    else if (b.dataset.act === "senha"){ ADM.alvo = uid; ADM.alvoEmail = null; ADM.msg = ""; admRender(); var c = el("admSenhaCard"); if (c) c.scrollIntoView({ block: "nearest" }); var p = el("admPw1"); if (p) p.focus(); }
+    else if (b.dataset.act === "cancelar"){ ADM.alvo = null; ADM.alvoEmail = null; admRender(); }
     else if (b.dataset.act === "ativo"){
       var u = ADM.usuarios.find(function(x){ return x.user_id === uid; }); if (!u) return;
       if (u.ativo && !b.dataset.sure){ b.dataset.sure = "1"; b.textContent = "Confirmar desativar"; return; }
@@ -6008,7 +6132,8 @@
           h += '<tr><td class="cell-strong">' + esc(u.usina) + '</td><td class="muted">' + esc(u.encarregado || "—") + '</td><td>' + sit + ex + '</td>' +
             '<td class="sol-pedido">' + (env && !env.sem_necessidade ? solLinhasTxt(env.linhas) : "—") + '</td>' +
             '<td class="muted">' + (env ? esc(solQuando(env.enviado_em)) + '<br><span class="faint">' + esc(env.por || env.origem || "") + (u.versoes > 1 ? " · v" + env.versao : "") + '</span>' : "—") + '</td>' +
-            '<td>' + (nv > 1 ? '<button class="btn-ghost" data-sol="hist" data-u="' + esc(u.usina_id) + '">' + (ab ? "Ocultar" : "Histórico (" + nv + ")") + '</button>' : "") + '</td></tr>';
+            '<td><div class="adm-acoes">' + (nv > 1 ? '<button class="btn-ghost" data-sol="hist" data-u="' + esc(u.usina_id) + '">' + (ab ? "Ocultar" : "Histórico (" + nv + ")") + '</button>' : "") +
+            (env && ME && ME.papel === "admin" ? '<button class="btn-ghost" style="color:var(--danger)" data-sol="apagar" data-u="' + esc(u.usina_id) + '" title="Apagar esta solicitação (todas as versões do dia). Só administrador.">' + (SOL.confirmaApagar === u.usina_id ? "Confirmar apagar" : "🗑 Apagar") + '</button>' : "") + '</div></td></tr>';
           if (ab) h += '<tr class="sol-hist"><td colspan="6">' + (u.historico || []).map(function(x){
             return '<div class="sol-v"><b>' + esc(solQuando(x.enviado_em)) + '</b> · versão ' + esc(x.versao) + (x.ativa ? ' <span class="badge success">em vigor</span>' : ' <span class="badge neutral">substituída</span>') + ' ' + solSelo(x) + (x.por ? ' <span class="faint">' + esc(x.por) + '</span>' : "") +
               '<div class="muted">' + (x.sem_necessidade ? "Sem necessidade de cimento." : solLinhasTxt(x.linhas)) + '</div></div>'; }).join("") + '</td></tr>';
@@ -6024,7 +6149,17 @@
     var r = await sb.rpc("solic_decidir", { p_id: id, p_aprovar: aprovar, p_obs: null });
     SOL.ocupado = false; SOL.confirmaNegar = null;
     SOL.msg = r.error ? dbErr(r.error) : (aprovar ? "Liberado por 60 minutos." : "Pedido negado."); SOL.ruim = !!r.error;
-    await solCarregar(false);
+    await solCarregar(true);
+  }
+  async function solApagar(usina){
+    if (!ME || ME.papel !== "admin" || !SOL.d) return;
+    var u = (SOL.d.usinas || []).find(function(x){ return x.usina_id === usina; });
+    SOL.ocupado = true;
+    var r; try { r = await sb.rpc("admin_solic_apagar", { p_usina: usina, p_dia: SOL.d.dia }); } catch (e) { r = { error: e }; }
+    SOL.ocupado = false; SOL.confirmaApagar = null;
+    SOL.msg = r.error ? dbErr(r.error) : "Solicitação de " + (u ? u.usina : "usina") + " (" + solDiaBR(SOL.d.dia) + ") apagada. Fica registrada no histórico de alterações."; SOL.ruim = !!r.error;
+    await solCarregar(true);
+    if (!r.error){ try { solProgCarregar().then(progDecorar); } catch (e) { } }
   }
   (function(){
     var v = el("view-solicitacoes"); if (!v) return;
@@ -6039,6 +6174,7 @@
       else if (a === "hist"){ SOL.abertos[b.dataset.u] = !SOL.abertos[b.dataset.u]; paintSol(); }
       else if (a === "aprovar"){ solDecidir(b.dataset.id, true); }
       else if (a === "negar"){ if (SOL.confirmaNegar !== b.dataset.id){ SOL.confirmaNegar = b.dataset.id; paintSol(); } else solDecidir(b.dataset.id, false); }
+      else if (a === "apagar"){ if (SOL.confirmaApagar !== b.dataset.u){ SOL.confirmaApagar = b.dataset.u; paintSol(); } else solApagar(b.dataset.u); }
     });
   })();
 
@@ -6148,6 +6284,9 @@
   (async function iniciar(){
     try {
       var s = await sb.auth.getSession();
+      if (REC_LINK){ try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { } }
+      if (REC_LINK && s.data && s.data.session){ REC.verificado = true; REC.viaLink = true; REC.email = s.data.session.user.email || ""; recAbrir(2); return; }
+      if (/error_code=otp_expired|error=access_denied/.test(location.hash || "")){ try { history.replaceState(null, "", location.pathname + location.search); } catch (e) { } loginMsg("O link de recuperação venceu. Use “Esqueci minha senha” de novo.", true); return; }
       if (s.data && s.data.session){ el("login").style.display = "none"; overlay(true, "Carregando…"); var ok = await entrar(s.data.session.user); if (!ok) overlay(false); }
     } catch (e) { overlay(false); }
   })();

@@ -92,7 +92,7 @@
   .aviso input[type=text]{flex:1; min-width:180px; background:var(--surface); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit;}
 
   /* ---------- Editor de linhas ---------- */
-  .linhas-cab, .linha{display:grid; grid-template-columns:minmax(130px,1.2fr) minmax(90px,.6fr) minmax(150px,1fr) 40px; gap:10px; align-items:center;}
+  .linhas-cab, .linha{display:grid; grid-template-columns:minmax(130px,1.2fr) minmax(90px,.6fr) minmax(150px,1fr) minmax(110px,.7fr) 40px; gap:10px; align-items:center;}
   .linhas-cab{padding:0 0 6px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--text-faint);}
   .linha{margin-bottom:10px;}
   .linha select, .linha input{width:100%; height:40px; background:var(--surface-2); color:var(--text); border:1px solid var(--border-strong); border-radius:6px; padding:0 10px; font-size:14px; font-family:inherit;}
@@ -144,9 +144,10 @@
   @media (max-width:600px){
     .linhas-cab{display:none;}
     .linha{grid-template-columns:1fr 1fr; padding:12px; border:1px solid var(--border); border-radius:8px; background:var(--surface);}
-    .linha .m{grid-column:1 / -1;}
-    .linha .rm{grid-column:2; justify-self:end; width:100%;}
-    .linha .c{grid-column:1;} .linha .d{grid-column:1 / -1;}
+    .linha .m{grid-column:1 / -1; order:1;}
+    .linha .c{grid-column:1; order:2;}
+    .linha .rm{grid-column:2; justify-self:end; width:100%; order:3;}
+    .linha .d{grid-column:1; order:4;} .linha .p{grid-column:2; order:5;}
     .tabela .oculta-mobile{display:none;}
     .top{flex-wrap:wrap; gap:8px 10px;}
     .relogio{order:9; flex:1 1 100%; text-align:center; white-space:normal;}
@@ -295,12 +296,12 @@
   }
   function puxarLinhas(est){
     var env = est.envio;
-    if (env && !env.sem_necessidade && env.linhas.length) S.linhas = env.linhas.map(function(l){ return { material: l.material, carretas: String(l.carretas), data: String(l.data_desejada).slice(0, 10) }; });
+    if (env && !env.sem_necessidade && env.linhas.length) S.linhas = env.linhas.map(function(l){ return { material: l.material, carretas: String(l.carretas), data: String(l.data_desejada).slice(0, 10), periodo: l.periodo || "" }; });
     else S.linhas = [novaLinha()];
     S.sem = !!(env && env.sem_necessidade);
     S.sujo = false;
   }
-  function novaLinha(){ return { material: "", carretas: "", data: amanha() }; }
+  function novaLinha(){ return { material: "", carretas: "", data: amanha(), periodo: "" }; }
   async function recarregar(manual){
     if (!S.chave) return;
     try {
@@ -354,7 +355,7 @@
   }
   function resumoLinhas(ls){
     if (!ls || !ls.length) return "—";
-    return ls.map(function(l){ return l.carretas + "× " + l.material + " → " + fmtData(String(l.data_desejada).slice(0, 10)); }).join("<br>");
+    return ls.map(function(l){ return l.carretas + "× " + l.material + " → " + fmtData(String(l.data_desejada).slice(0, 10)) + (l.periodo ? " (" + (l.periodo === "CEDO" ? "cedo" : "tarde") + ")" : ""); }).join("<br>");
   }
   function seloFora(env){ return env && env.fora_do_prazo ? '<span class="badge warning">⏱ Fora do prazo — autorizado</span>' : ""; }
   function rotuloVersao(v, ativa){
@@ -400,12 +401,14 @@
     }
     h += '</div>';
 
-    h += '<div class="linhas-box' + (S.sem ? " off" : "") + '" id="linhasBox"><div class="linhas-cab"><span>Material</span><span>Carretas</span><span>Data desejada</span><span></span></div>';
+    h += '<div class="linhas-box' + (S.sem ? " off" : "") + '" id="linhasBox"><div class="linhas-cab"><span>Material</span><span>Carretas</span><span>Data desejada</span><span>Período</span><span></span></div>';
     S.linhas.forEach(function(l, i){
       h += '<div class="linha" data-row="' + i + '"><div class="m"><select data-i="' + i + '" data-f="material" aria-label="Material" ' + (pode ? "" : "disabled") + '><option value="">Material…</option>' +
         MATERIAIS.map(function(m){ return '<option value="' + m + '"' + (l.material === m ? " selected" : "") + '>' + m + '</option>'; }).join("") + '</select></div>' +
         '<div class="c"><input type="number" inputmode="numeric" min="1" max="99" step="1" placeholder="Carretas" data-i="' + i + '" data-f="carretas" aria-label="Quantidade de carretas" value="' + esc(l.carretas) + '" ' + (pode ? "" : "disabled") + '></div>' +
         '<div class="d"><input type="date" min="' + esc(hojeCivil()) + '" data-i="' + i + '" data-f="data" aria-label="Data desejada" value="' + esc(l.data) + '" ' + (pode ? "" : "disabled") + '></div>' +
+        '<div class="p"><select data-i="' + i + '" data-f="periodo" aria-label="Período: cedo ou tarde" ' + (pode ? "" : "disabled") + '><option value="">Período…</option>' +
+        [["CEDO", "Cedo"], ["TARDE", "Tarde"]].map(function(o){ return '<option value="' + o[0] + '"' + (l.periodo === o[0] ? " selected" : "") + '>' + o[1] + '</option>'; }).join("") + '</select></div>' +
         '<button type="button" class="rm" data-act="rm" data-i="' + i + '" aria-label="Remover linha" title="Remover linha" ' + (pode && S.linhas.length > 1 ? "" : "disabled") + '>✕</button></div>';
     });
     h += '<div class="acoes-editor" style="margin-bottom:8px"><button type="button" class="btn" data-act="add" ' + (pode && S.linhas.length < 30 ? "" : "disabled") + '>+ Adicionar nova linha</button></div></div>';
@@ -493,7 +496,7 @@
       var q = Number(l.carretas); if (!l.carretas || !isFinite(q) || q < 1 || q > 99 || Math.floor(q) !== q) return { i: i, t: "Informe a quantidade de carretas (1 a 99) na linha " + n + "." };
       if (!l.data) return { i: i, t: "Informe a data desejada na linha " + n + "." };
       if (l.data < hoje) return { i: i, t: "A data da linha " + n + " já passou." };
-      var k = l.material + "|" + l.data; if (vistos[k]) return { i: i, t: "Material e data repetidos na linha " + n + ". Some as carretas numa linha só." }; vistos[k] = 1;
+      var k = l.material + "|" + l.data + "|" + (l.periodo || ""); if (vistos[k]) return { i: i, t: "Material, data e período repetidos na linha " + n + ". Some as carretas numa linha só." }; vistos[k] = 1;
     }
     return null;
   }
@@ -508,7 +511,7 @@
     marcarErro(null);
     S.enviando = true; S.msg = ""; desenhar();
     try {
-      var args = { p_chave: S.chave, p_sem_necessidade: S.sem, p_linhas: S.sem ? [] : S.linhas.map(function(l){ return { material: l.material, carretas: Number(l.carretas), data_desejada: l.data }; }) };
+      var args = { p_chave: S.chave, p_sem_necessidade: S.sem, p_linhas: S.sem ? [] : S.linhas.map(function(l){ return { material: l.material, carretas: Number(l.carretas), data_desejada: l.data, periodo: l.periodo || "" }; }) };
       if (S.tipo === "encarregado") args.p_usina = S.usinaSel;
       var d = await chamar("solic_k_enviar", args);
       if (d.erro){ S.enviando = false; sair(); msgLogin(ERROS[d.erro] || "Sessão encerrada.", true); return; }
